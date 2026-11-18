@@ -4,7 +4,18 @@
 package announcementopenapi
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/oapi-codegen/runtime"
 )
 
 // Defines values for GetAnnouncementsParamsStatus.
@@ -1822,3 +1833,4719 @@ type PutAnnouncementJSONRequestBody PutAnnouncementJSONBody
 
 // PostAnnouncementPublishJSONRequestBody defines body for PostAnnouncementPublish for application/json ContentType.
 type PostAnnouncementPublishJSONRequestBody PostAnnouncementPublishJSONBody
+
+// ServerInterface represents all server handlers.
+type ServerInterface interface {
+	// GetAnnouncements List announcements for management
+	// (GET /api/announcements)
+	GetAnnouncements(c *gin.Context, params GetAnnouncementsParams)
+	// PostAnnouncements Create an announcement draft
+	// (POST /api/announcements)
+	PostAnnouncements(c *gin.Context, params PostAnnouncementsParams)
+	// GetAnnouncementSavedViews List private announcement saved views
+	// (GET /api/announcements/saved-views)
+	GetAnnouncementSavedViews(c *gin.Context, params GetAnnouncementSavedViewsParams)
+	// PostAnnouncementSavedView Create a private announcement saved view
+	// (POST /api/announcements/saved-views)
+	PostAnnouncementSavedView(c *gin.Context, params PostAnnouncementSavedViewParams)
+	// DeleteAnnouncementSavedView Delete a private announcement saved view
+	// (DELETE /api/announcements/saved-views/{viewId})
+	DeleteAnnouncementSavedView(c *gin.Context, viewId int64, params DeleteAnnouncementSavedViewParams)
+	// PutAnnouncementSavedView Update a private announcement saved view
+	// (PUT /api/announcements/saved-views/{viewId})
+	PutAnnouncementSavedView(c *gin.Context, viewId int64, params PutAnnouncementSavedViewParams)
+	// DeleteAnnouncement Delete an announcement
+	// (DELETE /api/announcements/{id})
+	DeleteAnnouncement(c *gin.Context, id int64, params DeleteAnnouncementParams)
+	// GetAnnouncement Get one announcement for management
+	// (GET /api/announcements/{id})
+	GetAnnouncement(c *gin.Context, id int64, params GetAnnouncementParams)
+	// PutAnnouncement Update an announcement
+	// (PUT /api/announcements/{id})
+	PutAnnouncement(c *gin.Context, id int64, params PutAnnouncementParams)
+	// PostAnnouncementArchive Archive an announcement
+	// (POST /api/announcements/{id}/archive)
+	PostAnnouncementArchive(c *gin.Context, id int64, params PostAnnouncementArchiveParams)
+	// PostAnnouncementPublish Publish an announcement
+	// (POST /api/announcements/{id}/publish)
+	PostAnnouncementPublish(c *gin.Context, id int64, params PostAnnouncementPublishParams)
+	// GetMyAnnouncements List current-user announcements
+	// (GET /api/my/announcements)
+	GetMyAnnouncements(c *gin.Context, params GetMyAnnouncementsParams)
+	// PostMyAnnouncementsReadAll Mark all current-user announcements as read
+	// (POST /api/my/announcements/read-all)
+	PostMyAnnouncementsReadAll(c *gin.Context, params PostMyAnnouncementsReadAllParams)
+	// GetMyAnnouncementsUnreadCount Get current-user announcement unread count
+	// (GET /api/my/announcements/unread-count)
+	GetMyAnnouncementsUnreadCount(c *gin.Context, params GetMyAnnouncementsUnreadCountParams)
+	// PostMyAnnouncementRead Mark one current-user announcement as read
+	// (POST /api/my/announcements/{id}/read)
+	PostMyAnnouncementRead(c *gin.Context, id int64, params PostMyAnnouncementReadParams)
+}
+
+// ServerInterfaceWrapper converts contexts to parameters.
+type ServerInterfaceWrapper struct {
+	Handler            ServerInterface
+	HandlerMiddlewares []MiddlewareFunc
+	ErrorHandler       func(*gin.Context, error, int)
+}
+
+type MiddlewareFunc func(c *gin.Context)
+
+// GetAnnouncements operation middleware
+func (siw *ServerInterfaceWrapper) GetAnnouncements(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAnnouncementsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", c.Request.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter status: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "level" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "level", c.Request.URL.Query(), &params.Level, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter level: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "pinned" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "pinned", c.Request.URL.Query(), &params.Pinned, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter pinned: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "keyword" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "keyword", c.Request.URL.Query(), &params.Keyword, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter keyword: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "page_size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page_size", c.Request.URL.Query(), &params.PageSize, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page_size: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "sort" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "sort", c.Request.URL.Query(), &params.Sort, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter sort: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAnnouncements(c, params)
+}
+
+// PostAnnouncements operation middleware
+func (siw *ServerInterfaceWrapper) PostAnnouncements(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAnnouncementsParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAnnouncements(c, params)
+}
+
+// GetAnnouncementSavedViews operation middleware
+func (siw *ServerInterfaceWrapper) GetAnnouncementSavedViews(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAnnouncementSavedViewsParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAnnouncementSavedViews(c, params)
+}
+
+// PostAnnouncementSavedView operation middleware
+func (siw *ServerInterfaceWrapper) PostAnnouncementSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAnnouncementSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAnnouncementSavedView(c, params)
+}
+
+// DeleteAnnouncementSavedView operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAnnouncementSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", c.Param("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter viewId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteAnnouncementSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteAnnouncementSavedView(c, viewId, params)
+}
+
+// PutAnnouncementSavedView operation middleware
+func (siw *ServerInterfaceWrapper) PutAnnouncementSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", c.Param("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter viewId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutAnnouncementSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutAnnouncementSavedView(c, viewId, params)
+}
+
+// DeleteAnnouncement operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAnnouncement(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteAnnouncementParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteAnnouncement(c, id, params)
+}
+
+// GetAnnouncement operation middleware
+func (siw *ServerInterfaceWrapper) GetAnnouncement(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAnnouncementParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAnnouncement(c, id, params)
+}
+
+// PutAnnouncement operation middleware
+func (siw *ServerInterfaceWrapper) PutAnnouncement(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutAnnouncementParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutAnnouncement(c, id, params)
+}
+
+// PostAnnouncementArchive operation middleware
+func (siw *ServerInterfaceWrapper) PostAnnouncementArchive(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAnnouncementArchiveParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAnnouncementArchive(c, id, params)
+}
+
+// PostAnnouncementPublish operation middleware
+func (siw *ServerInterfaceWrapper) PostAnnouncementPublish(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAnnouncementPublishParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAnnouncementPublish(c, id, params)
+}
+
+// GetMyAnnouncements operation middleware
+func (siw *ServerInterfaceWrapper) GetMyAnnouncements(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMyAnnouncementsParams
+
+	// ------------- Optional query parameter "unread_only" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "unread_only", c.Request.URL.Query(), &params.UnreadOnly, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter unread_only: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "page_size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page_size", c.Request.URL.Query(), &params.PageSize, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page_size: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMyAnnouncements(c, params)
+}
+
+// PostMyAnnouncementsReadAll operation middleware
+func (siw *ServerInterfaceWrapper) PostMyAnnouncementsReadAll(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostMyAnnouncementsReadAllParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostMyAnnouncementsReadAll(c, params)
+}
+
+// GetMyAnnouncementsUnreadCount operation middleware
+func (siw *ServerInterfaceWrapper) GetMyAnnouncementsUnreadCount(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMyAnnouncementsUnreadCountParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMyAnnouncementsUnreadCount(c, params)
+}
+
+// PostMyAnnouncementRead operation middleware
+func (siw *ServerInterfaceWrapper) PostMyAnnouncementRead(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostMyAnnouncementReadParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostMyAnnouncementRead(c, id, params)
+}
+
+// GinServerOptions provides options for the Gin server.
+type GinServerOptions struct {
+	BaseURL      string
+	Middlewares  []MiddlewareFunc
+	ErrorHandler func(*gin.Context, error, int)
+}
+
+// RegisterHandlers creates http.Handler with routing matching OpenAPI spec.
+func RegisterHandlers(router gin.IRouter, si ServerInterface) {
+	RegisterHandlersWithOptions(router, si, GinServerOptions{})
+}
+
+// RegisterHandlersWithOptions creates http.Handler with additional options
+func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options GinServerOptions) {
+	errorHandler := options.ErrorHandler
+	if errorHandler == nil {
+		errorHandler = func(c *gin.Context, err error, statusCode int) {
+			c.JSON(statusCode, gin.H{"msg": err.Error()})
+		}
+	}
+
+	wrapper := ServerInterfaceWrapper{
+		Handler:            si,
+		HandlerMiddlewares: options.Middlewares,
+		ErrorHandler:       errorHandler,
+	}
+
+	router.GET(options.BaseURL+"/api/announcements", wrapper.GetAnnouncements)
+	router.POST(options.BaseURL+"/api/announcements", wrapper.PostAnnouncements)
+	router.GET(options.BaseURL+"/api/announcements/saved-views", wrapper.GetAnnouncementSavedViews)
+	router.POST(options.BaseURL+"/api/announcements/saved-views", wrapper.PostAnnouncementSavedView)
+	router.DELETE(options.BaseURL+"/api/announcements/saved-views/:viewId", wrapper.DeleteAnnouncementSavedView)
+	router.PUT(options.BaseURL+"/api/announcements/saved-views/:viewId", wrapper.PutAnnouncementSavedView)
+	router.DELETE(options.BaseURL+"/api/announcements/:id", wrapper.DeleteAnnouncement)
+	router.GET(options.BaseURL+"/api/announcements/:id", wrapper.GetAnnouncement)
+	router.PUT(options.BaseURL+"/api/announcements/:id", wrapper.PutAnnouncement)
+	router.POST(options.BaseURL+"/api/announcements/:id/archive", wrapper.PostAnnouncementArchive)
+	router.POST(options.BaseURL+"/api/announcements/:id/publish", wrapper.PostAnnouncementPublish)
+	router.GET(options.BaseURL+"/api/my/announcements", wrapper.GetMyAnnouncements)
+	router.POST(options.BaseURL+"/api/my/announcements/read-all", wrapper.PostMyAnnouncementsReadAll)
+	router.GET(options.BaseURL+"/api/my/announcements/unread-count", wrapper.GetMyAnnouncementsUnreadCount)
+	router.POST(options.BaseURL+"/api/my/announcements/:id/read", wrapper.PostMyAnnouncementRead)
+}
+
+type GetAnnouncementsRequestObject struct {
+	Params GetAnnouncementsParams
+}
+
+type GetAnnouncementsResponseObject interface {
+	VisitGetAnnouncementsResponse(w http.ResponseWriter) error
+}
+
+type GetAnnouncements200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAnnouncements200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			Items []struct {
+				// ArchivedAt Manual archive time. Meaningful only when status is archived and cleared on publish or re-publish.
+				ArchivedAt *time.Time `json:"archived_at,omitempty"`
+				Content    string     `json:"content"`
+				CreatedAt  time.Time  `json:"created_at"`
+				CreatedBy  *int64     `json:"created_by,omitempty"`
+				DeletedBy  *int64     `json:"deleted_by,omitempty"`
+
+				// DeliveryMode Announcement delivery presentation mode.
+				DeliveryMode GetAnnouncements200JSONResponseBodyDataItemsDeliveryMode `json:"delivery_mode"`
+
+				// ExpireAt Announcement visibility end time. Null means long-term valid; expiry hides the announcement from current-user endpoints without changing status.
+				ExpireAt *time.Time `json:"expire_at,omitempty"`
+				Id       int64      `json:"id"`
+
+				// Level Announcement presentation level.
+				Level  GetAnnouncements200JSONResponseBodyDataItemsLevel `json:"level"`
+				Pinned bool                                              `json:"pinned"`
+
+				// PublishAt Announcement visibility start time. Null means the announcement becomes visible immediately after publish. Future values schedule visibility; past values preserve a backfilled effective time.
+				PublishAt *time.Time `json:"publish_at,omitempty"`
+
+				// PublishedAt Time of the latest publish or re-publish action. Used for audit and management display only; it does not participate in current-user visibility.
+				PublishedAt *time.Time `json:"published_at,omitempty"`
+
+				// PublishedBy User id that performed the latest publish or re-publish action. Existing rows may remain null.
+				PublishedBy *int64 `json:"published_by,omitempty"`
+
+				// ReadAt Current user's read time when returned by current-user endpoints.
+				ReadAt *time.Time `json:"read_at,omitempty"`
+
+				// Status Announcement lifecycle status.
+				Status GetAnnouncements200JSONResponseBodyDataItemsStatus `json:"status"`
+				Title  string                                             `json:"title"`
+
+				// Unread Current-user unread state when returned by current-user endpoints.
+				Unread    *bool     `json:"unread,omitempty"`
+				UpdatedAt time.Time `json:"updated_at"`
+				UpdatedBy *int64    `json:"updated_by,omitempty"`
+			} `json:"items"`
+			Page     int `json:"page"`
+			PageSize int `json:"page_size"`
+			Total    int `json:"total"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetAnnouncements200ResponseHeaders
+}
+
+func (response GetAnnouncements200JSONResponse) VisitGetAnnouncementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAnnouncements401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAnnouncements401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetAnnouncements401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetAnnouncements401ResponseHeaders
+}
+
+func (response GetAnnouncements401JSONResponse) VisitGetAnnouncementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAnnouncements403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAnnouncements403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetAnnouncements403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetAnnouncements403ResponseHeaders
+}
+
+func (response GetAnnouncements403JSONResponse) VisitGetAnnouncementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAnnouncements500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAnnouncements500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetAnnouncements500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetAnnouncements500ResponseHeaders
+}
+
+func (response GetAnnouncements500JSONResponse) VisitGetAnnouncementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncementsRequestObject struct {
+	Params PostAnnouncementsParams
+	Body   *PostAnnouncementsJSONRequestBody
+}
+
+type PostAnnouncementsResponseObject interface {
+	VisitPostAnnouncementsResponse(w http.ResponseWriter) error
+}
+
+type PostAnnouncements201ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncements201JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			// ArchivedAt Manual archive time. Meaningful only when status is archived and cleared on publish or re-publish.
+			ArchivedAt *time.Time `json:"archived_at,omitempty"`
+			Content    string     `json:"content"`
+			CreatedAt  time.Time  `json:"created_at"`
+			CreatedBy  *int64     `json:"created_by,omitempty"`
+			DeletedBy  *int64     `json:"deleted_by,omitempty"`
+
+			// DeliveryMode Announcement delivery presentation mode.
+			DeliveryMode PostAnnouncements201JSONResponseBodyDataDeliveryMode `json:"delivery_mode"`
+
+			// ExpireAt Announcement visibility end time. Null means long-term valid; expiry hides the announcement from current-user endpoints without changing status.
+			ExpireAt *time.Time `json:"expire_at,omitempty"`
+			Id       int64      `json:"id"`
+
+			// Level Announcement presentation level.
+			Level  PostAnnouncements201JSONResponseBodyDataLevel `json:"level"`
+			Pinned bool                                          `json:"pinned"`
+
+			// PublishAt Announcement visibility start time. Null means the announcement becomes visible immediately after publish. Future values schedule visibility; past values preserve a backfilled effective time.
+			PublishAt *time.Time `json:"publish_at,omitempty"`
+
+			// PublishedAt Time of the latest publish or re-publish action. Used for audit and management display only; it does not participate in current-user visibility.
+			PublishedAt *time.Time `json:"published_at,omitempty"`
+
+			// PublishedBy User id that performed the latest publish or re-publish action. Existing rows may remain null.
+			PublishedBy *int64 `json:"published_by,omitempty"`
+
+			// ReadAt Current user's read time when returned by current-user endpoints.
+			ReadAt *time.Time `json:"read_at,omitempty"`
+
+			// Status Announcement lifecycle status.
+			Status PostAnnouncements201JSONResponseBodyDataStatus `json:"status"`
+			Title  string                                         `json:"title"`
+
+			// Unread Current-user unread state when returned by current-user endpoints.
+			Unread    *bool     `json:"unread,omitempty"`
+			UpdatedAt time.Time `json:"updated_at"`
+			UpdatedBy *int64    `json:"updated_by,omitempty"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostAnnouncements201ResponseHeaders
+}
+
+func (response PostAnnouncements201JSONResponse) VisitPostAnnouncementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncements400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncements400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    PostAnnouncements400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers PostAnnouncements400ResponseHeaders
+}
+
+func (response PostAnnouncements400JSONResponse) VisitPostAnnouncementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncements401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncements401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    PostAnnouncements401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers PostAnnouncements401ResponseHeaders
+}
+
+func (response PostAnnouncements401JSONResponse) VisitPostAnnouncementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncements403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncements403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    PostAnnouncements403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers PostAnnouncements403ResponseHeaders
+}
+
+func (response PostAnnouncements403JSONResponse) VisitPostAnnouncementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncements500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncements500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    PostAnnouncements500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers PostAnnouncements500ResponseHeaders
+}
+
+func (response PostAnnouncements500JSONResponse) VisitPostAnnouncementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAnnouncementSavedViewsRequestObject struct {
+	Params GetAnnouncementSavedViewsParams
+}
+
+type GetAnnouncementSavedViewsResponseObject interface {
+	VisitGetAnnouncementSavedViewsResponse(w http.ResponseWriter) error
+}
+
+type GetAnnouncementSavedViews200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		Items []struct {
+			CreatedAt time.Time `json:"created_at"`
+			Id        int64     `json:"id"`
+
+			// IsDefault Whether this user view is applied by default for its list surface.
+			IsDefault      bool                   `json:"is_default"`
+			Name           string                 `json:"name"`
+			PageSize       int                    `json:"page_size"`
+			QueryState     map[string]interface{} `json:"query_state"`
+			UpdatedAt      time.Time              `json:"updated_at"`
+			VisibleColumns []string               `json:"visible_columns"`
+		} `json:"items"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response GetAnnouncementSavedViews200JSONResponse) VisitGetAnnouncementSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAnnouncementSavedViews401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAnnouncementSavedViews401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    GetAnnouncementSavedViews401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers GetAnnouncementSavedViews401ResponseHeaders
+}
+
+func (response GetAnnouncementSavedViews401JSONResponse) VisitGetAnnouncementSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAnnouncementSavedViews403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAnnouncementSavedViews403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    GetAnnouncementSavedViews403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers GetAnnouncementSavedViews403ResponseHeaders
+}
+
+func (response GetAnnouncementSavedViews403JSONResponse) VisitGetAnnouncementSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncementSavedViewRequestObject struct {
+	Params PostAnnouncementSavedViewParams
+	Body   *PostAnnouncementSavedViewJSONRequestBody
+}
+
+type PostAnnouncementSavedViewResponseObject interface {
+	VisitPostAnnouncementSavedViewResponse(w http.ResponseWriter) error
+}
+
+type PostAnnouncementSavedView201JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		CreatedAt time.Time `json:"created_at"`
+		Id        int64     `json:"id"`
+
+		// IsDefault Whether this user view is applied by default for its list surface.
+		IsDefault      bool                   `json:"is_default"`
+		Name           string                 `json:"name"`
+		PageSize       int                    `json:"page_size"`
+		QueryState     map[string]interface{} `json:"query_state"`
+		UpdatedAt      time.Time              `json:"updated_at"`
+		VisibleColumns []string               `json:"visible_columns"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PostAnnouncementSavedView201JSONResponse) VisitPostAnnouncementSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncementSavedView400Response struct {
+}
+
+func (response PostAnnouncementSavedView400Response) VisitPostAnnouncementSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PostAnnouncementSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncementSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostAnnouncementSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostAnnouncementSavedView401ResponseHeaders
+}
+
+func (response PostAnnouncementSavedView401JSONResponse) VisitPostAnnouncementSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncementSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncementSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostAnnouncementSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostAnnouncementSavedView403ResponseHeaders
+}
+
+func (response PostAnnouncementSavedView403JSONResponse) VisitPostAnnouncementSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncementSavedView409Response struct {
+}
+
+func (response PostAnnouncementSavedView409Response) VisitPostAnnouncementSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type DeleteAnnouncementSavedViewRequestObject struct {
+	ViewId int64 `json:"viewId"`
+	Params DeleteAnnouncementSavedViewParams
+}
+
+type DeleteAnnouncementSavedViewResponseObject interface {
+	VisitDeleteAnnouncementSavedViewResponse(w http.ResponseWriter) error
+}
+
+type DeleteAnnouncementSavedView204Response struct {
+}
+
+func (response DeleteAnnouncementSavedView204Response) VisitDeleteAnnouncementSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteAnnouncementSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteAnnouncementSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                               `json:"messageKey,omitempty"`
+		Success    DeleteAnnouncementSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                `json:"traceId"`
+	}
+	Headers DeleteAnnouncementSavedView401ResponseHeaders
+}
+
+func (response DeleteAnnouncementSavedView401JSONResponse) VisitDeleteAnnouncementSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAnnouncementSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteAnnouncementSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                               `json:"messageKey,omitempty"`
+		Success    DeleteAnnouncementSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                `json:"traceId"`
+	}
+	Headers DeleteAnnouncementSavedView403ResponseHeaders
+}
+
+func (response DeleteAnnouncementSavedView403JSONResponse) VisitDeleteAnnouncementSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAnnouncementSavedView404Response struct {
+}
+
+func (response DeleteAnnouncementSavedView404Response) VisitDeleteAnnouncementSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PutAnnouncementSavedViewRequestObject struct {
+	ViewId int64 `json:"viewId"`
+	Params PutAnnouncementSavedViewParams
+	Body   *PutAnnouncementSavedViewJSONRequestBody
+}
+
+type PutAnnouncementSavedViewResponseObject interface {
+	VisitPutAnnouncementSavedViewResponse(w http.ResponseWriter) error
+}
+
+type PutAnnouncementSavedView200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		CreatedAt time.Time `json:"created_at"`
+		Id        int64     `json:"id"`
+
+		// IsDefault Whether this user view is applied by default for its list surface.
+		IsDefault      bool                   `json:"is_default"`
+		Name           string                 `json:"name"`
+		PageSize       int                    `json:"page_size"`
+		QueryState     map[string]interface{} `json:"query_state"`
+		UpdatedAt      time.Time              `json:"updated_at"`
+		VisibleColumns []string               `json:"visible_columns"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PutAnnouncementSavedView200JSONResponse) VisitPutAnnouncementSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAnnouncementSavedView400Response struct {
+}
+
+func (response PutAnnouncementSavedView400Response) VisitPutAnnouncementSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PutAnnouncementSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAnnouncementSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    PutAnnouncementSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers PutAnnouncementSavedView401ResponseHeaders
+}
+
+func (response PutAnnouncementSavedView401JSONResponse) VisitPutAnnouncementSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAnnouncementSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAnnouncementSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    PutAnnouncementSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers PutAnnouncementSavedView403ResponseHeaders
+}
+
+func (response PutAnnouncementSavedView403JSONResponse) VisitPutAnnouncementSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAnnouncementSavedView404Response struct {
+}
+
+func (response PutAnnouncementSavedView404Response) VisitPutAnnouncementSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PutAnnouncementSavedView409Response struct {
+}
+
+func (response PutAnnouncementSavedView409Response) VisitPutAnnouncementSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type DeleteAnnouncementRequestObject struct {
+	Id     int64 `json:"id"`
+	Params DeleteAnnouncementParams
+}
+
+type DeleteAnnouncementResponseObject interface {
+	VisitDeleteAnnouncementResponse(w http.ResponseWriter) error
+}
+
+type DeleteAnnouncement200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteAnnouncement200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data any    `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers DeleteAnnouncement200ResponseHeaders
+}
+
+func (response DeleteAnnouncement200JSONResponse) VisitDeleteAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAnnouncement401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteAnnouncement401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    DeleteAnnouncement401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers DeleteAnnouncement401ResponseHeaders
+}
+
+func (response DeleteAnnouncement401JSONResponse) VisitDeleteAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAnnouncement403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteAnnouncement403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    DeleteAnnouncement403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers DeleteAnnouncement403ResponseHeaders
+}
+
+func (response DeleteAnnouncement403JSONResponse) VisitDeleteAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAnnouncement404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteAnnouncement404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    DeleteAnnouncement404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers DeleteAnnouncement404ResponseHeaders
+}
+
+func (response DeleteAnnouncement404JSONResponse) VisitDeleteAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAnnouncement409ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteAnnouncement409JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    DeleteAnnouncement409JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers DeleteAnnouncement409ResponseHeaders
+}
+
+func (response DeleteAnnouncement409JSONResponse) VisitDeleteAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAnnouncement500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteAnnouncement500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    DeleteAnnouncement500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers DeleteAnnouncement500ResponseHeaders
+}
+
+func (response DeleteAnnouncement500JSONResponse) VisitDeleteAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAnnouncementRequestObject struct {
+	Id     int64 `json:"id"`
+	Params GetAnnouncementParams
+}
+
+type GetAnnouncementResponseObject interface {
+	VisitGetAnnouncementResponse(w http.ResponseWriter) error
+}
+
+type GetAnnouncement200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAnnouncement200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			// ArchivedAt Manual archive time. Meaningful only when status is archived and cleared on publish or re-publish.
+			ArchivedAt *time.Time `json:"archived_at,omitempty"`
+			Content    string     `json:"content"`
+			CreatedAt  time.Time  `json:"created_at"`
+			CreatedBy  *int64     `json:"created_by,omitempty"`
+			DeletedBy  *int64     `json:"deleted_by,omitempty"`
+
+			// DeliveryMode Announcement delivery presentation mode.
+			DeliveryMode GetAnnouncement200JSONResponseBodyDataDeliveryMode `json:"delivery_mode"`
+
+			// ExpireAt Announcement visibility end time. Null means long-term valid; expiry hides the announcement from current-user endpoints without changing status.
+			ExpireAt *time.Time `json:"expire_at,omitempty"`
+			Id       int64      `json:"id"`
+
+			// Level Announcement presentation level.
+			Level  GetAnnouncement200JSONResponseBodyDataLevel `json:"level"`
+			Pinned bool                                        `json:"pinned"`
+
+			// PublishAt Announcement visibility start time. Null means the announcement becomes visible immediately after publish. Future values schedule visibility; past values preserve a backfilled effective time.
+			PublishAt *time.Time `json:"publish_at,omitempty"`
+
+			// PublishedAt Time of the latest publish or re-publish action. Used for audit and management display only; it does not participate in current-user visibility.
+			PublishedAt *time.Time `json:"published_at,omitempty"`
+
+			// PublishedBy User id that performed the latest publish or re-publish action. Existing rows may remain null.
+			PublishedBy *int64 `json:"published_by,omitempty"`
+
+			// ReadAt Current user's read time when returned by current-user endpoints.
+			ReadAt *time.Time `json:"read_at,omitempty"`
+
+			// Status Announcement lifecycle status.
+			Status GetAnnouncement200JSONResponseBodyDataStatus `json:"status"`
+			Title  string                                       `json:"title"`
+
+			// Unread Current-user unread state when returned by current-user endpoints.
+			Unread    *bool     `json:"unread,omitempty"`
+			UpdatedAt time.Time `json:"updated_at"`
+			UpdatedBy *int64    `json:"updated_by,omitempty"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetAnnouncement200ResponseHeaders
+}
+
+func (response GetAnnouncement200JSONResponse) VisitGetAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAnnouncement401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAnnouncement401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetAnnouncement401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetAnnouncement401ResponseHeaders
+}
+
+func (response GetAnnouncement401JSONResponse) VisitGetAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAnnouncement403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAnnouncement403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetAnnouncement403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetAnnouncement403ResponseHeaders
+}
+
+func (response GetAnnouncement403JSONResponse) VisitGetAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAnnouncement404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAnnouncement404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetAnnouncement404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetAnnouncement404ResponseHeaders
+}
+
+func (response GetAnnouncement404JSONResponse) VisitGetAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAnnouncement500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAnnouncement500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetAnnouncement500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetAnnouncement500ResponseHeaders
+}
+
+func (response GetAnnouncement500JSONResponse) VisitGetAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAnnouncementRequestObject struct {
+	Id     int64 `json:"id"`
+	Params PutAnnouncementParams
+	Body   *PutAnnouncementJSONRequestBody
+}
+
+type PutAnnouncementResponseObject interface {
+	VisitPutAnnouncementResponse(w http.ResponseWriter) error
+}
+
+type PutAnnouncement200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAnnouncement200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			// ArchivedAt Manual archive time. Meaningful only when status is archived and cleared on publish or re-publish.
+			ArchivedAt *time.Time `json:"archived_at,omitempty"`
+			Content    string     `json:"content"`
+			CreatedAt  time.Time  `json:"created_at"`
+			CreatedBy  *int64     `json:"created_by,omitempty"`
+			DeletedBy  *int64     `json:"deleted_by,omitempty"`
+
+			// DeliveryMode Announcement delivery presentation mode.
+			DeliveryMode PutAnnouncement200JSONResponseBodyDataDeliveryMode `json:"delivery_mode"`
+
+			// ExpireAt Announcement visibility end time. Null means long-term valid; expiry hides the announcement from current-user endpoints without changing status.
+			ExpireAt *time.Time `json:"expire_at,omitempty"`
+			Id       int64      `json:"id"`
+
+			// Level Announcement presentation level.
+			Level  PutAnnouncement200JSONResponseBodyDataLevel `json:"level"`
+			Pinned bool                                        `json:"pinned"`
+
+			// PublishAt Announcement visibility start time. Null means the announcement becomes visible immediately after publish. Future values schedule visibility; past values preserve a backfilled effective time.
+			PublishAt *time.Time `json:"publish_at,omitempty"`
+
+			// PublishedAt Time of the latest publish or re-publish action. Used for audit and management display only; it does not participate in current-user visibility.
+			PublishedAt *time.Time `json:"published_at,omitempty"`
+
+			// PublishedBy User id that performed the latest publish or re-publish action. Existing rows may remain null.
+			PublishedBy *int64 `json:"published_by,omitempty"`
+
+			// ReadAt Current user's read time when returned by current-user endpoints.
+			ReadAt *time.Time `json:"read_at,omitempty"`
+
+			// Status Announcement lifecycle status.
+			Status PutAnnouncement200JSONResponseBodyDataStatus `json:"status"`
+			Title  string                                       `json:"title"`
+
+			// Unread Current-user unread state when returned by current-user endpoints.
+			Unread    *bool     `json:"unread,omitempty"`
+			UpdatedAt time.Time `json:"updated_at"`
+			UpdatedBy *int64    `json:"updated_by,omitempty"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PutAnnouncement200ResponseHeaders
+}
+
+func (response PutAnnouncement200JSONResponse) VisitPutAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAnnouncement400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAnnouncement400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    PutAnnouncement400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers PutAnnouncement400ResponseHeaders
+}
+
+func (response PutAnnouncement400JSONResponse) VisitPutAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAnnouncement401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAnnouncement401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    PutAnnouncement401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers PutAnnouncement401ResponseHeaders
+}
+
+func (response PutAnnouncement401JSONResponse) VisitPutAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAnnouncement403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAnnouncement403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    PutAnnouncement403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers PutAnnouncement403ResponseHeaders
+}
+
+func (response PutAnnouncement403JSONResponse) VisitPutAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAnnouncement404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAnnouncement404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    PutAnnouncement404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers PutAnnouncement404ResponseHeaders
+}
+
+func (response PutAnnouncement404JSONResponse) VisitPutAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAnnouncement500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAnnouncement500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    PutAnnouncement500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers PutAnnouncement500ResponseHeaders
+}
+
+func (response PutAnnouncement500JSONResponse) VisitPutAnnouncementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncementArchiveRequestObject struct {
+	Id     int64 `json:"id"`
+	Params PostAnnouncementArchiveParams
+}
+
+type PostAnnouncementArchiveResponseObject interface {
+	VisitPostAnnouncementArchiveResponse(w http.ResponseWriter) error
+}
+
+type PostAnnouncementArchive200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncementArchive200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			// ArchivedAt Manual archive time. Meaningful only when status is archived and cleared on publish or re-publish.
+			ArchivedAt *time.Time `json:"archived_at,omitempty"`
+			Content    string     `json:"content"`
+			CreatedAt  time.Time  `json:"created_at"`
+			CreatedBy  *int64     `json:"created_by,omitempty"`
+			DeletedBy  *int64     `json:"deleted_by,omitempty"`
+
+			// DeliveryMode Announcement delivery presentation mode.
+			DeliveryMode PostAnnouncementArchive200JSONResponseBodyDataDeliveryMode `json:"delivery_mode"`
+
+			// ExpireAt Announcement visibility end time. Null means long-term valid; expiry hides the announcement from current-user endpoints without changing status.
+			ExpireAt *time.Time `json:"expire_at,omitempty"`
+			Id       int64      `json:"id"`
+
+			// Level Announcement presentation level.
+			Level  PostAnnouncementArchive200JSONResponseBodyDataLevel `json:"level"`
+			Pinned bool                                                `json:"pinned"`
+
+			// PublishAt Announcement visibility start time. Null means the announcement becomes visible immediately after publish. Future values schedule visibility; past values preserve a backfilled effective time.
+			PublishAt *time.Time `json:"publish_at,omitempty"`
+
+			// PublishedAt Time of the latest publish or re-publish action. Used for audit and management display only; it does not participate in current-user visibility.
+			PublishedAt *time.Time `json:"published_at,omitempty"`
+
+			// PublishedBy User id that performed the latest publish or re-publish action. Existing rows may remain null.
+			PublishedBy *int64 `json:"published_by,omitempty"`
+
+			// ReadAt Current user's read time when returned by current-user endpoints.
+			ReadAt *time.Time `json:"read_at,omitempty"`
+
+			// Status Announcement lifecycle status.
+			Status PostAnnouncementArchive200JSONResponseBodyDataStatus `json:"status"`
+			Title  string                                               `json:"title"`
+
+			// Unread Current-user unread state when returned by current-user endpoints.
+			Unread    *bool     `json:"unread,omitempty"`
+			UpdatedAt time.Time `json:"updated_at"`
+			UpdatedBy *int64    `json:"updated_by,omitempty"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostAnnouncementArchive200ResponseHeaders
+}
+
+func (response PostAnnouncementArchive200JSONResponse) VisitPostAnnouncementArchiveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncementArchive401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncementArchive401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                           `json:"messageKey,omitempty"`
+		Success    PostAnnouncementArchive401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                            `json:"traceId"`
+	}
+	Headers PostAnnouncementArchive401ResponseHeaders
+}
+
+func (response PostAnnouncementArchive401JSONResponse) VisitPostAnnouncementArchiveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncementArchive403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncementArchive403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                           `json:"messageKey,omitempty"`
+		Success    PostAnnouncementArchive403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                            `json:"traceId"`
+	}
+	Headers PostAnnouncementArchive403ResponseHeaders
+}
+
+func (response PostAnnouncementArchive403JSONResponse) VisitPostAnnouncementArchiveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncementArchive404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncementArchive404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                           `json:"messageKey,omitempty"`
+		Success    PostAnnouncementArchive404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                            `json:"traceId"`
+	}
+	Headers PostAnnouncementArchive404ResponseHeaders
+}
+
+func (response PostAnnouncementArchive404JSONResponse) VisitPostAnnouncementArchiveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncementArchive500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncementArchive500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                           `json:"messageKey,omitempty"`
+		Success    PostAnnouncementArchive500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                            `json:"traceId"`
+	}
+	Headers PostAnnouncementArchive500ResponseHeaders
+}
+
+func (response PostAnnouncementArchive500JSONResponse) VisitPostAnnouncementArchiveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncementPublishRequestObject struct {
+	Id     int64 `json:"id"`
+	Params PostAnnouncementPublishParams
+	Body   *PostAnnouncementPublishJSONRequestBody
+}
+
+type PostAnnouncementPublishResponseObject interface {
+	VisitPostAnnouncementPublishResponse(w http.ResponseWriter) error
+}
+
+type PostAnnouncementPublish200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncementPublish200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			// ArchivedAt Manual archive time. Meaningful only when status is archived and cleared on publish or re-publish.
+			ArchivedAt *time.Time `json:"archived_at,omitempty"`
+			Content    string     `json:"content"`
+			CreatedAt  time.Time  `json:"created_at"`
+			CreatedBy  *int64     `json:"created_by,omitempty"`
+			DeletedBy  *int64     `json:"deleted_by,omitempty"`
+
+			// DeliveryMode Announcement delivery presentation mode.
+			DeliveryMode PostAnnouncementPublish200JSONResponseBodyDataDeliveryMode `json:"delivery_mode"`
+
+			// ExpireAt Announcement visibility end time. Null means long-term valid; expiry hides the announcement from current-user endpoints without changing status.
+			ExpireAt *time.Time `json:"expire_at,omitempty"`
+			Id       int64      `json:"id"`
+
+			// Level Announcement presentation level.
+			Level  PostAnnouncementPublish200JSONResponseBodyDataLevel `json:"level"`
+			Pinned bool                                                `json:"pinned"`
+
+			// PublishAt Announcement visibility start time. Null means the announcement becomes visible immediately after publish. Future values schedule visibility; past values preserve a backfilled effective time.
+			PublishAt *time.Time `json:"publish_at,omitempty"`
+
+			// PublishedAt Time of the latest publish or re-publish action. Used for audit and management display only; it does not participate in current-user visibility.
+			PublishedAt *time.Time `json:"published_at,omitempty"`
+
+			// PublishedBy User id that performed the latest publish or re-publish action. Existing rows may remain null.
+			PublishedBy *int64 `json:"published_by,omitempty"`
+
+			// ReadAt Current user's read time when returned by current-user endpoints.
+			ReadAt *time.Time `json:"read_at,omitempty"`
+
+			// Status Announcement lifecycle status.
+			Status PostAnnouncementPublish200JSONResponseBodyDataStatus `json:"status"`
+			Title  string                                               `json:"title"`
+
+			// Unread Current-user unread state when returned by current-user endpoints.
+			Unread    *bool     `json:"unread,omitempty"`
+			UpdatedAt time.Time `json:"updated_at"`
+			UpdatedBy *int64    `json:"updated_by,omitempty"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostAnnouncementPublish200ResponseHeaders
+}
+
+func (response PostAnnouncementPublish200JSONResponse) VisitPostAnnouncementPublishResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncementPublish401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncementPublish401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                           `json:"messageKey,omitempty"`
+		Success    PostAnnouncementPublish401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                            `json:"traceId"`
+	}
+	Headers PostAnnouncementPublish401ResponseHeaders
+}
+
+func (response PostAnnouncementPublish401JSONResponse) VisitPostAnnouncementPublishResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncementPublish403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncementPublish403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                           `json:"messageKey,omitempty"`
+		Success    PostAnnouncementPublish403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                            `json:"traceId"`
+	}
+	Headers PostAnnouncementPublish403ResponseHeaders
+}
+
+func (response PostAnnouncementPublish403JSONResponse) VisitPostAnnouncementPublishResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncementPublish404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncementPublish404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                           `json:"messageKey,omitempty"`
+		Success    PostAnnouncementPublish404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                            `json:"traceId"`
+	}
+	Headers PostAnnouncementPublish404ResponseHeaders
+}
+
+func (response PostAnnouncementPublish404JSONResponse) VisitPostAnnouncementPublishResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAnnouncementPublish500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAnnouncementPublish500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                           `json:"messageKey,omitempty"`
+		Success    PostAnnouncementPublish500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                            `json:"traceId"`
+	}
+	Headers PostAnnouncementPublish500ResponseHeaders
+}
+
+func (response PostAnnouncementPublish500JSONResponse) VisitPostAnnouncementPublishResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMyAnnouncementsRequestObject struct {
+	Params GetMyAnnouncementsParams
+}
+
+type GetMyAnnouncementsResponseObject interface {
+	VisitGetMyAnnouncementsResponse(w http.ResponseWriter) error
+}
+
+type GetMyAnnouncements200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetMyAnnouncements200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			Items []struct {
+				// ArchivedAt Manual archive time. Meaningful only when status is archived and cleared on publish or re-publish.
+				ArchivedAt *time.Time `json:"archived_at,omitempty"`
+				Content    string     `json:"content"`
+				CreatedAt  time.Time  `json:"created_at"`
+				CreatedBy  *int64     `json:"created_by,omitempty"`
+				DeletedBy  *int64     `json:"deleted_by,omitempty"`
+
+				// DeliveryMode Announcement delivery presentation mode.
+				DeliveryMode GetMyAnnouncements200JSONResponseBodyDataItemsDeliveryMode `json:"delivery_mode"`
+
+				// ExpireAt Announcement visibility end time. Null means long-term valid; expiry hides the announcement from current-user endpoints without changing status.
+				ExpireAt *time.Time `json:"expire_at,omitempty"`
+				Id       int64      `json:"id"`
+
+				// Level Announcement presentation level.
+				Level  GetMyAnnouncements200JSONResponseBodyDataItemsLevel `json:"level"`
+				Pinned bool                                                `json:"pinned"`
+
+				// PublishAt Announcement visibility start time. Null means the announcement becomes visible immediately after publish. Future values schedule visibility; past values preserve a backfilled effective time.
+				PublishAt *time.Time `json:"publish_at,omitempty"`
+
+				// PublishedAt Time of the latest publish or re-publish action. Used for audit and management display only; it does not participate in current-user visibility.
+				PublishedAt *time.Time `json:"published_at,omitempty"`
+
+				// PublishedBy User id that performed the latest publish or re-publish action. Existing rows may remain null.
+				PublishedBy *int64 `json:"published_by,omitempty"`
+
+				// ReadAt Current user's read time when returned by current-user endpoints.
+				ReadAt *time.Time `json:"read_at,omitempty"`
+
+				// Status Announcement lifecycle status.
+				Status GetMyAnnouncements200JSONResponseBodyDataItemsStatus `json:"status"`
+				Title  string                                               `json:"title"`
+
+				// Unread Current-user unread state when returned by current-user endpoints.
+				Unread    *bool     `json:"unread,omitempty"`
+				UpdatedAt time.Time `json:"updated_at"`
+				UpdatedBy *int64    `json:"updated_by,omitempty"`
+			} `json:"items"`
+			Page     int `json:"page"`
+			PageSize int `json:"page_size"`
+			Total    int `json:"total"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetMyAnnouncements200ResponseHeaders
+}
+
+func (response GetMyAnnouncements200JSONResponse) VisitGetMyAnnouncementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMyAnnouncements401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetMyAnnouncements401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    GetMyAnnouncements401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers GetMyAnnouncements401ResponseHeaders
+}
+
+func (response GetMyAnnouncements401JSONResponse) VisitGetMyAnnouncementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMyAnnouncements500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetMyAnnouncements500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    GetMyAnnouncements500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers GetMyAnnouncements500ResponseHeaders
+}
+
+func (response GetMyAnnouncements500JSONResponse) VisitGetMyAnnouncementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostMyAnnouncementsReadAllRequestObject struct {
+	Params PostMyAnnouncementsReadAllParams
+}
+
+type PostMyAnnouncementsReadAllResponseObject interface {
+	VisitPostMyAnnouncementsReadAllResponse(w http.ResponseWriter) error
+}
+
+type PostMyAnnouncementsReadAll200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostMyAnnouncementsReadAll200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			UpdatedCount int `json:"updated_count"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostMyAnnouncementsReadAll200ResponseHeaders
+}
+
+func (response PostMyAnnouncementsReadAll200JSONResponse) VisitPostMyAnnouncementsReadAllResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostMyAnnouncementsReadAll401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostMyAnnouncementsReadAll401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    PostMyAnnouncementsReadAll401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers PostMyAnnouncementsReadAll401ResponseHeaders
+}
+
+func (response PostMyAnnouncementsReadAll401JSONResponse) VisitPostMyAnnouncementsReadAllResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostMyAnnouncementsReadAll500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostMyAnnouncementsReadAll500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    PostMyAnnouncementsReadAll500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers PostMyAnnouncementsReadAll500ResponseHeaders
+}
+
+func (response PostMyAnnouncementsReadAll500JSONResponse) VisitPostMyAnnouncementsReadAllResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMyAnnouncementsUnreadCountRequestObject struct {
+	Params GetMyAnnouncementsUnreadCountParams
+}
+
+type GetMyAnnouncementsUnreadCountResponseObject interface {
+	VisitGetMyAnnouncementsUnreadCountResponse(w http.ResponseWriter) error
+}
+
+type GetMyAnnouncementsUnreadCount200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetMyAnnouncementsUnreadCount200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			Count int `json:"count"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetMyAnnouncementsUnreadCount200ResponseHeaders
+}
+
+func (response GetMyAnnouncementsUnreadCount200JSONResponse) VisitGetMyAnnouncementsUnreadCountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMyAnnouncementsUnreadCount401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetMyAnnouncementsUnreadCount401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                 `json:"messageKey,omitempty"`
+		Success    GetMyAnnouncementsUnreadCount401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                  `json:"traceId"`
+	}
+	Headers GetMyAnnouncementsUnreadCount401ResponseHeaders
+}
+
+func (response GetMyAnnouncementsUnreadCount401JSONResponse) VisitGetMyAnnouncementsUnreadCountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMyAnnouncementsUnreadCount500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetMyAnnouncementsUnreadCount500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                 `json:"messageKey,omitempty"`
+		Success    GetMyAnnouncementsUnreadCount500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                  `json:"traceId"`
+	}
+	Headers GetMyAnnouncementsUnreadCount500ResponseHeaders
+}
+
+func (response GetMyAnnouncementsUnreadCount500JSONResponse) VisitGetMyAnnouncementsUnreadCountResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostMyAnnouncementReadRequestObject struct {
+	Id     int64 `json:"id"`
+	Params PostMyAnnouncementReadParams
+}
+
+type PostMyAnnouncementReadResponseObject interface {
+	VisitPostMyAnnouncementReadResponse(w http.ResponseWriter) error
+}
+
+type PostMyAnnouncementRead200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostMyAnnouncementRead200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			// ArchivedAt Manual archive time. Meaningful only when status is archived and cleared on publish or re-publish.
+			ArchivedAt *time.Time `json:"archived_at,omitempty"`
+			Content    string     `json:"content"`
+			CreatedAt  time.Time  `json:"created_at"`
+			CreatedBy  *int64     `json:"created_by,omitempty"`
+			DeletedBy  *int64     `json:"deleted_by,omitempty"`
+
+			// DeliveryMode Announcement delivery presentation mode.
+			DeliveryMode PostMyAnnouncementRead200JSONResponseBodyDataDeliveryMode `json:"delivery_mode"`
+
+			// ExpireAt Announcement visibility end time. Null means long-term valid; expiry hides the announcement from current-user endpoints without changing status.
+			ExpireAt *time.Time `json:"expire_at,omitempty"`
+			Id       int64      `json:"id"`
+
+			// Level Announcement presentation level.
+			Level  PostMyAnnouncementRead200JSONResponseBodyDataLevel `json:"level"`
+			Pinned bool                                               `json:"pinned"`
+
+			// PublishAt Announcement visibility start time. Null means the announcement becomes visible immediately after publish. Future values schedule visibility; past values preserve a backfilled effective time.
+			PublishAt *time.Time `json:"publish_at,omitempty"`
+
+			// PublishedAt Time of the latest publish or re-publish action. Used for audit and management display only; it does not participate in current-user visibility.
+			PublishedAt *time.Time `json:"published_at,omitempty"`
+
+			// PublishedBy User id that performed the latest publish or re-publish action. Existing rows may remain null.
+			PublishedBy *int64 `json:"published_by,omitempty"`
+
+			// ReadAt Current user's read time when returned by current-user endpoints.
+			ReadAt *time.Time `json:"read_at,omitempty"`
+
+			// Status Announcement lifecycle status.
+			Status PostMyAnnouncementRead200JSONResponseBodyDataStatus `json:"status"`
+			Title  string                                              `json:"title"`
+
+			// Unread Current-user unread state when returned by current-user endpoints.
+			Unread    *bool     `json:"unread,omitempty"`
+			UpdatedAt time.Time `json:"updated_at"`
+			UpdatedBy *int64    `json:"updated_by,omitempty"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostMyAnnouncementRead200ResponseHeaders
+}
+
+func (response PostMyAnnouncementRead200JSONResponse) VisitPostMyAnnouncementReadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostMyAnnouncementRead401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostMyAnnouncementRead401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    PostMyAnnouncementRead401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers PostMyAnnouncementRead401ResponseHeaders
+}
+
+func (response PostMyAnnouncementRead401JSONResponse) VisitPostMyAnnouncementReadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostMyAnnouncementRead404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostMyAnnouncementRead404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    PostMyAnnouncementRead404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers PostMyAnnouncementRead404ResponseHeaders
+}
+
+func (response PostMyAnnouncementRead404JSONResponse) VisitPostMyAnnouncementReadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostMyAnnouncementRead500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostMyAnnouncementRead500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    PostMyAnnouncementRead500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers PostMyAnnouncementRead500ResponseHeaders
+}
+
+func (response PostMyAnnouncementRead500JSONResponse) VisitPostMyAnnouncementReadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+// StrictServerInterface represents all server handlers.
+type StrictServerInterface interface {
+	// GetAnnouncements List announcements for management
+	// (GET /api/announcements)
+	GetAnnouncements(ctx context.Context, request GetAnnouncementsRequestObject) (GetAnnouncementsResponseObject, error)
+	// PostAnnouncements Create an announcement draft
+	// (POST /api/announcements)
+	PostAnnouncements(ctx context.Context, request PostAnnouncementsRequestObject) (PostAnnouncementsResponseObject, error)
+	// GetAnnouncementSavedViews List private announcement saved views
+	// (GET /api/announcements/saved-views)
+	GetAnnouncementSavedViews(ctx context.Context, request GetAnnouncementSavedViewsRequestObject) (GetAnnouncementSavedViewsResponseObject, error)
+	// PostAnnouncementSavedView Create a private announcement saved view
+	// (POST /api/announcements/saved-views)
+	PostAnnouncementSavedView(ctx context.Context, request PostAnnouncementSavedViewRequestObject) (PostAnnouncementSavedViewResponseObject, error)
+	// DeleteAnnouncementSavedView Delete a private announcement saved view
+	// (DELETE /api/announcements/saved-views/{viewId})
+	DeleteAnnouncementSavedView(ctx context.Context, request DeleteAnnouncementSavedViewRequestObject) (DeleteAnnouncementSavedViewResponseObject, error)
+	// PutAnnouncementSavedView Update a private announcement saved view
+	// (PUT /api/announcements/saved-views/{viewId})
+	PutAnnouncementSavedView(ctx context.Context, request PutAnnouncementSavedViewRequestObject) (PutAnnouncementSavedViewResponseObject, error)
+	// DeleteAnnouncement Delete an announcement
+	// (DELETE /api/announcements/{id})
+	DeleteAnnouncement(ctx context.Context, request DeleteAnnouncementRequestObject) (DeleteAnnouncementResponseObject, error)
+	// GetAnnouncement Get one announcement for management
+	// (GET /api/announcements/{id})
+	GetAnnouncement(ctx context.Context, request GetAnnouncementRequestObject) (GetAnnouncementResponseObject, error)
+	// PutAnnouncement Update an announcement
+	// (PUT /api/announcements/{id})
+	PutAnnouncement(ctx context.Context, request PutAnnouncementRequestObject) (PutAnnouncementResponseObject, error)
+	// PostAnnouncementArchive Archive an announcement
+	// (POST /api/announcements/{id}/archive)
+	PostAnnouncementArchive(ctx context.Context, request PostAnnouncementArchiveRequestObject) (PostAnnouncementArchiveResponseObject, error)
+	// PostAnnouncementPublish Publish an announcement
+	// (POST /api/announcements/{id}/publish)
+	PostAnnouncementPublish(ctx context.Context, request PostAnnouncementPublishRequestObject) (PostAnnouncementPublishResponseObject, error)
+	// GetMyAnnouncements List current-user announcements
+	// (GET /api/my/announcements)
+	GetMyAnnouncements(ctx context.Context, request GetMyAnnouncementsRequestObject) (GetMyAnnouncementsResponseObject, error)
+	// PostMyAnnouncementsReadAll Mark all current-user announcements as read
+	// (POST /api/my/announcements/read-all)
+	PostMyAnnouncementsReadAll(ctx context.Context, request PostMyAnnouncementsReadAllRequestObject) (PostMyAnnouncementsReadAllResponseObject, error)
+	// GetMyAnnouncementsUnreadCount Get current-user announcement unread count
+	// (GET /api/my/announcements/unread-count)
+	GetMyAnnouncementsUnreadCount(ctx context.Context, request GetMyAnnouncementsUnreadCountRequestObject) (GetMyAnnouncementsUnreadCountResponseObject, error)
+	// PostMyAnnouncementRead Mark one current-user announcement as read
+	// (POST /api/my/announcements/{id}/read)
+	PostMyAnnouncementRead(ctx context.Context, request PostMyAnnouncementReadRequestObject) (PostMyAnnouncementReadResponseObject, error)
+}
+
+type StrictHandlerFunc func(ctx *gin.Context, request any) (any, error)
+type StrictMiddlewareFunc func(f StrictHandlerFunc, operationID string) StrictHandlerFunc
+
+type StrictGinServerOptions struct {
+	// RequestErrorHandlerFunc is called when a request cannot be parsed or
+	// decoded. It is invoked for JSON bind failures, form parse/bind errors,
+	// multipart reader errors, media type parse errors, missing multipart
+	// boundaries, and request body read errors. The default returns 400.
+	RequestErrorHandlerFunc func(ctx *gin.Context, err error)
+	// HandlerErrorFunc is called when the application handler (or any
+	// middleware wrapping it) returns a non-nil error. The default returns 500.
+	HandlerErrorFunc func(ctx *gin.Context, err error)
+	// ResponseErrorHandlerFunc is called when the response object fails to
+	// serialize (Visit*Response returns an error) or when the handler returns
+	// an unexpected response type. The default returns 500.
+	ResponseErrorHandlerFunc func(ctx *gin.Context, err error)
+}
+
+func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc) ServerInterface {
+	return &strictHandler{ssi: ssi, middlewares: middlewares, options: StrictGinServerOptions{
+		RequestErrorHandlerFunc: func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
+		},
+		HandlerErrorFunc: func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		},
+		ResponseErrorHandlerFunc: func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		},
+	}}
+}
+
+func NewStrictHandlerWithOptions(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc, options StrictGinServerOptions) ServerInterface {
+	if options.RequestErrorHandlerFunc == nil {
+		options.RequestErrorHandlerFunc = func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
+		}
+	}
+	if options.HandlerErrorFunc == nil {
+		options.HandlerErrorFunc = func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		}
+	}
+	if options.ResponseErrorHandlerFunc == nil {
+		options.ResponseErrorHandlerFunc = func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		}
+	}
+	return &strictHandler{ssi: ssi, middlewares: middlewares, options: options}
+}
+
+type strictHandler struct {
+	ssi         StrictServerInterface
+	middlewares []StrictMiddlewareFunc
+	options     StrictGinServerOptions
+}
+
+// GetAnnouncements operation middleware
+func (sh *strictHandler) GetAnnouncements(ctx *gin.Context, params GetAnnouncementsParams) {
+	var request GetAnnouncementsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAnnouncements(ctx, request.(GetAnnouncementsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAnnouncements")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetAnnouncementsResponseObject); ok {
+		if err := validResponse.VisitGetAnnouncementsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAnnouncements operation middleware
+func (sh *strictHandler) PostAnnouncements(ctx *gin.Context, params PostAnnouncementsParams) {
+	var request PostAnnouncementsRequestObject
+
+	request.Params = params
+
+	var body PostAnnouncementsJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAnnouncements(ctx, request.(PostAnnouncementsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAnnouncements")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostAnnouncementsResponseObject); ok {
+		if err := validResponse.VisitPostAnnouncementsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAnnouncementSavedViews operation middleware
+func (sh *strictHandler) GetAnnouncementSavedViews(ctx *gin.Context, params GetAnnouncementSavedViewsParams) {
+	var request GetAnnouncementSavedViewsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAnnouncementSavedViews(ctx, request.(GetAnnouncementSavedViewsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAnnouncementSavedViews")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetAnnouncementSavedViewsResponseObject); ok {
+		if err := validResponse.VisitGetAnnouncementSavedViewsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAnnouncementSavedView operation middleware
+func (sh *strictHandler) PostAnnouncementSavedView(ctx *gin.Context, params PostAnnouncementSavedViewParams) {
+	var request PostAnnouncementSavedViewRequestObject
+
+	request.Params = params
+
+	var body PostAnnouncementSavedViewJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAnnouncementSavedView(ctx, request.(PostAnnouncementSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAnnouncementSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostAnnouncementSavedViewResponseObject); ok {
+		if err := validResponse.VisitPostAnnouncementSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteAnnouncementSavedView operation middleware
+func (sh *strictHandler) DeleteAnnouncementSavedView(ctx *gin.Context, viewId int64, params DeleteAnnouncementSavedViewParams) {
+	var request DeleteAnnouncementSavedViewRequestObject
+
+	request.ViewId = viewId
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteAnnouncementSavedView(ctx, request.(DeleteAnnouncementSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteAnnouncementSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(DeleteAnnouncementSavedViewResponseObject); ok {
+		if err := validResponse.VisitDeleteAnnouncementSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutAnnouncementSavedView operation middleware
+func (sh *strictHandler) PutAnnouncementSavedView(ctx *gin.Context, viewId int64, params PutAnnouncementSavedViewParams) {
+	var request PutAnnouncementSavedViewRequestObject
+
+	request.ViewId = viewId
+	request.Params = params
+
+	var body PutAnnouncementSavedViewJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PutAnnouncementSavedView(ctx, request.(PutAnnouncementSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutAnnouncementSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PutAnnouncementSavedViewResponseObject); ok {
+		if err := validResponse.VisitPutAnnouncementSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteAnnouncement operation middleware
+func (sh *strictHandler) DeleteAnnouncement(ctx *gin.Context, id int64, params DeleteAnnouncementParams) {
+	var request DeleteAnnouncementRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteAnnouncement(ctx, request.(DeleteAnnouncementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteAnnouncement")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(DeleteAnnouncementResponseObject); ok {
+		if err := validResponse.VisitDeleteAnnouncementResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAnnouncement operation middleware
+func (sh *strictHandler) GetAnnouncement(ctx *gin.Context, id int64, params GetAnnouncementParams) {
+	var request GetAnnouncementRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAnnouncement(ctx, request.(GetAnnouncementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAnnouncement")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetAnnouncementResponseObject); ok {
+		if err := validResponse.VisitGetAnnouncementResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutAnnouncement operation middleware
+func (sh *strictHandler) PutAnnouncement(ctx *gin.Context, id int64, params PutAnnouncementParams) {
+	var request PutAnnouncementRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	var body PutAnnouncementJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PutAnnouncement(ctx, request.(PutAnnouncementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutAnnouncement")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PutAnnouncementResponseObject); ok {
+		if err := validResponse.VisitPutAnnouncementResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAnnouncementArchive operation middleware
+func (sh *strictHandler) PostAnnouncementArchive(ctx *gin.Context, id int64, params PostAnnouncementArchiveParams) {
+	var request PostAnnouncementArchiveRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAnnouncementArchive(ctx, request.(PostAnnouncementArchiveRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAnnouncementArchive")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostAnnouncementArchiveResponseObject); ok {
+		if err := validResponse.VisitPostAnnouncementArchiveResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAnnouncementPublish operation middleware
+func (sh *strictHandler) PostAnnouncementPublish(ctx *gin.Context, id int64, params PostAnnouncementPublishParams) {
+	var request PostAnnouncementPublishRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	var body PostAnnouncementPublishJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(ctx, err)
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAnnouncementPublish(ctx, request.(PostAnnouncementPublishRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAnnouncementPublish")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostAnnouncementPublishResponseObject); ok {
+		if err := validResponse.VisitPostAnnouncementPublishResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMyAnnouncements operation middleware
+func (sh *strictHandler) GetMyAnnouncements(ctx *gin.Context, params GetMyAnnouncementsParams) {
+	var request GetMyAnnouncementsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMyAnnouncements(ctx, request.(GetMyAnnouncementsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMyAnnouncements")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetMyAnnouncementsResponseObject); ok {
+		if err := validResponse.VisitGetMyAnnouncementsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostMyAnnouncementsReadAll operation middleware
+func (sh *strictHandler) PostMyAnnouncementsReadAll(ctx *gin.Context, params PostMyAnnouncementsReadAllParams) {
+	var request PostMyAnnouncementsReadAllRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostMyAnnouncementsReadAll(ctx, request.(PostMyAnnouncementsReadAllRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostMyAnnouncementsReadAll")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostMyAnnouncementsReadAllResponseObject); ok {
+		if err := validResponse.VisitPostMyAnnouncementsReadAllResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMyAnnouncementsUnreadCount operation middleware
+func (sh *strictHandler) GetMyAnnouncementsUnreadCount(ctx *gin.Context, params GetMyAnnouncementsUnreadCountParams) {
+	var request GetMyAnnouncementsUnreadCountRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMyAnnouncementsUnreadCount(ctx, request.(GetMyAnnouncementsUnreadCountRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMyAnnouncementsUnreadCount")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetMyAnnouncementsUnreadCountResponseObject); ok {
+		if err := validResponse.VisitGetMyAnnouncementsUnreadCountResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostMyAnnouncementRead operation middleware
+func (sh *strictHandler) PostMyAnnouncementRead(ctx *gin.Context, id int64, params PostMyAnnouncementReadParams) {
+	var request PostMyAnnouncementReadRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostMyAnnouncementRead(ctx, request.(PostMyAnnouncementReadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostMyAnnouncementRead")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostMyAnnouncementReadResponseObject); ok {
+		if err := validResponse.VisitPostMyAnnouncementReadResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}

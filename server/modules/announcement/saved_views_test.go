@@ -1,6 +1,7 @@
 package announcement
 
 import (
+	announcementopenapi "graft/server/internal/contract/openapi/announcement"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -77,9 +78,17 @@ func TestRegisterAnnouncementSavedViewRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	moduleCtx := newAnnouncementTestContext(engine)
-	registerAnnouncementSavedViewRoutes(engine.Group(announcementcontract.AnnouncementGroup), moduleCtx, &announcementSavedViewServiceStub{}, func(ctx *gin.Context) {
+	handlers := announcementSavedViewHandlersOf(moduleCtx, &announcementSavedViewServiceStub{})
+	wrapper := announcementopenapi.ServerInterfaceWrapper{
+		Handler: announcementopenapi.NewStrictHandlerWithOptions(
+			announcementStrictServer{savedViews: handlers},
+			nil,
+			announcementopenapi.StrictGinServerOptions{},
+		),
+	}
+	registerAnnouncementSavedViewRoutes(engine.Group(announcementcontract.AnnouncementGroup), moduleCtx, func(ctx *gin.Context) {
 		ctx.Next()
-	})
+	}, wrapper)
 	want := map[string]struct{}{
 		http.MethodGet + " /announcements/saved-views":            {},
 		http.MethodPost + " /announcements/saved-views":           {},
@@ -139,7 +148,14 @@ func TestAnnouncementSavedViewHandlersUseOwnerAndSurface(t *testing.T) {
 	engine := gin.New()
 	moduleCtx := newAnnouncementTestContext(engine)
 	service := &announcementSavedViewServiceStub{}
-	registerAnnouncementSavedViewRoutes(engine.Group(announcementcontract.AnnouncementGroup), moduleCtx, service, announcementRouteTestAuth(42))
+	savedWrapper := announcementopenapi.ServerInterfaceWrapper{
+		Handler: announcementopenapi.NewStrictHandlerWithOptions(
+			announcementStrictServer{savedViews: announcementSavedViewHandlersOf(moduleCtx, service)},
+			nil,
+			announcementopenapi.StrictGinServerOptions{},
+		),
+	}
+	registerAnnouncementSavedViewRoutes(engine.Group(announcementcontract.AnnouncementGroup), moduleCtx, announcementRouteTestAuth(42), savedWrapper)
 
 	body := `{"name":"Published warnings","query_state":{"status":"published"},"page_size":20,"visible_columns":["title"],"is_default":true}`
 	if response := performAnnouncementSavedViewRequest(engine, http.MethodGet, "/announcements/saved-views", ""); response.Code != http.StatusOK {
@@ -149,7 +165,7 @@ func TestAnnouncementSavedViewHandlersUseOwnerAndSurface(t *testing.T) {
 		t.Fatalf("list ownership = (%d, %q)", service.listOwner, service.listSurface)
 	}
 	if response := performAnnouncementSavedViewRequest(engine, http.MethodPost, "/announcements/saved-views", body); response.Code != http.StatusCreated {
-		t.Fatalf("POST saved views status = %d, want %d", response.Code, http.StatusCreated)
+		t.Fatalf("POST saved views status = %d, want %d, body=%s", response.Code, http.StatusCreated, response.Body.String())
 	}
 	if service.createInput.OwnerUserID != 42 || service.createInput.SurfaceKey != announcementManagementSavedViewSurface {
 		t.Fatalf("create input = %#v", service.createInput)
