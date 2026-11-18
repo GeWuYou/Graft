@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -8,6 +9,8 @@ import (
 	"go.uber.org/zap"
 
 	scheduleropenapi "graft/server/internal/contract/openapi/scheduler"
+	"graft/server/internal/contract/openapi/strictsupport"
+	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
@@ -54,88 +57,209 @@ func registerSchedulerRoutesWithRuntime(
 		moduleName: moduleName,
 		runtime:    runtime,
 	}
+	savedViewService, err := module.ResolveService[moduleapi.SavedViewService](ctx.Services, (*moduleapi.SavedViewService)(nil))
+	if err != nil {
+		return err
+	}
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleName)
 	group := ctx.Router.Group(schedulercontract.ScheduledTasksGroup)
 	group.Use(httpx.RequestIDMiddleware())
+	// 生成 wrapper 承担路径与请求参数绑定；权限中间件与 handler envelope 写入保持迁移前语义。
+	wrapper := scheduleropenapi.ServerInterfaceWrapper{
+		Handler: scheduleropenapi.NewStrictHandlerWithOptions(
+			schedulerStrictServer{
+				runtime:    routeRuntime,
+				savedViews: schedulerSavedViewHandlersOf(ctx, savedViewService),
+			},
+			nil,
+			scheduleropenapi.StrictGinServerOptions{
+				RequestErrorHandlerFunc: strictsupport.RequestErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String(), gin.H{"field": "body"}),
+				HandlerErrorFunc:        strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
+			},
+		),
+		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
+	}
 	group.GET(
 		schedulercontract.ScheduledTaskCollectionRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
-		routeRuntime.handleListTasks,
+		wrapper.GetScheduledTasks,
 	)
-	if err := registerSchedulerSavedViews(group, ctx, authService, authorizer, publisher); err != nil {
+	if err := registerSchedulerSavedViews(group, ctx, authService, authorizer, publisher, wrapper); err != nil {
 		return err
 	}
 	group.POST(
 		schedulercontract.ScheduledTaskCollectionRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskCreatePermission.String(), publisher),
-		routeRuntime.handleCreateTask,
+		wrapper.PostScheduledTask,
 	)
 	group.GET(
 		schedulercontract.ScheduledTaskJobDefinitionsRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
-		routeRuntime.handleListJobDefinitions,
+		wrapper.GetScheduledTaskJobDefinitions,
 	)
 	group.GET(
 		schedulercontract.ScheduledTaskJobDefinitionDetailRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
-		routeRuntime.handleGetJobDefinition,
+		wrapper.GetScheduledTaskJobDefinition,
 	)
 	group.GET(
 		schedulercontract.ScheduledTaskRunDetailRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
-		routeRuntime.handleGetRun,
+		wrapper.GetScheduledTaskRun,
 	)
 	group.GET(
 		schedulercontract.ScheduledTaskDetailRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
-		routeRuntime.handleGetTask,
+		wrapper.GetScheduledTask,
 	)
 	group.PUT(
 		schedulercontract.ScheduledTaskDetailRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskUpdatePermission.String(), publisher),
-		routeRuntime.handleUpdateTask,
+		wrapper.PutScheduledTask,
 	)
 	group.DELETE(
 		schedulercontract.ScheduledTaskDetailRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskDeletePermission.String(), publisher),
-		routeRuntime.handleDeleteTask,
+		wrapper.DeleteScheduledTask,
 	)
 	group.POST(
 		schedulercontract.ScheduledTaskEnableRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskEnablePermission.String(), publisher),
-		routeRuntime.handleEnableTask,
+		wrapper.PostScheduledTaskEnable,
 	)
 	group.POST(
 		schedulercontract.ScheduledTaskDisableRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskEnablePermission.String(), publisher),
-		routeRuntime.handleDisableTask,
+		wrapper.PostScheduledTaskDisable,
 	)
 	group.GET(
 		schedulercontract.ScheduledTaskRunsRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
-		routeRuntime.handleListRuns,
+		wrapper.GetScheduledTaskRuns,
 	)
 	group.POST(
 		schedulercontract.ScheduledTaskRunRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskRunPermission.String(), publisher),
-		routeRuntime.handleRunOnce,
+		wrapper.PostScheduledTaskRun,
 	)
 	group.POST(
 		schedulercontract.ScheduledTaskActionRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskRunPermission.String(), publisher),
-		routeRuntime.handleRunAction,
+		wrapper.PostScheduledTaskAction,
 	)
 
 	return nil
 }
 
-func registerSchedulerSavedViews(group *gin.RouterGroup, ctx *module.Context, authService moduleapi.AuthService, authorizer moduleapi.Authorizer, publisher httpx.SecurityAuditPublisher) error {
+func registerSchedulerSavedViews(
+	group *gin.RouterGroup,
+	ctx *module.Context,
+	authService moduleapi.AuthService,
+	authorizer moduleapi.Authorizer,
+	publisher httpx.SecurityAuditPublisher,
+	wrapper scheduleropenapi.ServerInterfaceWrapper,
+) error {
 	savedViews, err := module.ResolveService[moduleapi.SavedViewService](ctx.Services, (*moduleapi.SavedViewService)(nil))
 	if err != nil {
 		return err
 	}
-	registerSchedulerSavedViewRoutes(group, ctx, httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher), savedViews)
+	registerSchedulerSavedViewRoutes(
+		group,
+		ctx,
+		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
+		wrapper,
+		schedulerSavedViewHandlersOf(ctx, savedViews),
+	)
 	return nil
+}
+
+// schedulerStrictServer 将计划任务路由主体适配到生成的 strict server 契约；
+// 编译期断言保证 OpenAPI 计划任务操作变化时必须在适配层补齐。
+type schedulerStrictServer struct {
+	runtime    schedulerRouteRuntime
+	savedViews schedulerSavedViewHandlers
+}
+
+// errSchedulerStrictMissingBody 表示必填请求体在生成绑定后缺失；该路径不可达。
+var errSchedulerStrictMissingBody = errors.New("strict handler request body is missing")
+
+var _ scheduleropenapi.StrictServerInterface = schedulerStrictServer{}
+
+func (s schedulerStrictServer) GetScheduledTasks(ctx context.Context, _ scheduleropenapi.GetScheduledTasksRequestObject) (scheduleropenapi.GetScheduledTasksResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.runtime.handleListTasks)
+}
+
+func (s schedulerStrictServer) GetScheduledTask(ctx context.Context, _ scheduleropenapi.GetScheduledTaskRequestObject) (scheduleropenapi.GetScheduledTaskResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.runtime.handleGetTask)
+}
+
+func (s schedulerStrictServer) PostScheduledTask(ctx context.Context, request scheduleropenapi.PostScheduledTaskRequestObject) (scheduleropenapi.PostScheduledTaskResponseObject, error) {
+	if request.Body == nil {
+		return nil, errSchedulerStrictMissingBody
+	}
+	return nil, strictsupport.Dispatch(ctx, func(ginCtx *gin.Context) { s.runtime.handleCreateTask(ginCtx, *request.Body) })
+}
+
+func (s schedulerStrictServer) PutScheduledTask(ctx context.Context, request scheduleropenapi.PutScheduledTaskRequestObject) (scheduleropenapi.PutScheduledTaskResponseObject, error) {
+	if request.Body == nil {
+		return nil, errSchedulerStrictMissingBody
+	}
+	return nil, strictsupport.Dispatch(ctx, func(ginCtx *gin.Context) { s.runtime.handleUpdateTask(ginCtx, *request.Body) })
+}
+
+func (s schedulerStrictServer) DeleteScheduledTask(ctx context.Context, _ scheduleropenapi.DeleteScheduledTaskRequestObject) (scheduleropenapi.DeleteScheduledTaskResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.runtime.handleDeleteTask)
+}
+
+func (s schedulerStrictServer) PostScheduledTaskEnable(ctx context.Context, _ scheduleropenapi.PostScheduledTaskEnableRequestObject) (scheduleropenapi.PostScheduledTaskEnableResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.runtime.handleEnableTask)
+}
+
+func (s schedulerStrictServer) PostScheduledTaskDisable(ctx context.Context, _ scheduleropenapi.PostScheduledTaskDisableRequestObject) (scheduleropenapi.PostScheduledTaskDisableResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.runtime.handleDisableTask)
+}
+
+func (s schedulerStrictServer) GetScheduledTaskRuns(ctx context.Context, _ scheduleropenapi.GetScheduledTaskRunsRequestObject) (scheduleropenapi.GetScheduledTaskRunsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.runtime.handleListRuns)
+}
+
+func (s schedulerStrictServer) GetScheduledTaskRun(ctx context.Context, _ scheduleropenapi.GetScheduledTaskRunRequestObject) (scheduleropenapi.GetScheduledTaskRunResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.runtime.handleGetRun)
+}
+
+func (s schedulerStrictServer) PostScheduledTaskRun(ctx context.Context, _ scheduleropenapi.PostScheduledTaskRunRequestObject) (scheduleropenapi.PostScheduledTaskRunResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.runtime.handleRunOnce)
+}
+
+func (s schedulerStrictServer) GetScheduledTaskJobDefinitions(ctx context.Context, _ scheduleropenapi.GetScheduledTaskJobDefinitionsRequestObject) (scheduleropenapi.GetScheduledTaskJobDefinitionsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.runtime.handleListJobDefinitions)
+}
+
+func (s schedulerStrictServer) GetScheduledTaskJobDefinition(ctx context.Context, _ scheduleropenapi.GetScheduledTaskJobDefinitionRequestObject) (scheduleropenapi.GetScheduledTaskJobDefinitionResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.runtime.handleGetJobDefinition)
+}
+
+func (s schedulerStrictServer) PostScheduledTaskAction(ctx context.Context, request scheduleropenapi.PostScheduledTaskActionRequestObject) (scheduleropenapi.PostScheduledTaskActionResponseObject, error) {
+	if request.Body == nil {
+		return nil, errSchedulerStrictMissingBody
+	}
+	return nil, strictsupport.Dispatch(ctx, func(ginCtx *gin.Context) { s.runtime.handleRunAction(ginCtx, *request.Body) })
+}
+
+func (s schedulerStrictServer) GetScheduledTaskSavedViews(ctx context.Context, _ scheduleropenapi.GetScheduledTaskSavedViewsRequestObject) (scheduleropenapi.GetScheduledTaskSavedViewsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.savedViews.list)
+}
+
+func (s schedulerStrictServer) PostScheduledTaskSavedView(ctx context.Context, _ scheduleropenapi.PostScheduledTaskSavedViewRequestObject) (scheduleropenapi.PostScheduledTaskSavedViewResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.savedViews.create)
+}
+
+func (s schedulerStrictServer) PutScheduledTaskSavedView(ctx context.Context, _ scheduleropenapi.PutScheduledTaskSavedViewRequestObject) (scheduleropenapi.PutScheduledTaskSavedViewResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.savedViews.update)
+}
+
+func (s schedulerStrictServer) DeleteScheduledTaskSavedView(ctx context.Context, _ scheduleropenapi.DeleteScheduledTaskSavedViewRequestObject) (scheduleropenapi.DeleteScheduledTaskSavedViewResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.savedViews.delete)
 }
 
 func (r schedulerRouteRuntime) handleListTasks(ginCtx *gin.Context) {
@@ -143,7 +267,6 @@ func (r schedulerRouteRuntime) handleListTasks(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	schedulerGeneratedHandler{}.GetScheduledTasks(params)
 
 	runtime, ok := r.resolveRuntime(ginCtx)
 	if !ok {
@@ -173,7 +296,6 @@ func scheduledTaskStatusValue(status *scheduleropenapi.GetScheduledTasksParamsSt
 }
 
 func (r schedulerRouteRuntime) handleListJobDefinitions(ginCtx *gin.Context) {
-	schedulerGeneratedHandler{}.GetScheduledTaskJobDefinitions(bindGeneratedTaskJobDefinitionsHeaders(ginCtx))
 
 	runtime, ok := r.resolveRuntime(ginCtx)
 	if !ok {
@@ -193,7 +315,6 @@ func (r schedulerRouteRuntime) handleGetJobDefinition(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	schedulerGeneratedHandler{}.GetScheduledTaskJobDefinition(jobKey, bindGeneratedTaskJobDefinitionDetailHeaders(ginCtx))
 
 	runtime, ok := r.resolveRuntime(ginCtx)
 	if !ok {
@@ -213,7 +334,6 @@ func (r schedulerRouteRuntime) handleGetTask(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	schedulerGeneratedHandler{}.GetScheduledTask(key, bindGeneratedTaskDetailHeaders(ginCtx))
 
 	runtime, ok := r.resolveRuntime(ginCtx)
 	if !ok {
@@ -228,14 +348,7 @@ func (r schedulerRouteRuntime) handleGetTask(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toScheduledTaskItem(task))
 }
 
-func (r schedulerRouteRuntime) handleCreateTask(ginCtx *gin.Context) {
-	var request scheduleropenapi.PostScheduledTaskJSONRequestBody
-	if err := ginCtx.ShouldBindJSON(&request); err != nil {
-		writeInvalidSchedulerField(ginCtx, r.ctx, "body")
-		return
-	}
-	schedulerGeneratedHandler{}.PostScheduledTask(bindGeneratedTaskCreateHeaders(ginCtx), request)
-
+func (r schedulerRouteRuntime) handleCreateTask(ginCtx *gin.Context, request scheduleropenapi.PostScheduledTaskJSONRequestBody) {
 	command, ok := createTaskMutation(request)
 	if !ok {
 		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusBadRequest, schedulercontract.ScheduledTaskInvalidRequest.String(), map[string]any{
@@ -257,17 +370,11 @@ func (r schedulerRouteRuntime) handleCreateTask(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toScheduledTaskItem(task))
 }
 
-func (r schedulerRouteRuntime) handleUpdateTask(ginCtx *gin.Context) {
+func (r schedulerRouteRuntime) handleUpdateTask(ginCtx *gin.Context, request scheduleropenapi.PutScheduledTaskJSONRequestBody) {
 	key, ok := readScheduledTaskKey(ginCtx, r.ctx)
 	if !ok {
 		return
 	}
-	var request scheduleropenapi.PutScheduledTaskJSONRequestBody
-	if err := ginCtx.ShouldBindJSON(&request); err != nil {
-		writeInvalidSchedulerField(ginCtx, r.ctx, "body")
-		return
-	}
-	schedulerGeneratedHandler{}.PutScheduledTask(key, bindGeneratedTaskUpdateHeaders(ginCtx), request)
 
 	command, err := updateTaskMutation(request)
 	if err != nil {
@@ -294,7 +401,6 @@ func (r schedulerRouteRuntime) handleDeleteTask(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	schedulerGeneratedHandler{}.DeleteScheduledTask(key, bindGeneratedTaskDeleteHeaders(ginCtx))
 
 	runtime, ok := r.resolveRuntime(ginCtx)
 	if !ok {
@@ -321,11 +427,7 @@ func (r schedulerRouteRuntime) handleSetTaskEnabled(ginCtx *gin.Context, enabled
 	if !ok {
 		return
 	}
-	if enabled {
-		schedulerGeneratedHandler{}.PostScheduledTaskEnable(key, bindGeneratedTaskEnableHeaders(ginCtx))
-	} else {
-		schedulerGeneratedHandler{}.PostScheduledTaskDisable(key, bindGeneratedTaskDisableHeaders(ginCtx))
-	}
+	_ = key
 
 	runtime, ok := r.resolveRuntime(ginCtx)
 	if !ok {
@@ -349,7 +451,6 @@ func (r schedulerRouteRuntime) handleListRuns(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	schedulerGeneratedHandler{}.GetScheduledTaskRuns(key, params)
 
 	limit, offset := normalizedRunListWindow(params)
 	runtime, ok := r.resolveRuntime(ginCtx)
@@ -374,7 +475,6 @@ func (r schedulerRouteRuntime) handleGetRun(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	schedulerGeneratedHandler{}.GetScheduledTaskRun(runID, bindGeneratedTaskRunDetailHeaders(ginCtx))
 
 	runtime, ok := r.resolveRuntime(ginCtx)
 	if !ok {
@@ -394,7 +494,6 @@ func (r schedulerRouteRuntime) handleRunOnce(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	schedulerGeneratedHandler{}.PostScheduledTaskRun(key, bindGeneratedTaskRunHeaders(ginCtx))
 
 	runtime, ok := r.resolveRuntime(ginCtx)
 	if !ok {
@@ -430,7 +529,7 @@ func schedulerManualTriggerUserID(ginCtx *gin.Context) uint64 {
 	return requestAuth.User.ID
 }
 
-func (r schedulerRouteRuntime) handleRunAction(ginCtx *gin.Context) {
+func (r schedulerRouteRuntime) handleRunAction(ginCtx *gin.Context, request scheduleropenapi.PostScheduledTaskActionJSONRequestBody) {
 	key, ok := readScheduledTaskKey(ginCtx, r.ctx)
 	if !ok {
 		return
@@ -439,13 +538,7 @@ func (r schedulerRouteRuntime) handleRunAction(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	schedulerGeneratedHandler{}.PostScheduledTaskAction(
-		key,
-		actionKey,
-		bindGeneratedTaskActionHeaders(ginCtx),
-		scheduleropenapi.PostScheduledTaskActionJSONRequestBody{},
-	)
-	requestConfig, ok := bindScheduledTaskActionConfig(ginCtx, r.ctx)
+	requestConfig, ok := bindScheduledTaskActionConfigBody(ginCtx, r.ctx, request)
 	if !ok {
 		return
 	}

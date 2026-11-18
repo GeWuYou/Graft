@@ -1,0 +1,20 @@
+package: auditopenapi
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  include-operation-ids:
+    - deleteAuditLogSavedView
+    - deleteAuditVisibilityOverride
+    - getAuditIncident
+    - getAuditLogDetail
+    - postAuditLogDeletion
+    - getAuditLogSavedViews
+    - getAuditLogs
+    - getAuditVisibilityPolicy
+    - postAuditLogSavedView
+    - putAuditLogSavedView
+    - putAuditVisibilityOverride
+    - putAuditVisibilityOverridesBatch
+    - putAuditVisibilityPolicy

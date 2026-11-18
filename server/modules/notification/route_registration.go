@@ -3,7 +3,6 @@ package notification
 import (
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -73,8 +72,8 @@ func (s notificationStrictServer) PostNotificationRead(ctx context.Context, _ no
 	return nil, strictsupport.Dispatch(ctx, s.runtime.handleRead)
 }
 
-func (s notificationStrictServer) PostNotificationsReadAll(ctx context.Context, _ notificationopenapi.PostNotificationsReadAllRequestObject) (notificationopenapi.PostNotificationsReadAllResponseObject, error) {
-	return nil, strictsupport.Dispatch(ctx, s.runtime.handleReadAll)
+func (s notificationStrictServer) PostNotificationsReadAll(ctx context.Context, request notificationopenapi.PostNotificationsReadAllRequestObject) (notificationopenapi.PostNotificationsReadAllResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, func(ginCtx *gin.Context) { s.runtime.handleReadAll(ginCtx, request.Body) })
 }
 
 func (s notificationStrictServer) DeleteNotification(ctx context.Context, _ notificationopenapi.DeleteNotificationRequestObject) (notificationopenapi.DeleteNotificationResponseObject, error) {
@@ -143,17 +142,12 @@ func (r notificationRouteRuntime) handleRead(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toNotificationItem(item))
 }
 
-func (r notificationRouteRuntime) handleReadAll(ginCtx *gin.Context) {
+func (r notificationRouteRuntime) handleReadAll(ginCtx *gin.Context, body *notificationopenapi.PostNotificationsReadAllJSONRequestBody) {
 	userID, ok := currentUserID(ginCtx, r.ctx)
 	if !ok {
 		return
 	}
-	var body notificationopenapi.PostNotificationsReadAllJSONRequestBody
-	if err := ginCtx.ShouldBindJSON(&body); err != nil && !errors.Is(err, io.EOF) {
-		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
-		return
-	}
-	query := readAllQueryFromBody(body)
+	query := readAllQueryFromBody(*body)
 	query.RecipientUserID = userID
 	count, err := r.service.MarkAllReadMatching(ginCtx.Request.Context(), query, time.Now().UTC())
 	if err != nil {

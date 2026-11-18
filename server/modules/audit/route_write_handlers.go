@@ -48,15 +48,8 @@ func handleUpdateAuditVisibilityDefault(
 	ctx *module.Context,
 	moduleName string,
 	reader auditReader,
-) gin.HandlerFunc {
-	return func(ginCtx *gin.Context) {
-		var request auditopenapi.PutAuditVisibilityPolicyJSONRequestBody
-		if err := ginCtx.ShouldBindJSON(&request); err != nil {
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{
-				"field": "body",
-			})
-			return
-		}
+) func(*gin.Context, auditopenapi.PutAuditVisibilityPolicyJSONRequestBody) {
+	return func(ginCtx *gin.Context, request auditopenapi.PutAuditVisibilityPolicyJSONRequestBody) {
 
 		userID, username := currentAuditActor(ginCtx)
 		item, err := reader.UpdateVisibilityDefault(
@@ -88,15 +81,8 @@ func handleUpsertAuditVisibilityOverride(
 	ctx *module.Context,
 	moduleName string,
 	reader auditReader,
-) gin.HandlerFunc {
-	return func(ginCtx *gin.Context) {
-		var request auditopenapi.PutAuditVisibilityOverrideJSONRequestBody
-		if err := ginCtx.ShouldBindJSON(&request); err != nil {
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{
-				"field": "body",
-			})
-			return
-		}
+) func(*gin.Context, auditopenapi.PutAuditVisibilityOverrideJSONRequestBody) {
+	return func(ginCtx *gin.Context, request auditopenapi.PutAuditVisibilityOverrideJSONRequestBody) {
 
 		userID, username := currentAuditActor(ginCtx)
 		description := ""
@@ -138,16 +124,9 @@ func handleUpsertAuditVisibilityOverrides(
 	ctx *module.Context,
 	moduleName string,
 	reader auditReader,
-) gin.HandlerFunc {
-	return func(ginCtx *gin.Context) {
+) func(*gin.Context, auditopenapi.PutAuditVisibilityOverridesBatchJSONRequestBody) {
+	return func(ginCtx *gin.Context, request auditopenapi.PutAuditVisibilityOverridesBatchJSONRequestBody) {
 		setAuditVisibilityBatchCounts(ginCtx, auditVisibilityBatchCounts{})
-		var request auditopenapi.PutAuditVisibilityOverridesBatchJSONRequestBody
-		if err := ginCtx.ShouldBindJSON(&request); err != nil {
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{
-				"field": "body",
-			})
-			return
-		}
 
 		counts := auditVisibilityBatchCounts{Attempted: len(request.Items)}
 		setAuditVisibilityBatchCounts(ginCtx, counts)

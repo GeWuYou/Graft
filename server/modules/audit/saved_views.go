@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	auditopenapi "graft/server/internal/contract/openapi/audit"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/module"
@@ -51,12 +53,33 @@ func validateAuditLogSavedView(request httpx.SavedViewRequest) error {
 	return nil
 }
 
-// registerAuditSavedViewRoutes 在指定路由组上注册审计日志保存视图的 CRUD 路由。
-func registerAuditSavedViewRoutes(group *gin.RouterGroup, ctx *module.Context, guard gin.HandlerFunc, service moduleapi.SavedViewService) {
-	group.GET("/logs/saved-views", guard, handleListAuditSavedViews(ctx.I18n, service))
-	group.POST("/logs/saved-views", guard, handleCreateAuditSavedView(ctx.I18n, service))
-	group.PUT("/logs/saved-views/:viewId", guard, handleUpdateAuditSavedView(ctx.I18n, service))
-	group.DELETE("/logs/saved-views/:viewId", guard, handleDeleteAuditSavedView(ctx.I18n, service))
+// auditSavedViewHandlers 持有审计日志保存视图的既有 gin 处理器，供生成的 strict adapter 复用。
+type auditSavedViewHandlers struct {
+	list   gin.HandlerFunc
+	create gin.HandlerFunc
+	update gin.HandlerFunc
+	delete gin.HandlerFunc
+}
+
+// auditSavedViewHandlersOf 装配保存视图处理器；服务缺失时处理器保持 nil，对应路由不挂载。
+func auditSavedViewHandlersOf(ctx *module.Context, service moduleapi.SavedViewService) auditSavedViewHandlers {
+	if service == nil {
+		return auditSavedViewHandlers{}
+	}
+	return auditSavedViewHandlers{
+		list:   handleListAuditSavedViews(ctx.I18n, service),
+		create: handleCreateAuditSavedView(ctx.I18n, service),
+		update: handleUpdateAuditSavedView(ctx.I18n, service),
+		delete: handleDeleteAuditSavedView(ctx.I18n, service),
+	}
+}
+
+// registerAuditSavedViewRoutes 在指定路由组上挂载审计日志保存视图的生成 strict wrapper 路由。
+func registerAuditSavedViewRoutes(group *gin.RouterGroup, ctx *module.Context, guard gin.HandlerFunc, wrapper auditopenapi.ServerInterfaceWrapper) {
+	group.GET("/logs/saved-views", guard, wrapper.GetAuditLogSavedViews)
+	group.POST("/logs/saved-views", guard, strictsupport.CacheRequestBody(ctx.I18n), wrapper.PostAuditLogSavedView)
+	group.PUT("/logs/saved-views/:viewId", guard, strictsupport.CacheRequestBody(ctx.I18n), wrapper.PutAuditLogSavedView)
+	group.DELETE("/logs/saved-views/:viewId", guard, wrapper.DeleteAuditLogSavedView)
 }
 
 // handleListAuditSavedViews 创建按当前所有者查询审计日志保存视图的处理器。

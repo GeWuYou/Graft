@@ -22,7 +22,7 @@ const (
 	// ScheduledTaskRunsRoute 标识定时任务运行历史的路由片段。
 	ScheduledTaskRunsRoute = "/:taskKey/runs"
 	// ScheduledTaskRunDetailRoute 标识单条运行历史详情的路由片段。
-	ScheduledTaskRunDetailRoute = "/runs/:runID"
+	ScheduledTaskRunDetailRoute = "/runs/:runId"
 	// ScheduledTaskMenuPath 标识定时任务菜单的规范路径。
 	ScheduledTaskMenuPath = "/platform/scheduled-tasks"
 	// ScheduledTaskSavedViewsRoute 标识定时任务列表保存视图集合路由。

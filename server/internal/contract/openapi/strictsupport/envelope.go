@@ -3,13 +3,16 @@
 package strictsupport
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 )
@@ -17,6 +20,10 @@ import (
 // ErrMissingGinContext 表示生成的 gin strict server 未传入 gin 请求上下文；该路径
 // 不可达，出现即视为运行时装配缺陷，由统一内部错误出口处理。
 var ErrMissingGinContext = errors.New("strict handler context is missing gin request context")
+
+// ErrMissingRequestBody 表示必填请求体在生成绑定后缺失；该路径不可达，出现即视为
+// 生成绑定层缺陷，由统一内部错误出口处理。
+var ErrMissingRequestBody = errors.New("strict handler request body is missing")
 
 // Dispatch 把生成的 strict handler 调用转发到既有 gin handler 主体。
 // 它保证 gin 上下文存在后执行 handler；响应写入仍由 handler 内的 httpx 完成。
@@ -61,5 +68,26 @@ func RequestErrorHandler(localizer *i18n.Service, messageKey string, data any) f
 func HandlerErrorHandler(localizer *i18n.Service, runtimeLogger *zap.Logger) func(*gin.Context, error) {
 	return func(ginCtx *gin.Context, err error) {
 		httpx.AbortAppError(ginCtx, localizer, runtimeLogger, err)
+	}
+}
+
+// CacheRequestBody 缓存原始 JSON 请求体，供生成绑定后仍需按原始字节读取请求体的
+// handler（如保存视图的 RawMessage query_state）重新绑定；读取失败按统一 envelope
+// 返回 400。仅挂在生成 wrapper 之前、确有二次读取需求的路由上。
+func CacheRequestBody(localizer *i18n.Service) gin.HandlerFunc {
+	return func(ginCtx *gin.Context) {
+		if ginCtx.Request == nil || ginCtx.Request.Body == nil || ginCtx.Request.ContentLength == 0 {
+			ginCtx.Next()
+			return
+		}
+		data, err := io.ReadAll(ginCtx.Request.Body)
+		_ = ginCtx.Request.Body.Close()
+		if err != nil {
+			httpx.WriteLocalizedError(ginCtx, localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "body"})
+			ginCtx.Abort()
+			return
+		}
+		ginCtx.Request.Body = io.NopCloser(bytes.NewReader(data))
+		ginCtx.Next()
 	}
 }

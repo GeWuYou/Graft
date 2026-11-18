@@ -18,18 +18,12 @@ import (
 )
 
 func (r authRouteRegistrar) registerLoginRoutes(authGroup *gin.RouterGroup) {
-	authGroup.POST(authcontract.AuthLogin, r.handleLoginRoute)
-	authGroup.POST(authcontract.AuthRefresh, r.handleRefreshRoute)
-	authGroup.POST(authcontract.AuthLogout, r.handleLogoutRoute)
+	authGroup.POST(authcontract.AuthLogin, r.wrapper.PostAuthLogin)
+	authGroup.POST(authcontract.AuthRefresh, r.wrapper.PostAuthRefresh)
+	authGroup.POST(authcontract.AuthLogout, r.wrapper.PostAuthLogout)
 }
 
-func (r authRouteRegistrar) handleLoginRoute(ginCtx *gin.Context) {
-	var request authopenapi.PostAuthLoginJSONRequestBody
-	if err := ginCtx.ShouldBindJSON(&request); err != nil {
-		writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
-		return
-	}
-	authGeneratedHandler{}.PostAuthLogin(bindGeneratedAuthLoginParams(ginCtx), request)
+func (r authRouteRegistrar) handleLoginRoute(ginCtx *gin.Context, request authopenapi.PostAuthLoginJSONRequestBody) {
 	normalizedUsername := strings.TrimSpace(request.Username)
 	if normalizedUsername == "" {
 		writeInvalidArgumentField(ginCtx, r.ctx.I18n, "username")
@@ -57,8 +51,6 @@ func (r authRouteRegistrar) handleLoginRoute(ginCtx *gin.Context) {
 }
 
 func (r authRouteRegistrar) handleRefreshRoute(ginCtx *gin.Context) {
-	authGeneratedHandler{}.PostAuthRefresh(bindGeneratedAuthRefreshParams(ginCtx))
-
 	refreshToken, err := r.cookies.ReadRefreshCookie(ginCtx)
 	if err != nil {
 		writeLocalizedContractError(ginCtx, r.ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
@@ -82,8 +74,6 @@ func (r authRouteRegistrar) handleRefreshRoute(ginCtx *gin.Context) {
 }
 
 func (r authRouteRegistrar) handleLogoutRoute(ginCtx *gin.Context) {
-	authGeneratedHandler{}.PostAuthLogout(bindGeneratedAuthLogoutParams(ginCtx))
-
 	refreshToken, err := r.cookies.ReadRefreshCookie(ginCtx)
 	if err != nil {
 		writeLocalizedContractError(ginCtx, r.ctx.I18n, http.StatusUnauthorized, messagecontract.AuthTokenMissing.String(), nil)
@@ -100,121 +90,117 @@ func (r authRouteRegistrar) handleLogoutRoute(ginCtx *gin.Context) {
 }
 
 func (r authRouteRegistrar) registerCurrentUserSessionRoutes(authGroup *gin.RouterGroup) {
-	authGroup.POST(authcontract.AuthSessionsRevokeAll, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		authGeneratedHandler{}.PostAuthSessionsRevokeAll(bindGeneratedAuthSessionsRevokeAllParams(ginCtx))
+	authGroup.POST(authcontract.AuthSessionsRevokeAll, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.PostAuthSessionsRevokeAll)
+	authGroup.POST(authcontract.AuthSessionsRevokeOthers, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.PostAuthSessionsRevokeOthers)
+	authGroup.GET(authcontract.AuthSessions, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.GetAuthSessions)
+	authGroup.POST(authcontract.AuthSessionRevoke, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.PostAuthSessionRevoke)
+}
 
-		if err := r.authFlow.RevokeAllCurrentUserSessions(ginCtx.Request.Context()); err != nil {
-			r.runtime().writeAuthRouteError(ginCtx, "revoke all refresh sessions failed", err)
-			return
-		}
+func (r authRouteRegistrar) handleSessionsRevokeAllRoute(ginCtx *gin.Context) {
+	if err := r.authFlow.RevokeAllCurrentUserSessions(ginCtx.Request.Context()); err != nil {
+		r.runtime().writeAuthRouteError(ginCtx, "revoke all refresh sessions failed", err)
+		return
+	}
 
-		r.cookies.ClearRefreshCookie(ginCtx)
-		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
-	})
-	authGroup.POST(authcontract.AuthSessionsRevokeOthers, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		authGeneratedHandler{}.PostAuthSessionsRevokeOthers(bindGeneratedAuthSessionsRevokeOthersParams(ginCtx))
+	r.cookies.ClearRefreshCookie(ginCtx)
+	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
+}
 
-		if err := r.authFlow.RevokeOtherCurrentUserSessions(ginCtx.Request.Context()); err != nil {
-			r.runtime().writeAuthRouteError(ginCtx, "revoke other user refresh sessions failed", err)
-			return
-		}
+func (r authRouteRegistrar) handleSessionsRevokeOthersRoute(ginCtx *gin.Context) {
+	if err := r.authFlow.RevokeOtherCurrentUserSessions(ginCtx.Request.Context()); err != nil {
+		r.runtime().writeAuthRouteError(ginCtx, "revoke other user refresh sessions failed", err)
+		return
+	}
 
-		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
-	})
-	authGroup.GET(authcontract.AuthSessions, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		params, err := bindGeneratedAuthSessionsParams(ginCtx)
-		if err != nil {
-			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "limit")
-			return
-		}
-		authGeneratedHandler{}.GetAuthSessions(params)
+	r.cookies.ClearRefreshCookie(ginCtx)
+	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
+}
 
-		sessions, err := r.authFlow.ListCurrentUserSessions(ginCtx.Request.Context(), generatedSessionListLimit(params))
-		if err != nil {
-			r.runtime().writeAuthRouteError(ginCtx, "list current user refresh sessions failed", err)
-			return
-		}
+func (r authRouteRegistrar) handleSessionsListRoute(ginCtx *gin.Context) {
+	params, err := bindGeneratedAuthSessionsParams(ginCtx)
+	if err != nil {
+		writeInvalidArgumentField(ginCtx, r.ctx.I18n, "limit")
+		return
+	}
+	sessions, err := r.authFlow.ListCurrentUserSessions(ginCtx.Request.Context(), generatedSessionListLimit(params))
+	if err != nil {
+		r.runtime().writeAuthRouteError(ginCtx, "list current user refresh sessions failed", err)
+		return
+	}
 
-		httpx.WriteSuccess(ginCtx, http.StatusOK, toSessionSummaries(sessions))
-	})
-	authGroup.POST(authcontract.AuthSessionRevoke, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		params, sessionID, ok := bindGeneratedAuthSessionRevokeParams(ginCtx, r.ctx.I18n)
-		if !ok {
-			return
-		}
-		authGeneratedHandler{}.PostAuthSessionRevoke(params)
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toSessionSummaries(sessions))
+}
 
-		handleSessionRevocation(
-			ginCtx,
-			func(ctx context.Context) error {
-				return r.authFlow.RevokeCurrentUserSession(ctx, sessionID)
-			},
-			func(err error) {
-				r.runtime().writeAuthRouteError(ginCtx, "revoke current user refresh session failed", err, zap.String("sessionID", sessionID))
-			},
-			r.cookies,
-			func(claims *moduleapi.AccessTokenClaims) bool {
-				return claims.SessionID == sessionID
-			},
-		)
-	})
+func (r authRouteRegistrar) handleSessionRevokeRoute(ginCtx *gin.Context) {
+	_, sessionID, ok := bindGeneratedAuthSessionRevokeParams(ginCtx, r.ctx.I18n)
+	if !ok {
+		return
+	}
+	handleSessionRevocation(
+		ginCtx,
+		func(ctx context.Context) error {
+			return r.authFlow.RevokeCurrentUserSession(ctx, sessionID)
+		},
+		func(err error) {
+			r.runtime().writeAuthRouteError(ginCtx, "revoke current user refresh session failed", err, zap.String("sessionID", sessionID))
+		},
+		r.cookies,
+		func(claims *moduleapi.AccessTokenClaims) bool {
+			return claims.SessionID == sessionID
+		},
+	)
 }
 
 func (r authRouteRegistrar) registerPersonalAccessTokenRoutes(authGroup *gin.RouterGroup) {
-	authGroup.GET(authcontract.AuthPersonalAccessTokens, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		authGeneratedHandler{}.GetAuthPersonalAccessTokens(bindGeneratedAuthPersonalAccessTokenListParams(ginCtx))
+	authGroup.GET(authcontract.AuthPersonalAccessTokens, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.GetAuthPersonalAccessTokens)
+	authGroup.POST(authcontract.AuthPersonalAccessTokens, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.PostAuthPersonalAccessTokens)
+	authGroup.POST(authcontract.AuthPersonalAccessTokenRevoke, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.PostAuthPersonalAccessTokenRevoke)
+}
 
-		items, err := r.personalTokens.ListCurrentUserPersonalAccessTokens(ginCtx.Request.Context(), 0)
-		if err != nil {
-			r.writePersonalAccessTokenRouteError(ginCtx, "list personal access tokens failed", err)
-			return
-		}
+func (r authRouteRegistrar) handlePersonalAccessTokenListRoute(ginCtx *gin.Context) {
+	items, err := r.personalTokens.ListCurrentUserPersonalAccessTokens(ginCtx.Request.Context(), 0)
+	if err != nil {
+		r.writePersonalAccessTokenRouteError(ginCtx, "list personal access tokens failed", err)
+		return
+	}
 
-		response, mapErr := toPersonalAccessTokenSummaries(items)
-		if mapErr != nil {
-			r.runtime().writeResponseMappingError(ginCtx, "map personal access token list response failed", mapErr)
-			return
-		}
-		httpx.WriteSuccess(ginCtx, http.StatusOK, response)
+	response, mapErr := toPersonalAccessTokenSummaries(items)
+	if mapErr != nil {
+		r.runtime().writeResponseMappingError(ginCtx, "map personal access token list response failed", mapErr)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, response)
+}
+
+func (r authRouteRegistrar) handlePersonalAccessTokenCreateRoute(ginCtx *gin.Context, request authopenapi.PostAuthPersonalAccessTokensJSONRequestBody) {
+	issued, err := r.personalTokens.CreateCurrentUserPersonalAccessToken(ginCtx.Request.Context(), moduleapi.PersonalAccessTokenCreateInput{
+		Name:      request.Name,
+		Scopes:    request.Scopes,
+		ExpiresAt: request.ExpiresAt,
 	})
-	authGroup.POST(authcontract.AuthPersonalAccessTokens, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		var request authopenapi.PostAuthPersonalAccessTokensJSONRequestBody
-		if err := ginCtx.ShouldBindJSON(&request); err != nil {
-			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
-			return
-		}
-		authGeneratedHandler{}.PostAuthPersonalAccessTokens(bindGeneratedAuthPersonalAccessTokenCreateParams(ginCtx), request)
+	if err != nil {
+		r.writePersonalAccessTokenRouteError(ginCtx, "create personal access token failed", err)
+		return
+	}
 
-		issued, err := r.personalTokens.CreateCurrentUserPersonalAccessToken(ginCtx.Request.Context(), moduleapi.PersonalAccessTokenCreateInput{
-			Name:      request.Name,
-			Scopes:    request.Scopes,
-			ExpiresAt: request.ExpiresAt,
-		})
-		if err != nil {
-			r.writePersonalAccessTokenRouteError(ginCtx, "create personal access token failed", err)
-			return
-		}
+	response, mapErr := toPersonalAccessTokenIssued(issued)
+	if mapErr != nil {
+		r.runtime().writeResponseMappingError(ginCtx, "map personal access token issue response failed", mapErr)
+		return
+	}
+	httpx.WriteSuccess(ginCtx, http.StatusCreated, response)
+}
 
-		response, mapErr := toPersonalAccessTokenIssued(issued)
-		if mapErr != nil {
-			r.runtime().writeResponseMappingError(ginCtx, "map personal access token issue response failed", mapErr)
-			return
-		}
-		httpx.WriteSuccess(ginCtx, http.StatusCreated, response)
-	})
-	authGroup.POST(authcontract.AuthPersonalAccessTokenRevoke, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		params, tokenID, ok := bindGeneratedAuthPersonalAccessTokenRevokeParams(ginCtx, r.ctx.I18n)
-		if !ok {
-			return
-		}
-		authGeneratedHandler{}.PostAuthPersonalAccessTokenRevoke(params)
-
-		if err := r.personalTokens.RevokeCurrentUserPersonalAccessToken(ginCtx.Request.Context(), tokenID); err != nil {
-			r.writePersonalAccessTokenRouteError(ginCtx, "revoke personal access token failed", err)
-			return
-		}
-		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
-	})
+func (r authRouteRegistrar) handlePersonalAccessTokenRevokeRoute(ginCtx *gin.Context) {
+	_, tokenID, ok := bindGeneratedAuthPersonalAccessTokenRevokeParams(ginCtx, r.ctx.I18n)
+	if !ok {
+		return
+	}
+	if err := r.personalTokens.RevokeCurrentUserPersonalAccessToken(ginCtx.Request.Context(), tokenID); err != nil {
+		r.writePersonalAccessTokenRouteError(ginCtx, "revoke personal access token failed", err)
+		return
+	}
+	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 }
 
 func (r authRouteRegistrar) registerBootstrapAndPasswordRoutes(authGroup *gin.RouterGroup) {
@@ -224,74 +210,63 @@ func (r authRouteRegistrar) registerBootstrapAndPasswordRoutes(authGroup *gin.Ro
 }
 
 func (r authRouteRegistrar) registerBootstrapRoute(authGroup *gin.RouterGroup) {
-	authGroup.GET(authcontract.AuthBootstrap, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		authGeneratedHandler{}.GetAuthBootstrap(bindGeneratedAuthBootstrapParams(ginCtx))
+	authGroup.GET(authcontract.AuthBootstrap, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.GetAuthBootstrap)
+}
 
-		payload, err := r.authFlow.ReadBootstrapPayload(ginCtx.Request.Context(), ginCtx.Request)
-		if err != nil {
-			r.runtime().writeAuthRouteError(ginCtx, "read bootstrap payload failed", err)
-			return
-		}
+func (r authRouteRegistrar) handleBootstrapRoute(ginCtx *gin.Context) {
+	payload, err := r.authFlow.ReadBootstrapPayload(ginCtx.Request.Context(), ginCtx.Request)
+	if err != nil {
+		r.runtime().writeAuthRouteError(ginCtx, "read bootstrap payload failed", err)
+		return
+	}
 
-		response, mapErr := toBootstrapResponse(payload)
-		if mapErr != nil {
-			r.runtime().writeResponseMappingError(ginCtx, "map bootstrap response failed", mapErr, zap.Uint64("userID", payload.User.ID))
-			return
-		}
+	response, mapErr := toBootstrapResponse(payload)
+	if mapErr != nil {
+		r.runtime().writeResponseMappingError(ginCtx, "map bootstrap response failed", mapErr, zap.Uint64("userID", payload.User.ID))
+		return
+	}
 
-		httpx.WriteSuccess(ginCtx, http.StatusOK, response)
-	})
+	httpx.WriteSuccess(ginCtx, http.StatusOK, response)
 }
 
 func (r authRouteRegistrar) registerChangePasswordRoute(authGroup *gin.RouterGroup) {
-	authGroup.POST(authcontract.AuthChangePassword, r.guards.authenticated, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		var request authopenapi.PostAuthChangePasswordJSONRequestBody
-		if err := ginCtx.ShouldBindJSON(&request); err != nil {
-			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
-			return
-		}
-		authGeneratedHandler{}.PostAuthChangePassword(bindGeneratedAuthChangePasswordParams(ginCtx), request)
-		if strings.TrimSpace(request.CurrentPassword) == "" {
-			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "current_password")
-			return
-		}
-		if strings.TrimSpace(request.NewPassword) == "" {
-			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "new_password")
-			return
-		}
+	authGroup.POST(authcontract.AuthChangePassword, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.PostAuthChangePassword)
+}
 
-		if err := r.authFlow.ChangeCurrentUserPassword(ginCtx.Request.Context(), request.CurrentPassword, request.NewPassword); err != nil {
-			r.runtime().writeAuthRouteError(ginCtx, "change current user password failed", err)
-			return
-		}
+func (r authRouteRegistrar) handleChangePasswordRoute(ginCtx *gin.Context, request authopenapi.PostAuthChangePasswordJSONRequestBody) {
+	if strings.TrimSpace(request.CurrentPassword) == "" {
+		writeInvalidArgumentField(ginCtx, r.ctx.I18n, "current_password")
+		return
+	}
+	if strings.TrimSpace(request.NewPassword) == "" {
+		writeInvalidArgumentField(ginCtx, r.ctx.I18n, "new_password")
+		return
+	}
 
-		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
-	})
+	if err := r.authFlow.ChangeCurrentUserPassword(ginCtx.Request.Context(), request.CurrentPassword, request.NewPassword); err != nil {
+		r.runtime().writeAuthRouteError(ginCtx, "change current user password failed", err)
+		return
+	}
+
+	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 }
 
 func (r authRouteRegistrar) registerCompleteRequiredPasswordChangeRoute(authGroup *gin.RouterGroup) {
-	authGroup.POST(authcontract.AuthCompleteRequiredPasswordChange, r.guards.authenticated, r.guards.requiredPasswordChange, func(ginCtx *gin.Context) {
-		var request authopenapi.PostAuthCompleteRequiredPasswordChangeJSONRequestBody
-		if err := ginCtx.ShouldBindJSON(&request); err != nil {
-			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
-			return
-		}
-		authGeneratedHandler{}.PostAuthCompleteRequiredPasswordChange(
-			bindGeneratedAuthCompleteRequiredPasswordChangeParams(ginCtx),
-			request,
-		)
-		if strings.TrimSpace(request.NewPassword) == "" {
-			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "new_password")
-			return
-		}
+	authGroup.POST(authcontract.AuthCompleteRequiredPasswordChange, r.guards.authenticated, r.guards.requiredPasswordChange, r.wrapper.PostAuthCompleteRequiredPasswordChange)
+}
 
-		if err := r.authFlow.CompleteRequiredPasswordChange(ginCtx.Request.Context(), request.NewPassword); err != nil {
-			r.runtime().writeAuthRouteError(ginCtx, "complete required password change failed", err)
-			return
-		}
+func (r authRouteRegistrar) handleCompleteRequiredPasswordChangeRoute(ginCtx *gin.Context, request authopenapi.PostAuthCompleteRequiredPasswordChangeJSONRequestBody) {
+	if strings.TrimSpace(request.NewPassword) == "" {
+		writeInvalidArgumentField(ginCtx, r.ctx.I18n, "new_password")
+		return
+	}
 
-		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
-	})
+	if err := r.authFlow.CompleteRequiredPasswordChange(ginCtx.Request.Context(), request.NewPassword); err != nil {
+		r.runtime().writeAuthRouteError(ginCtx, "complete required password change failed", err)
+		return
+	}
+
+	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 }
 
 func handleSessionRevocation(
@@ -308,89 +283,6 @@ func handleSessionRevocation(
 
 	clearRefreshCookieWhen(ginCtx, cookies, shouldClearCookie)
 	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
-}
-
-type authGeneratedHandler struct{}
-
-func (h authGeneratedHandler) PostAuthLogin(
-	params authopenapi.PostAuthLoginParams,
-	body authopenapi.PostAuthLoginJSONRequestBody,
-) {
-	_ = h
-	_ = params
-	_ = body
-}
-
-func (h authGeneratedHandler) PostAuthRefresh(params authopenapi.PostAuthRefreshParams) {
-	_ = h
-	_ = params
-}
-
-func (h authGeneratedHandler) PostAuthLogout(params authopenapi.PostAuthLogoutParams) {
-	_ = h
-	_ = params
-}
-
-func (h authGeneratedHandler) GetAuthPersonalAccessTokens(params authopenapi.GetAuthPersonalAccessTokensParams) {
-	_ = h
-	_ = params
-}
-
-func (h authGeneratedHandler) PostAuthPersonalAccessTokens(
-	params authopenapi.PostAuthPersonalAccessTokensParams,
-	body authopenapi.PostAuthPersonalAccessTokensJSONRequestBody,
-) {
-	_ = h
-	_ = params
-	_ = body
-}
-
-func (h authGeneratedHandler) PostAuthPersonalAccessTokenRevoke(params authopenapi.PostAuthPersonalAccessTokenRevokeParams) {
-	_ = h
-	_ = params
-}
-
-func (h authGeneratedHandler) GetAuthBootstrap(params authopenapi.GetAuthBootstrapParams) {
-	_ = h
-	_ = params
-}
-
-func (h authGeneratedHandler) GetAuthSessions(params authopenapi.GetAuthSessionsParams) {
-	_ = h
-	_ = params
-}
-
-func (h authGeneratedHandler) PostAuthSessionsRevokeAll(params authopenapi.PostAuthSessionsRevokeAllParams) {
-	_ = h
-	_ = params
-}
-
-func (h authGeneratedHandler) PostAuthSessionsRevokeOthers(params authopenapi.PostAuthSessionsRevokeOthersParams) {
-	_ = h
-	_ = params
-}
-
-func (h authGeneratedHandler) PostAuthSessionRevoke(params authopenapi.PostAuthSessionRevokeParams) {
-	_ = h
-	_ = params
-}
-
-func (h authGeneratedHandler) PostAuthChangePassword(
-	params authopenapi.PostAuthChangePasswordParams,
-	body authopenapi.PostAuthChangePasswordJSONRequestBody,
-) {
-	_ = h
-	_ = params
-	_ = body
-}
-
-func (h authGeneratedHandler) PostAuthCompleteRequiredPasswordChange(
-	params authopenapi.PostAuthCompleteRequiredPasswordChangeParams,
-	body authopenapi.PostAuthCompleteRequiredPasswordChangeJSONRequestBody,
-) {
-	_ = h
-	_ = params
-	_ = body
 }
 
 func bindGeneratedAuthLoginParams(ginCtx *gin.Context) authopenapi.PostAuthLoginParams {
