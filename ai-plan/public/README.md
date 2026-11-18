@@ -75,6 +75,8 @@ Overlay note:
   - Recovery entry: `ai-plan/public/dashboard-workbench-redesign/README.md`
 - `destructive-operation-contract-convergence`
   - Recovery entry: `ai-plan/public/destructive-operation-contract-convergence/README.md`
+- `openapi-strict-server-migration`
+  - Recovery entry: `ai-plan/public/openapi-strict-server-migration/README.md`
 ## Archive Location
 
 - Archived topic evidence lives under `ai-plan/public/archive/`.
