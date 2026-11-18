@@ -1,5 +1,13 @@
 # Pipeline Governance Trace
 
+## 2026-11-19 OpenAPI breaking-change gate batch
+
+- Added `scripts/openapi-breaking.mjs`: re-bundles both the base revision (materialized from the base commit's `openapi/` source graph because `openapi/dist/` is not tracked) and the current source through the same redocly path, runs `oasdiff breaking --flatten-allof --format json` via the Go tool directive in `server/go.mod`, and fails on ERR-level findings unless `openapi/approved-breaking.json` approves them. `--flatten-allof` is required because Graft composes responses through allOf envelopes; without it every envelope-internal change stays a level-2 warning with an `all-of-not-flattened` disclaimer.
+- Approval ledger entries bind method, path, change kind, and SHA-256 projections of the reviewed operation plus its transitive local references on both sides; entries whose hashes no longer match are reported as stale and cannot approve. Ledger schema drift fails closed. `--mode report` keeps the gate non-blocking for local iteration.
+- Added the blocking `OpenAPI Breaking Change Gate` job next to `Cross-Boundary Contract Freshness` and included it in `Required checks passed`.
+- The canonical npm `oasdiff` name is a non-functional security placeholder and third-party npm wrappers redistribute unofficial binaries, so the tool dependency is vendored through the existing Go `tool` block instead of root `package.json`; this expands the manifest edit to `server/go.mod` and `server/go.sum`.
+- Local validation passed: `node --test scripts/test-openapi-breaking.mjs`, `just openapi-check`, gate failure on a synthetic breaking change and pass on the unmodified tree, `actionlint`, `python3 scripts/validate_ai_plan_structure.py`, and `git diff --check`.
+
 ## 2026-08-01 Intake and first reliability batch
 
 - Classified as long-running `refactor` work after GitHub Actions history showed 18 failures in the last 100 PR-validation runs.

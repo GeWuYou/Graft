@@ -6,7 +6,7 @@ Pipeline Governance
 
 ## Scope
 
-Improve pull-request cancellation, timeout containment, known-fixture secret scanning, disposable migration bootstrap reliability, and the verified realtime SSE test race. Preserve `Build Artifacts` and `Web Check` implementations.
+Improve pull-request cancellation, timeout containment, known-fixture secret scanning, disposable migration bootstrap reliability, and the verified realtime SSE test race. Add an OpenAPI breaking-change gate with an approval ledger. Preserve `Build Artifacts` and `Web Check` implementations.
 
 ## Repository Truth
 
@@ -14,6 +14,8 @@ Improve pull-request cancellation, timeout containment, known-fixture secret sca
 - `.github/workflows/pull-request-validation.yml`
 - `.github/workflows/migration-check.yml`
 - `scripts/check_migration_bootstrap.py`
+- `scripts/openapi-breaking.mjs`
+- `openapi/approved-breaking.json`
 
 ## Work Contract
 
@@ -55,12 +57,15 @@ closeout:
 - [x] Centralize known fake secret-fixture exclusions.
 - [x] Retry transient PostgreSQL image pulls before disposable bootstrap.
 - [x] Synchronize the SSE test with subscription registration.
+- [x] Add the OpenAPI breaking-change gate job with merge-base comparison and approval ledger.
 - [x] Complete local validation.
 - [ ] Observe a live pull-request run after push.
 - [ ] Review the repository settings checklist with a maintainer.
 
 ## Acceptance Conditions
 
+- ERR-level oasdiff findings against the PR merge-base block the pull request unless `openapi/approved-breaking.json` covers each finding with matching method, path, change kind, and both contract projection hashes.
+- Approval ledger entries whose contract hashes no longer match the compared contracts are reported as stale and cannot approve findings.
 - A new PR commit cancels only prior runs for the same PR; main push validation is never canceled by this policy.
 - Expected quality gates remain blocking, including `Server Build/Test Stage`.
 - Known fake update diagnostics fixtures do not produce TruffleHog findings, while new paths remain scanned.
@@ -74,7 +79,8 @@ closeout:
 {
   "loop_mode": "topic-completion-loop",
   "completed_batches": [
-    "first-reliability-implementation"
+    "first-reliability-implementation",
+    "openapi-breaking-gate-implementation"
   ],
   "pending_batches": [
     "github-actions-observation-and-settings-review"

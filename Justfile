@@ -32,7 +32,8 @@ help:
       '  just compose-down      Stop repository Docker Compose services' \
       '  just ensure-openapi-bundle Ensure the generated OpenAPI bundle exists and is fresh' \
       '  just generate          Run Go generation, OpenAPI bundle, and frontend OpenAPI types' \
-      '  just openapi-check     Validate OpenAPI, generated bindings, web schema, and contract projection freshness'
+      '  just openapi-check     Validate OpenAPI, generated bindings, web schema, and contract projection freshness' \
+      '  just openapi-breaking  Detect OpenAPI breaking changes against a base ref (optional first arg, default merge-base with origin/main)'
 
 setup:
     bun install --frozen-lockfile
@@ -165,6 +166,11 @@ openapi-check:
     node scripts/openapi-runtime-paths.mjs --check
     cd web && bun run openapi:types:check
     cd server && go run ./internal/contract/projection/cmd/projectiongen --check
+
+# 基线默认取 origin/main 与 HEAD 的 merge-base；显式传入 ref 或 --mode report 可覆盖。
+[positional-arguments]
+openapi-breaking *args:
+    node scripts/openapi-breaking.mjs "$@"
 
 contract-projection-check:
     cd server && go run ./internal/contract/projection/cmd/projectiongen --check
