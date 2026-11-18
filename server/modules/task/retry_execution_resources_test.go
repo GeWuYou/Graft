@@ -93,7 +93,7 @@ func assertRetryHTTPConflict(t *testing.T, runtime *Runtime, taskID, stageID uin
 	}
 	engine := gin.New()
 	routes := taskRoutes{runtime: runtime, ctx: &module.Context{}}
-	engine.POST("/tasks/:id/stages/:stageID/retry", routes.retry)
+	engine.POST("/tasks/:taskId/stages/:stageId/retry", routes.retry)
 	request := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/tasks/%d/stages/%d/retry", taskID, stageID), nil)
 	request = request.WithContext(moduleapi.WithRequestAuthContext(request.Context(), moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 7}}))
 	response := httptest.NewRecorder()

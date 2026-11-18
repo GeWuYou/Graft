@@ -16,7 +16,12 @@ REPO_SENTINEL = "AGENTS.md"
 # file from its sibling `oapi-codegen.yaml` config (models + gin-server + strict-server)
 # and compares bytes; `--mode fix` overwrites the tracked file explicitly.
 STRICT_SERVER_TARGETS: list[tuple[str, Path]] = [
+    ("backup", Path("server/internal/contract/openapi/backup/zz_generated.backup.go")),
+    ("monitor", Path("server/internal/contract/openapi/monitor/zz_generated.types.go")),
+    ("notification", Path("server/internal/contract/openapi/notification/zz_generated.notification.go")),
+    ("security", Path("server/internal/contract/openapi/security/zz_generated.security.go")),
     ("systemconfig", Path("server/internal/contract/openapi/systemconfig/zz_generated.systemconfig.go")),
+    ("task", Path("server/internal/contract/openapi/task/zz_generated.task.go")),
 ]
 MONITOR_TARGET = Path("server/internal/contract/openapi/monitor/zz_generated.types.go")
 HEALTH_TARGET = Path("server/internal/contract/openapi/health/zz_generated.health.go")

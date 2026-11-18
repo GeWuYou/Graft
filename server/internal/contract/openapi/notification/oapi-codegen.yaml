@@ -1,0 +1,12 @@
+package: notificationopenapi
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  include-operation-ids:
+    - deleteNotification
+    - getNotifications
+    - getNotificationsUnreadCount
+    - postNotificationRead
+    - postNotificationsReadAll

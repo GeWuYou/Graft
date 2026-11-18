@@ -4,6 +4,7 @@ package strictsupport
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,6 +13,21 @@ import (
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 )
+
+// ErrMissingGinContext 表示生成的 gin strict server 未传入 gin 请求上下文；该路径
+// 不可达，出现即视为运行时装配缺陷，由统一内部错误出口处理。
+var ErrMissingGinContext = errors.New("strict handler context is missing gin request context")
+
+// Dispatch 把生成的 strict handler 调用转发到既有 gin handler 主体。
+// 它保证 gin 上下文存在后执行 handler；响应写入仍由 handler 内的 httpx 完成。
+func Dispatch(ctx context.Context, handler func(*gin.Context)) error {
+	ginCtx := GinContext(ctx)
+	if ginCtx == nil {
+		return ErrMissingGinContext
+	}
+	handler(ginCtx)
+	return nil
+}
 
 // GinContext 从生成的 strict handler 调用上下文中取回 gin 请求上下文。
 // 生成的 gin strict server 会把 *gin.Context 作为 handler context 传入；适配层通过

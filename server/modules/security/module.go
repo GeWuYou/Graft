@@ -1,6 +1,7 @@
 package security
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	messagecontract "graft/server/internal/contract/message"
+	"graft/server/internal/contract/openapi/strictsupport"
+	securityopenapi "graft/server/internal/contract/openapi/security"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/logger"
@@ -60,11 +63,36 @@ func (m *Module) Register(ctx *module.Context) error {
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	group := ctx.Router.Group(securitycontract.SecurityGroup)
 	group.Use(httpx.RequestIDMiddleware())
+	// 生成 wrapper 承担查询参数绑定；权限中间件与 handler envelope 写入保持迁移前语义。
+	wrapper := securityopenapi.ServerInterfaceWrapper{
+		Handler: securityopenapi.NewStrictHandlerWithOptions(
+			securityStrictServer{
+				overview: handleOverview(ctx, rbacPosture, auditReader),
+			},
+			nil,
+			securityopenapi.StrictGinServerOptions{
+				HandlerErrorFunc: strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
+			},
+		),
+		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
+	}
 	group.GET(securitycontract.OverviewCollection,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, securitycontract.OverviewReadPermission.String(), publisher),
-		handleOverview(ctx, rbacPosture, auditReader),
+		wrapper.GetSecurityOverview,
 	)
 	return nil
+}
+
+// securityStrictServer 将安全概览路由主体适配到生成的 strict server 契约；
+// 编译期断言保证 OpenAPI 安全操作变化时必须在适配层补齐。
+type securityStrictServer struct {
+	overview gin.HandlerFunc
+}
+
+var _ securityopenapi.StrictServerInterface = securityStrictServer{}
+
+func (s securityStrictServer) GetSecurityOverview(ctx context.Context, _ securityopenapi.GetSecurityOverviewRequestObject) (securityopenapi.GetSecurityOverviewResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.overview)
 }
 
 // Boot 当前没有安全模块自有的运行时启动行为。

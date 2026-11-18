@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -11,6 +12,8 @@ import (
 	"go.uber.org/zap"
 
 	messagecontract "graft/server/internal/contract/message"
+	"graft/server/internal/contract/openapi/strictsupport"
+	backupopenapi "graft/server/internal/contract/openapi/backup"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/logger/logsafe"
@@ -41,10 +44,42 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 	group.Use(httpx.RequestIDMiddleware())
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	handlers := backupRouteHandlers{service: service, auth: auth, localizer: ctx.I18n, logger: ctx.Logger}
-	group.GET("", httpx.RequirePermission(ctx.I18n, auth, authorizer, backupcontract.BackupReadPermission, publisher), handlers.list)
-	group.GET(backupcontract.BackupDetailRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, backupcontract.BackupReadPermission, publisher), handlers.detail)
-	group.POST("", httpx.RequirePermission(ctx.I18n, auth, authorizer, backupcontract.BackupCreatePermission, publisher), handlers.create)
+	// 生成 wrapper 承担路径参数与请求体绑定；权限中间件与 handler envelope 写入保持迁移前语义。
+	wrapper := backupopenapi.ServerInterfaceWrapper{
+		Handler: backupopenapi.NewStrictHandlerWithOptions(
+			backupStrictServer{handlers: handlers},
+			nil,
+			backupopenapi.StrictGinServerOptions{
+				RequestErrorHandlerFunc: strictsupport.RequestErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String(), nil),
+				HandlerErrorFunc:        strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
+			},
+		),
+		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
+	}
+	group.GET("", httpx.RequirePermission(ctx.I18n, auth, authorizer, backupcontract.BackupReadPermission, publisher), wrapper.ListPlatformBackups)
+	group.GET(backupcontract.BackupDetailRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, backupcontract.BackupReadPermission, publisher), wrapper.GetPlatformBackup)
+	group.POST("", httpx.RequirePermission(ctx.I18n, auth, authorizer, backupcontract.BackupCreatePermission, publisher), wrapper.PostPlatformBackup)
 	return nil
+}
+
+// backupStrictServer 将备份路由主体适配到生成的 strict server 契约；
+// 编译期断言保证 OpenAPI 备份操作变化时必须在适配层补齐。
+type backupStrictServer struct {
+	handlers backupRouteHandlers
+}
+
+var _ backupopenapi.StrictServerInterface = backupStrictServer{}
+
+func (s backupStrictServer) ListPlatformBackups(ctx context.Context, _ backupopenapi.ListPlatformBackupsRequestObject) (backupopenapi.ListPlatformBackupsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.handlers.list)
+}
+
+func (s backupStrictServer) GetPlatformBackup(ctx context.Context, _ backupopenapi.GetPlatformBackupRequestObject) (backupopenapi.GetPlatformBackupResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.handlers.detail)
+}
+
+func (s backupStrictServer) PostPlatformBackup(ctx context.Context, _ backupopenapi.PostPlatformBackupRequestObject) (backupopenapi.PostPlatformBackupResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.handlers.create)
 }
 
 type backupRouteHandlers struct {
