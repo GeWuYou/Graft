@@ -21,8 +21,12 @@ const ERR_LEVEL = 3;
 const HTTP_METHODS = new Set(['get', 'put', 'post', 'delete', 'patch', 'head', 'options', 'trace']);
 const BASE_SOURCE_GRAPH = 'openapi';
 const LEDGER_SCHEMA_VERSION = 1;
+// 台账顶层允许的字段；schemaDocs 持有人类可读的台账 schema 说明。
+const LEDGER_TOP_LEVEL_FIELDS = ['schemaVersion', 'schemaDocs', 'approvals'];
 const APPROVAL_FIELDS = ['reason', 'method', 'path', 'changeKind', 'baseContractSha256', 'newContractSha256'];
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
+// 删除类审批的哨兵值：revision 侧 projectionHash 必须为 null（operation 已不存在）才生效。
+const DELETED_CONTRACT_SENTINEL = 'deleted';
 const REF_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 
 export function fail(message) {
@@ -71,15 +75,20 @@ function pointer(document, fragment) {
   return value;
 }
 
-// 契约投影 = 该 operation 对象加上其传递引用的全部本地组件，
-// 哈希只覆盖评审范围，避免无关端点变化使审批台账失效。
+// 契约投影 = 该 operation 对象、作用于它的 path item 级共享字段（parameters/servers/description 等）
+// 以及两者传递引用的全部本地组件。兄弟 operation 不进入投影，
+// 因此无关端点变化不会互相使台账失效；path 级参数变化则会让该 path 上所有审批过期。
 export function projectionHash(document, path, method) {
   const pathItem = isRecord(document?.paths) ? document.paths[path] : undefined;
   const operationKey = method.toLowerCase();
   if (!isRecord(pathItem) || !isRecord(pathItem[operationKey])) return null;
+  const sharedPathItem = {};
+  for (const [key, value] of Object.entries(pathItem)) {
+    if (!HTTP_METHODS.has(key)) sharedPathItem[key] = value;
+  }
   const operation = pathItem[operationKey];
   const dependencies = {};
-  const pending = references(operation);
+  const pending = references([operation, sharedPathItem]);
   while (pending.length > 0) {
     const fragment = pending.pop();
     if (Object.hasOwn(dependencies, fragment)) continue;
@@ -87,7 +96,7 @@ export function projectionHash(document, path, method) {
     dependencies[fragment] = value;
     pending.push(...references(value));
   }
-  return sha256(stableStringify({ operation, dependencies }));
+  return sha256(stableStringify({ pathItem: sharedPathItem, operation, dependencies }));
 }
 
 function normalizeMethod(value, label) {
@@ -105,8 +114,14 @@ export function parseLedger(raw, label = ledgerPath) {
     fail(label + ' is not valid JSON: ' + error.message);
   }
   if (!isRecord(parsed)) fail(label + ' must contain an object');
+  for (const field of Object.keys(parsed)) {
+    if (!LEDGER_TOP_LEVEL_FIELDS.includes(field)) fail(label + ' has unknown top-level field ' + JSON.stringify(field));
+  }
   if (parsed.schemaVersion !== LEDGER_SCHEMA_VERSION) {
     fail(label + ' schemaVersion must be ' + LEDGER_SCHEMA_VERSION + ', got ' + JSON.stringify(parsed.schemaVersion));
+  }
+  if (parsed.schemaDocs !== undefined && (typeof parsed.schemaDocs !== 'string' || parsed.schemaDocs.trim() === '')) {
+    fail(label + ' schemaDocs must be a non-empty string when present');
   }
   if (!Array.isArray(parsed.approvals)) fail(label + ' approvals must be an array');
   return parsed.approvals.map((entry, index) => {
@@ -121,7 +136,9 @@ export function parseLedger(raw, label = ledgerPath) {
       }
     }
     if (!SHA256_PATTERN.test(entry.baseContractSha256)) fail(where + ' baseContractSha256 must be a 64-char lowercase hex sha256');
-    if (!SHA256_PATTERN.test(entry.newContractSha256)) fail(where + ' newContractSha256 must be a 64-char lowercase hex sha256');
+    if (entry.newContractSha256 !== DELETED_CONTRACT_SENTINEL && !SHA256_PATTERN.test(entry.newContractSha256)) {
+      fail(where + ' newContractSha256 must be a 64-char lowercase hex sha256 or the ' + JSON.stringify(DELETED_CONTRACT_SENTINEL) + ' sentinel for operation removals');
+    }
     if (!entry.path.startsWith('/')) fail(where + ' path must start with /');
     return {
       reason: entry.reason,
@@ -137,19 +154,18 @@ export function parseLedger(raw, label = ledgerPath) {
 const approvalKey = (approval) => approval.method.toUpperCase() + '|' + approval.path + '|' + approval.changeKind;
 
 // 审批只在契约投影哈希与当前两侧文档完全一致时生效；哈希漂移即视为过期并拒绝。
+// 删除类审批以 DELETED_CONTRACT_SENTINEL 绑定 revision 侧 projectionHash 为 null（operation 已不存在）；
+// operation 仍然存在时哨兵审批一律过期，因此不能借它放行修改而非删除的变更。
 export function applyApprovals(findings, baseDocument, revisionDocument, approvals) {
   const active = new Set();
   const stale = [];
-  const cache = new Map();
-  const projected = (document, path, method) => {
-    const cacheKey = (document === baseDocument ? 'base|' : 'rev|') + method + '|' + path;
-    if (!cache.has(cacheKey)) cache.set(cacheKey, projectionHash(document, path, method));
-    return cache.get(cacheKey);
-  };
   for (const approval of approvals) {
-    const actualBase = projected(baseDocument, approval.path, approval.method);
-    const actualRevision = projected(revisionDocument, approval.path, approval.method);
-    if (actualBase === null || actualRevision === null || actualBase !== approval.baseContractSha256 || actualRevision !== approval.newContractSha256) {
+    const actualBase = projectionHash(baseDocument, approval.path, approval.method);
+    const actualRevision = projectionHash(revisionDocument, approval.path, approval.method);
+    const matches = approval.newContractSha256 === DELETED_CONTRACT_SENTINEL
+      ? actualBase === approval.baseContractSha256 && actualRevision === null
+      : actualBase !== null && actualRevision !== null && actualBase === approval.baseContractSha256 && actualRevision === approval.newContractSha256;
+    if (!matches) {
       stale.push({ ...approval, actualBaseContractSha256: actualBase, actualNewContractSha256: actualRevision });
       continue;
     }
@@ -233,21 +249,28 @@ function printFinding(finding) {
   return String(finding.operation ?? '').toUpperCase() + ' ' + String(finding.path ?? '') + ' [' + String(finding.id ?? '') + '] level ' + finding.level + ': ' + String(finding.text ?? '');
 }
 
-function parseArguments(argv) {
+// Justfile 以位置参数透传可选基线 ref；--base/--mode 提供显式覆盖，两者同时给出基线时拒绝。
+export function parseArguments(argv) {
   let base;
   let mode = 'gate';
+  const supported = 'supported: [base-ref], --base <ref>, --mode gate|report';
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === '--base') {
-      base = argv[index + 1];
-      if (base === undefined) fail('--base requires a git ref argument');
+      const value = argv[index + 1];
+      if (value === undefined) fail('--base requires a git ref argument');
+      if (base !== undefined) fail('base ref specified more than once; ' + supported);
+      base = value;
       index += 1;
     } else if (argument === '--mode') {
       mode = argv[index + 1];
       if (mode !== 'gate' && mode !== 'report') fail("--mode must be 'gate' or 'report'");
       index += 1;
+    } else if (argument.startsWith('-')) {
+      fail('unknown option ' + JSON.stringify(argument) + '; ' + supported);
     } else {
-      fail('unknown argument ' + JSON.stringify(argument) + '; supported: --base <ref>, --mode gate|report');
+      if (base !== undefined) fail('unexpected extra argument ' + JSON.stringify(argument) + '; ' + supported);
+      base = argument;
     }
   }
   return { base, mode };

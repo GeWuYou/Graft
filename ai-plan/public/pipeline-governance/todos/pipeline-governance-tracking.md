@@ -64,7 +64,7 @@ closeout:
 
 ## Acceptance Conditions
 
-- ERR-level oasdiff findings against the PR merge-base block the pull request unless `openapi/approved-breaking.json` covers each finding with matching method, path, change kind, and both contract projection hashes.
+- ERR-level oasdiff findings against the PR merge-base block the pull request unless `openapi/approved-breaking.json` covers each finding with matching method, path, change kind, and both contract projection hashes; the documented `deleted` sentinel is allowed only for removed operations.
 - Approval ledger entries whose contract hashes no longer match the compared contracts are reported as stale and cannot approve findings.
 - A new PR commit cancels only prior runs for the same PR; main push validation is never canceled by this policy.
 - Expected quality gates remain blocking, including `Server Build/Test Stage`.

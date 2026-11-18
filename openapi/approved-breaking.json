@@ -1,4 +1,5 @@
 {
   "schemaVersion": 1,
+  "schemaDocs": "Each approval binds method + path + changeKind plus the SHA-256 contract projections of the reviewed operation on both compared bundles. A projection covers the operation object, the path-item-level fields that apply to it (shared parameters, servers, description), and every transitively referenced local component; sibling operations never enter the projection, so unrelated endpoint changes do not invalidate each other's entries. Set newContractSha256 to the sentinel \"deleted\" only when the operation no longer exists in the revision contract; a sentinel entry approves nothing while the operation still exists, so it cannot cover a modification. Entries whose hashes no longer match the compared contracts are reported as stale and approve nothing.",
   "approvals": []
 }
