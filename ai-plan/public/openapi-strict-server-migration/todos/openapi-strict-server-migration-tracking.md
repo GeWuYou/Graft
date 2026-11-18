@@ -122,23 +122,59 @@ write directly through `*gin.Context`.
 
 ### Follow-ups (recorded, not fixed here)
 
-- None yet.
+- Contract drift: audit module mounts `POST /api/audit/logs/batch-delete` while the spec
+  declares `POST /api/audit/logs/deletions`. Owner: OpenAPI contract / audit module.
+  The strict adapter already covers the operation binding; the live route stays on the
+  legacy fragment until the contract owner fixes the path.
+- `trend-range-query` parameter documents a lenient fallback while its schema enum
+  constrains values; generated binding does not validate enums so behavior matches
+  today, but the schema/description conflict should be resolved by the contract owner.
+- `server/internal/cli/validate_openapi.go` gained one target entry
+  (`backend-openapi-servers`) as required wiring for freshness coverage; it is outside
+  the worker owned-scope and was recorded here deliberately.
+
+## Migration State (batch 3, 2026-11-19)
+
+Migrated modules (strict wrapper mounted, `StrictServerInterface` adapter asserted,
+tests green): `system-config`, `task`, `notification`, `security`, `backup`, `monitor`,
+`scheduler`, `audit`, `auth`, `announcement`, `runtime-target` (11 modules).
+
+Not migrated (registration still hand-wired; regeneration for their domains not yet
+applied). Per-module recovery recipe, identical mechanics to the migrated set:
+
+| Module | Ops | Notes for migration |
+| --- | --- | --- |
+| user | 14 | 10 inline closures in route_user_handlers.go / route_admin_session_handlers.go to convert to named registrar methods; body ops postUsers/postUserUpdate/postUserStatus/postUserResetPassword must take strict bodies; remove `useropenapi.WriteServerInterface` / `ReadServerInterface` spike assertions and colliding contract spike types.go; saved-view create/update need `CacheRequestBody`. |
+| update | 10 | routes.go mounts; body ops postPlatformUpdateCheck/postPlatformUpdateOperation/postPlatformUpdateOperationRecovery need strict bodies. |
+| build | 11 | route_registration.go; body ops postBuildJob/postBuildInputSnapshot/postBuildArtifactPromotion need strict bodies; domain dir is new (`build`). |
+| registry | 18 | route_registration.go; body ops postRegistry/postRegistryVerify/postRegistryArtifactRepository/putRegistry variants and assignment batch ops need strict bodies; public available-destinations uses build permission. |
+| network | 17 | routes.go; connectivity body ops plus postPlatformNetworkDiagnostic/putPlatformNetworkOutbound/resetPlatformNetworkOutbound need strict bodies; existing `network` domain include list must extend beyond connectivity ops. |
+| rbac | 22 | route_registration.go + route_write_handlers.go + route_read_handlers.go + saved_views.go; remove rbacopenapi ReadServerInterface / WriteServerInterface / UserRoleServerInterface spikes and types.go; body ops need strict bodies; saved views need `CacheRequestBody`. |
+| project | 58 | largest module; route_registration.go; many body ops (application create/import/template/workspace/file content); public template endpoints keep explicit no-guard mounts; run param-name reconciliation against spec (`applicationId` etc.). |
+| container | 45 plus whitelisted WS | route_registration.go + saved_views.go; exclude `getContainerShellWebSocket` from include list (whitelisted hand-written); realtime ops are core-owned (already excluded); many body ops (actions, pull/tag, shell session, batch); saved views need `CacheRequestBody`. |
 
 ## Current Recovery Point
 
-- Current batch: 0 (bootstrap + inventory complete).
-- Next step: batch 1 generation infrastructure (per-domain configs, regeneration,
-  freshness targets, cli wiring) then pilot module `system-config`.
+- Current batch: 3 (11 modules migrated; 9 modules remain with per-module recipes above).
+- Generation infrastructure, freshness targets (`backend-openapi-servers`), CLI wiring,
+  whitelist documentation test and shared `strictsupport` bridge are in place.
+- Next step: continue module migration following the recipe table; dead hand-wired
+  binding code (spike `X{}.Method()` assertions) for migrated modules is already removed
+  inside each migration commit.
 
 ## Task Checklist
 
 - [x] Batch 0: topic bootstrap and route/operation classification.
-- [ ] Batch 1: generation infrastructure and freshness coverage.
-- [ ] Batch 2: permission middleware strategy + pilot module `system-config`.
-- [ ] Batch 3+: remaining module migration in groups (system-config, then small modules,
-      then container/project build-out).
-- [ ] Closeout: dead route binding cleanup, route_coverage whitelist review, full
-      `go run ./cmd/graft validate backend`, lessons review, archive.
+- [x] Batch 1: generation infrastructure and freshness coverage.
+- [x] Batch 2: permission middleware strategy + pilot module `system-config`
+      (byte-identical probe comparison on 7 scenarios except natural timestamps).
+- [x] Batch 3 (partial): migrated system-config, task, notification, security, backup,
+      monitor, scheduler, audit, auth, announcement, runtime-target.
+- [ ] Batch 4: migrate user, update, build, registry, network, rbac.
+- [ ] Batch 5: migrate project, container (largest; WS whitelisted).
+- [ ] Closeout: full `go run ./cmd/graft validate backend` (lint stage blocked by local
+      golangci-lint/go1.26 toolchain mismatch, CI owns final lint), lessons review,
+      archive.
 
 ## Acceptance Conditions
 
