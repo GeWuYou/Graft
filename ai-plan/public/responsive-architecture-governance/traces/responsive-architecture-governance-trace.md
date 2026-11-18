@@ -1,5 +1,32 @@
 # Responsive Architecture Governance Trace
 
+## 2026-11-19 B5-docker-list-page-convergence
+
+- 新增 `web/src/shared/components/management/ManagementListPage.vue`：Docker 列表页共享骨架，只收敛 header、统计条、筛选面板、反馈与内容槽的顺序和节奏；列定义、查询状态、分页语义与业务操作仍由页面拥有。
+- `ManagementStatisticsBar` 的 `summary` 布局在全部宽度渲染为统计网格卡片（每项独立一列、窄容器自动换行），并新增 `tone` 语义色（`success`/`warning`/`danger`/`muted`）；`inline`/`chips` 布局与既有消费方保持不变。
+- 网络管理、数据卷、镜像与容器列表四个页面接入共享骨架，移除各自重复的页面栈间距与根布局规则；网络页统计条改为 `summary` 布局并使用语义 tone，创建网络抽屉表单按“基础信息 / IPAM 配置”分层并补充帮助文案。页面权限、确认流程与既有测试锁定的行为（网络页直接删除按钮）未改变。
+- 验证：`web` 目录 `bun run check` 全部通过（314 个测试文件 / 2190 用例、生产构建零 warning）；`git diff --check` 与 `python3 scripts/validate_ai_plan_structure.py` 通过。
+- 遗留：单一列定义驱动桌面表格与移动卡片的转换（参考 Aruhaia `AppDataTable` 模式）尚未落地，各页面移动端卡片仍由页面槽位声明；容器列表仍使用本地 `ContainerList`/`ContainerStats` 组件，仅接入页面骨架。浏览器 375/768/992/1200 与窄容器证据继续留在主检出区验收。
+
+## Loop Batch State
+
+```json
+{
+  "loop_mode": "topic-completion-loop",
+  "completed_batches": [
+    "B1-docs-bootstrap",
+    "B2-foundation-runtime",
+    "B3-responsive-primitives",
+    "B4-page-migration-and-governance-gate",
+    "B5-docker-list-page-convergence"
+  ],
+  "pending_batches": [],
+  "current_batch": "B5-docker-list-page-convergence",
+  "next_batch": null,
+  "closeout_status": "completed"
+}
+```
+
 ## 2026-07-21 B1-docs-bootstrap
 
 - Work Intake 将本主题定为 `refactor`、`long-running`：需要 design/topic/roadmap，不需要 ADR，以 `graft-multi-agent-loop` 推进。
