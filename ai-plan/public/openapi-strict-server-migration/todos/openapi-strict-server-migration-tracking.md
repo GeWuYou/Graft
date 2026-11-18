@@ -132,6 +132,15 @@ write directly through `*gin.Context`.
 - `server/internal/cli/validate_openapi.go` gained one target entry
   (`backend-openapi-servers`) as required wiring for freshness coverage; it is outside
   the worker owned-scope and was recorded here deliberately.
+- `scripts/openapi_generated_backend_boundary_audit.py` exempts `zz_generated.*` files
+  from the generated-runtime-takeover scan; generated strict-server wrappers legitimately
+  contain runtime markers and are byte-validated by the freshness targets, while
+  hand-written takeover remains blocked. Accepted by lead review as a necessary
+  cross-boundary touch. The corrective slice additionally refined the takeover markers to
+  word-boundary regexes and allows the sanctioned per-route `ServerInterfaceWrapper`
+  mounting plus `NewStrictHandlerWithOptions` in hand-written registrations; actual
+  takeover calls (`RegisterHandlers*`, `HandlerFromMux`, bare `NewStrictHandler(`,
+  `StrictHandlerFunc`, `StrictHTTPServerOptions`) stay forbidden.
 
 ## Migration State (batch 3, 2026-11-19)
 

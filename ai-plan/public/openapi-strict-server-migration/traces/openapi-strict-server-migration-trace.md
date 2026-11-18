@@ -46,3 +46,37 @@
 - Batch 3 stops after 11 of 20 route-owning modules (see tracking table for per-module
   recipes); runtime and CI validation is green except the local golangci-lint toolchain
   mismatch (lint stage only; CI owns the pinned lint).
+
+## 2026-11-19 Corrective slice: legacy freshness targets repointed
+
+- Lead review found `go run ./cmd/graft validate openapi` failing on the pre-existing
+  `backend-monitor` target; per-target diagnosis reproduced it and identified
+  `backend-auth-session` as the only other failing target (backend-health,
+  backend-rbac-management, backend-user-write, backend-modules-runtime,
+  backend-network-connectivity still pass).
+- Root cause: monitor and auth artifacts are now generated through their per-domain
+  configs (models + gin-server + strict-server). The legacy targets still regenerated
+  types-only output, whose expected file is exactly the tracked file minus the generated
+  server section (models/types byte-identical, no semantic drift). Running the legacy
+  `--mode fix` would have stripped the strict server code, so the targets were repointed
+  instead: `run_backend_monitor` and `run_backend_auth_session` now validate through the
+  artifact's own `oapi-codegen.yaml` via the shared strict-server comparison helper, and
+  the obsolete types-only arg blocks were removed.
+- Earlier full-chain `exit=0` readings in this trace were shell-quoting artifacts of the
+  worker harness; the corrective run captures exit codes inside a script file.
+- Verification: all 8 freshness targets pass; full `go run ./cmd/graft validate openapi`
+  and `go run ./cmd/graft validate backend --stage buildtest` pass.
+- Follow-up in the same corrective slice: with freshness repaired the full chain exposed
+  the DTO boundary audit flagging the sanctioned strict-server integration in module
+  files (`ServerInterfaceWrapper` mounting, `NewStrictHandlerWithOptions` matched via the
+  `HandlerWithOptions(` substring). The audit's takeover scan was refined: markers use
+  word-boundary regexes (so `NewStrictHandlerWithOptions(` no longer matches
+  `HandlerWithOptions(`) and `ServerInterfaceWrapper` is no longer a forbidden marker
+  because mounting generated wrapper methods inside hand-written registration is the
+  recorded integration pattern. Actual takeover calls (`RegisterHandlers*`,
+  `HandlerFromMux`, bare `NewStrictHandler(`, `StrictHandlerFunc`,
+  `StrictHTTPServerOptions`) stay forbidden for hand-written files; audit unit tests
+  pass.
+- Migration note for remaining modules: when user/rbac/network/modules/health domains
+  move to per-domain configs, the corresponding legacy targets must be repointed the
+  same way (see tracking recipe table).

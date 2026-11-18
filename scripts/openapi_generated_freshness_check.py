@@ -36,14 +36,6 @@ MODULES_TARGET = Path("server/internal/contract/openapi/modules/zz_generated.mod
 NETWORK_CONNECTIVITY_TARGET = Path("server/internal/contract/openapi/network/zz_generated.connectivity.go")
 MONITOR_SPEC = Path("openapi/openapi.yaml")
 SERVER_MODULE_ROOT = Path("server")
-MONITOR_ARGS = [
-    "--include-operation-ids",
-    "getMonitorServerStatus,getMonitorRequestPerformance",
-    "--generate",
-    "types",
-    "--package",
-    "monitor",
-]
 HEALTH_ARGS = [
     "--include-operation-ids",
     "getHealthz",
@@ -67,14 +59,6 @@ USER_WRITE_ARGS = [
     "types",
     "--package",
     "useropenapi",
-]
-AUTH_ARGS = [
-    "--include-operation-ids",
-    "postAuthLogin,postAuthRefresh,postAuthLogout,getAuthBootstrap,getAuthSessions,postAuthSessionsRevokeAll,postAuthSessionsRevokeOthers,postAuthSessionRevoke,postAuthChangePassword,postAuthCompleteRequiredPasswordChange,getAuthPersonalAccessTokens,postAuthPersonalAccessTokens,postAuthPersonalAccessTokenRevoke",
-    "--generate",
-    "types",
-    "--package",
-    "authopenapi",
 ]
 MODULES_ARGS = [
     "--include-operation-ids",
@@ -125,15 +109,29 @@ def find_repo_root() -> Path:
     raise SystemExit(f"could not locate repository root containing {REPO_SENTINEL}")
 
 
+def run_strict_server_target_by_artifact(repo_root: Path, mode: str, artifact: Path) -> int:
+    """Validate one artifact through the per-domain config it is generated from.
+
+    Artifacts regenerated with models + gin-server + strict-server no longer match the
+    legacy types-only CLI regeneration, so legacy targets whose artifact moved to a
+    per-domain config must compare against that config's output.
+    """
+    for _, target in STRICT_SERVER_TARGETS:
+        if target == artifact:
+            return run_strict_server_target(
+                repo_root=repo_root,
+                target=target,
+                config=target.parent / "oapi-codegen.yaml",
+                mode=mode,
+                temp_prefix=f"graft-openapi-strict-{target.parent.name}-",
+            )
+    raise SystemExit(f"artifact {artifact} has no per-domain oapi-codegen config target")
+
+
 def run_backend_monitor(repo_root: Path, mode: str) -> int:
-    return run_generated_target(
-        repo_root=repo_root,
-        target=MONITOR_TARGET,
-        spec=repo_root / MONITOR_SPEC,
-        generator_args=MONITOR_ARGS,
-        mode=mode,
-        temp_prefix="graft-openapi-monitor-",
-    )
+    # monitor/zz_generated.types.go is now generated through its per-domain config
+    # (models + gin-server + strict-server); compare against that config's output.
+    return run_strict_server_target_by_artifact(repo_root, mode, MONITOR_TARGET)
 
 
 def run_backend_health(repo_root: Path, mode: str) -> int:
@@ -192,14 +190,9 @@ def run_backend_user_write(repo_root: Path, mode: str) -> int:
 
 
 def run_backend_auth_session(repo_root: Path, mode: str) -> int:
-    return run_generated_target(
-        repo_root=repo_root,
-        target=AUTH_TARGET,
-        spec=repo_root / MONITOR_SPEC,
-        generator_args=AUTH_ARGS,
-        mode=mode,
-        temp_prefix="graft-openapi-auth-session-",
-    )
+    # auth/zz_generated.auth.go is now generated through its per-domain config
+    # (models + gin-server + strict-server); compare against that config's output.
+    return run_strict_server_target_by_artifact(repo_root, mode, AUTH_TARGET)
 
 
 def run_backend_modules_runtime(repo_root: Path, mode: str) -> int:
