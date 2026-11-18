@@ -8,9 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	messagecontract "graft/server/internal/contract/message"
 	scheduleropenapi "graft/server/internal/contract/openapi/scheduler"
 	"graft/server/internal/contract/openapi/strictsupport"
-	messagecontract "graft/server/internal/contract/message"
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"

@@ -12,8 +12,8 @@ import (
 	"go.uber.org/zap"
 
 	messagecontract "graft/server/internal/contract/message"
-	"graft/server/internal/contract/openapi/strictsupport"
 	backupopenapi "graft/server/internal/contract/openapi/backup"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/logger/logsafe"

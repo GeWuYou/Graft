@@ -79,7 +79,9 @@ func (s taskStrictServer) ListTaskStages(ctx context.Context, _ taskopenapi.List
 }
 
 func (s taskStrictServer) ListTaskEvents(ctx context.Context, _ taskopenapi.ListTaskEventsRequestObject) (taskopenapi.ListTaskEventsResponseObject, error) {
-	return nil, strictsupport.Dispatch(ctx, func(ginCtx *gin.Context) { s.routes.replay(ginCtx, taskReplayEvents, defaultTaskEventLimit, maxTaskEventLimit) })
+	return nil, strictsupport.Dispatch(ctx, func(ginCtx *gin.Context) {
+		s.routes.replay(ginCtx, taskReplayEvents, defaultTaskEventLimit, maxTaskEventLimit)
+	})
 }
 
 func (s taskStrictServer) ListTaskLogs(ctx context.Context, _ taskopenapi.ListTaskLogsRequestObject) (taskopenapi.ListTaskLogsResponseObject, error) {

@@ -1,9 +1,9 @@
 package announcement
 
 import (
-	announcementopenapi "graft/server/internal/contract/openapi/announcement"
 	"context"
 	"encoding/json"
+	announcementopenapi "graft/server/internal/contract/openapi/announcement"
 	"net/http"
 	"net/http/httptest"
 	"strings"

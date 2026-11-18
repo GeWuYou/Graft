@@ -9,8 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	messagecontract "graft/server/internal/contract/message"
-	"graft/server/internal/contract/openapi/strictsupport"
 	securityopenapi "graft/server/internal/contract/openapi/security"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/logger"

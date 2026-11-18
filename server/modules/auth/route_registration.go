@@ -139,5 +139,7 @@ func (s authStrictServer) PostAuthCompleteRequiredPasswordChange(ctx context.Con
 	if request.Body == nil {
 		return nil, strictsupport.ErrMissingRequestBody
 	}
-	return nil, strictsupport.Dispatch(ctx, func(ginCtx *gin.Context) { s.registrar.handleCompleteRequiredPasswordChangeRoute(ginCtx, *request.Body) })
+	return nil, strictsupport.Dispatch(ctx, func(ginCtx *gin.Context) {
+		s.registrar.handleCompleteRequiredPasswordChangeRoute(ginCtx, *request.Body)
+	})
 }
