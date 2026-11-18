@@ -306,6 +306,13 @@ def audit_generated_runtime_takeover(repo_root: Path, result: AuditResult) -> No
     """
     for path in sorted((repo_root / "server").rglob("*.go")):
         rel_path = path.relative_to(repo_root).as_posix()
+        # zz_generated files are tool-owned oapi-codegen output; their runtime markers
+        # (RegisterHandlers/ServerInterfaceWrapper/StrictHandlerFunc) are part of the
+        # generated strict-server bindings and are validated byte-exactly by the
+        # openapi_generated_freshness_check.py targets. Ownership takeover remains
+        # blocked for all hand-written files.
+        if path.name.startswith("zz_generated."):
+            continue
         text = read_text(path)
         for pattern in FORBIDDEN_GENERATED_RUNTIME_PATTERNS:
             if pattern in text:

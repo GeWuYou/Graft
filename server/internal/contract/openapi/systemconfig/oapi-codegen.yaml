@@ -1,0 +1,11 @@
+package: systemconfigopenapi
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  include-operation-ids:
+    - getSystemConfig
+    - getSystemConfigs
+    - postSystemConfigReset
+    - putSystemConfig

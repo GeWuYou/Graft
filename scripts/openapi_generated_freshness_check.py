@@ -12,6 +12,12 @@ from pathlib import Path
 
 
 REPO_SENTINEL = "AGENTS.md"
+# Per-domain oapi-codegen strict server bindings. Each entry regenerates the tracked
+# file from its sibling `oapi-codegen.yaml` config (models + gin-server + strict-server)
+# and compares bytes; `--mode fix` overwrites the tracked file explicitly.
+STRICT_SERVER_TARGETS: list[tuple[str, Path]] = [
+    ("systemconfig", Path("server/internal/contract/openapi/systemconfig/zz_generated.systemconfig.go")),
+]
 MONITOR_TARGET = Path("server/internal/contract/openapi/monitor/zz_generated.types.go")
 HEALTH_TARGET = Path("server/internal/contract/openapi/health/zz_generated.health.go")
 RBAC_MANAGEMENT_TARGET = Path("server/internal/contract/openapi/rbac/zz_generated.management.go")
@@ -85,7 +91,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--target",
-        choices=["backend-monitor", "backend-health", "backend-rbac-permissions", "backend-rbac-read", "backend-rbac-management", "backend-user-write", "backend-auth-session", "backend-modules-runtime", "backend-network-connectivity"],
+        choices=["backend-monitor", "backend-health", "backend-rbac-permissions", "backend-rbac-read", "backend-rbac-management", "backend-user-write", "backend-auth-session", "backend-modules-runtime", "backend-network-connectivity", "backend-openapi-servers"],
         default="backend-monitor",
         help="Generated artifact target to validate.",
     )
@@ -209,6 +215,75 @@ def run_backend_network_connectivity(repo_root: Path, mode: str) -> int:
     )
 
 
+def run_backend_openapi_servers(repo_root: Path, mode: str) -> int:
+    failed: list[str] = []
+    for name, target in STRICT_SERVER_TARGETS:
+        config = target.parent / "oapi-codegen.yaml"
+        status = run_strict_server_target(
+            repo_root=repo_root,
+            target=target,
+            config=config,
+            mode=mode,
+            temp_prefix=f"graft-openapi-strict-{name}-",
+        )
+        if status != 0:
+            failed.append(name)
+    if failed:
+        sys.stderr.write(
+            "\nstrict server generated artifacts are stale: "
+            + ", ".join(failed)
+            + "; rerun `cd server && go generate ./internal/contract/openapi/...` or this script with `--mode fix`.\n"
+        )
+        return 1
+    return 0
+
+
+def run_strict_server_target(
+    repo_root: Path,
+    target: Path,
+    config: Path,
+    mode: str,
+    temp_prefix: str,
+) -> int:
+    tracked_target = repo_root / target
+    server_module_root = repo_root / SERVER_MODULE_ROOT
+    spec = repo_root / MONITOR_SPEC
+
+    with tempfile.TemporaryDirectory(prefix=temp_prefix) as temp_dir:
+        temp_output = Path(temp_dir) / tracked_target.name
+        command = [
+            "go",
+            "tool",
+            "oapi-codegen",
+            "-config",
+            str(repo_root / config),
+            "-o",
+            str(temp_output),
+            str(spec),
+        ]
+        subprocess.run(command, cwd=server_module_root, check=True)
+
+        actual = tracked_target.read_text(encoding="utf-8")
+        expected = temp_output.read_text(encoding="utf-8")
+        if actual == expected:
+            print(f"{target}: fresh")
+            return 0
+
+        if mode == "fix":
+            shutil.copyfile(temp_output, tracked_target)
+            print(f"{target}: regenerated from {MONITOR_SPEC} via {config.name}")
+            return 0
+
+        diff = difflib.unified_diff(
+            actual.splitlines(keepends=True),
+            expected.splitlines(keepends=True),
+            fromfile=str(target),
+            tofile=f"{target} (expected regenerated output)",
+        )
+        sys.stderr.writelines(diff)
+        return 1
+
+
 def run_generated_target(
     repo_root: Path,
     target: Path,
@@ -272,6 +347,8 @@ def main() -> int:
         return run_backend_modules_runtime(repo_root, args.mode)
     if args.target == "backend-network-connectivity":
         return run_backend_network_connectivity(repo_root, args.mode)
+    if args.target == "backend-openapi-servers":
+        return run_backend_openapi_servers(repo_root, args.mode)
 
     raise SystemExit(f"unsupported target: {args.target}")
 
