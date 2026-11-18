@@ -32,6 +32,7 @@ func Dispatch(ctx context.Context, handler func(*gin.Context)) error {
 	if ginCtx == nil {
 		return ErrMissingGinContext
 	}
+	resetCachedRequestBody(ginCtx)
 	handler(ginCtx)
 	return nil
 }
@@ -71,6 +72,10 @@ func HandlerErrorHandler(localizer *i18n.Service, runtimeLogger *zap.Logger) fun
 	}
 }
 
+// cachedRequestBodyKey 保存 CacheRequestBody 缓存的原始请求体字节，供 Dispatch
+// 在生成绑定消费请求体后为 handler 重置可重读的请求体。
+const cachedRequestBodyKey = "strictsupport.cached_request_body"
+
 // CacheRequestBody 缓存原始 JSON 请求体，供生成绑定后仍需按原始字节读取请求体的
 // handler（如保存视图的 RawMessage query_state）重新绑定；读取失败按统一 envelope
 // 返回 400。仅挂在生成 wrapper 之前、确有二次读取需求的路由上。
@@ -87,7 +92,25 @@ func CacheRequestBody(localizer *i18n.Service) gin.HandlerFunc {
 			ginCtx.Abort()
 			return
 		}
+		ginCtx.Set(cachedRequestBodyKey, data)
 		ginCtx.Request.Body = io.NopCloser(bytes.NewReader(data))
 		ginCtx.Next()
 	}
+}
+
+// resetCachedRequestBody 在 handler 执行前重置缓存的原始请求体；生成绑定消费过
+// 请求体时，仍需按原始字节绑定的 handler 由此获得全新的 body reader。
+func resetCachedRequestBody(ginCtx *gin.Context) {
+	if ginCtx == nil || ginCtx.Request == nil {
+		return
+	}
+	value, ok := ginCtx.Get(cachedRequestBodyKey)
+	if !ok {
+		return
+	}
+	data, ok := value.([]byte)
+	if !ok || len(data) == 0 {
+		return
+	}
+	ginCtx.Request.Body = io.NopCloser(bytes.NewReader(data))
 }
