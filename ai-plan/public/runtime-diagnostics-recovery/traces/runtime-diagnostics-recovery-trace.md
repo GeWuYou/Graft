@@ -52,3 +52,29 @@
   assert actual rendering; runtime-target detail tests cover claim admission classes and the no-receipt absence.
 - Validation after corrections: just openapi-check exit 0; cd server && go run ./cmd/graft validate backend exit 0
   (both lint configs 0 issues); cd web && bun run check exit 0.
+
+## 2026-11-20 Correction Round 2 (worker track1-diagnostics)
+
+- REAL 1 (fixed): `collectClaimResults` returned only after executions finished, delaying admission observation behind
+  long-running leases. The collector now returns its WaitGroup and `pollExecutionCapabilities` persists the merged
+  claim conclusion and reports telemetry before waiting for executions; rank merge and clear semantics unchanged.
+  Regression `TestPollExecutionCapabilitiesObservesAdmissionBeforeExecutionWait` blocks a renew to prove the
+  persisted admission lands while the execution is still running.
+- REAL 2 (fixed): the summary is now trusted only with provenance — `taskDiagnosticSummary` renders `failure_message`
+  only when the row carries `failure_stage` or `failure_class` (the settlement path always writes stage+class+summary
+  together); ordinary runtime errors saved without attribution stay unexposed. Single-line/length checks retained.
+  The drawer now composes through the shared `taskFailureDetail` helper for the task alert and every stage
+  description. Tests: presentation trust-gate cases in both locales (summary-without-stage rejected), composition
+  asserts the unprovenanced path text is withheld, and a drawer-level case renders an ordinary failure row with the
+  code label only.
+- STALE dispositions (verified locally, no code change):
+  (a) "Retries keep old failure details" — stale: retry/CAS/launch paths already NULL failure_stage/failure_class at
+  `server/modules/task/store/sql_repository.go:445/476/845/1271/1514` since commit `0672c14c9`, with regression
+  tests `TestExternalExecutionRetryClearsFailureDiagnostics` and `TestExternalExecutionRetryCreatesFreshFencedAttempt`.
+  (b) "Saved summaries never appear" — stale: the drawer renders the summary segment through the shared composition
+  since commit `350a4e58a`; `TaskDetailDrawer.test.ts` asserted it before this round and now also proves the
+  provenance gate.
+  (c) admission.go:97 comment — stale duplicate of correction 1 finding: bounded persistence refresh landed in
+  commit `34ae6011f` (`admissionPersistenceInterval`).
+  (d) admission.go:132 comment — stale duplicate of correction 1 finding: unchanged-evidence refresh landed in
+  commit `34ae6011f` (`admissionTelemetryRefreshInterval`).
