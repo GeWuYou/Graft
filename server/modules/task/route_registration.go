@@ -314,7 +314,25 @@ func taskSummaryResponse(task moduleapi.TaskView) map[string]any {
 		"duration_ms":       task.DurationMS,
 		"failure_code":      task.FailureCode,
 		"failure_message":   task.FailureMessage,
+		"failure_stage":     executionStageResponse(task.FailureStage),
+		"failure_class":     executionFailureClassResponse(task.FailureClass),
 	}
+}
+
+// executionStageResponse 把有界执行阶段投影为响应可空值。
+func executionStageResponse(stage *moduleapi.ExecutionStage) any {
+	if stage == nil {
+		return nil
+	}
+	return string(*stage)
+}
+
+// executionFailureClassResponse 把稳定失败分类投影为响应可空值。
+func executionFailureClassResponse(class *moduleapi.ExecutionFailureClass) any {
+	if class == nil {
+		return nil
+	}
+	return string(*class)
 }
 
 // taskSummaryResponses 将任务视图列表转换为任务摘要响应对象列表。
@@ -348,6 +366,8 @@ func taskStageResponse(stage moduleapi.TaskStageView) map[string]any {
 		"duration_ms":       stage.DurationMS,
 		"failure_code":      stage.FailureCode,
 		"failure_message":   stage.FailureMessage,
+		"failure_stage":     executionStageResponse(stage.FailureStage),
+		"failure_class":     executionFailureClassResponse(stage.FailureClass),
 	}
 }
 

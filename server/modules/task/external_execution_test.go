@@ -113,6 +113,64 @@ func TestExternalExecutionRejectsUnstableFailureCode(t *testing.T) {
 	}
 }
 
+func TestExternalExecutionSettlementProjectsFailureDiagnostics(t *testing.T) {
+	runtime, _, lease := claimedExternalExecutionTask(t, 1)
+	receipt := testExternalExecutionReceipt(lease, moduleapi.ExternalReceiptOutcomeFailed, "provider_operation_failed")
+	receipt.FailureStage = moduleapi.ExecutionStageComposeLoad
+	receipt.FailureClass = moduleapi.ExecutionFailureClassInfrastructure
+	receipt.DiagnosticSummary = "yaml: line 3: could not find expected ':'"
+	settlement, err := runtime.SettleExternalExecution(context.Background(), receipt)
+	if err != nil || settlement.Status != moduleapi.TaskStatusFailed {
+		t.Fatalf("failed settlement = %#v err=%v", settlement, err)
+	}
+	view, err := runtime.GetTask(context.Background(), lease.TaskID)
+	if err != nil {
+		t.Fatalf("load task view: %v", err)
+	}
+	if view.FailureCode == nil || *view.FailureCode != "provider_operation_failed" || view.FailureStage == nil || *view.FailureStage != moduleapi.ExecutionStageComposeLoad {
+		t.Fatalf("task failure projection = code:%v stage:%v", view.FailureCode, view.FailureStage)
+	}
+	if view.FailureClass == nil || *view.FailureClass != moduleapi.ExecutionFailureClassInfrastructure || view.FailureMessage == nil || *view.FailureMessage != receipt.DiagnosticSummary {
+		t.Fatalf("task failure classification = class:%v summary:%v", view.FailureClass, view.FailureMessage)
+	}
+	assertExternalStageFailureProjection(t, runtime, lease.TaskID)
+}
+
+func assertExternalStageFailureProjection(t *testing.T, runtime *Runtime, taskID uint64) {
+	t.Helper()
+	stages, err := runtime.ListTaskStages(context.Background(), taskID)
+	if err != nil || len(stages) != 1 {
+		t.Fatalf("stage views = %#v err=%v", stages, err)
+	}
+	if stages[0].FailureStage == nil || *stages[0].FailureStage != moduleapi.ExecutionStageComposeLoad || stages[0].FailureClass == nil || *stages[0].FailureClass != moduleapi.ExecutionFailureClassInfrastructure {
+		t.Fatalf("stage failure projection = %#v", stages[0])
+	}
+}
+
+func TestExternalExecutionSettlementRejectsInvalidDiagnostics(t *testing.T) {
+	runtime, _, lease := claimedExternalExecutionTask(t, 1)
+	receipt := testExternalExecutionReceipt(lease, moduleapi.ExternalReceiptOutcomeFailed, "provider_operation_failed")
+	receipt.FailureStage = moduleapi.ExecutionStageComposeLoad
+	receipt.FailureClass = moduleapi.ExecutionFailureClassInfrastructure
+
+	replay := receipt
+	replay.DiagnosticSummary = strings.Repeat("长", moduleapi.ExecutionDiagnosticSummaryMaxRunes+1)
+	if _, err := runtime.SettleExternalExecution(context.Background(), replay); !errors.Is(err, taskstore.ErrInvalidInput) {
+		t.Fatalf("oversized diagnostic summary error = %v", err)
+	}
+	multiline := receipt
+	multiline.DiagnosticSummary = "first\nsecond"
+	if _, err := runtime.SettleExternalExecution(context.Background(), multiline); !errors.Is(err, taskstore.ErrInvalidInput) {
+		t.Fatalf("multiline diagnostic summary error = %v", err)
+	}
+	success := testExternalExecutionReceipt(lease, moduleapi.ExternalReceiptOutcomeSuccess, "")
+	success.FailureStage = moduleapi.ExecutionStageComposeLoad
+	success.FailureClass = moduleapi.ExecutionFailureClassInfrastructure
+	if _, err := runtime.SettleExternalExecution(context.Background(), success); !errors.Is(err, taskstore.ErrInvalidInput) {
+		t.Fatalf("success receipt with failure attribution error = %v", err)
+	}
+}
+
 func TestInspectExternalExecutionValidatesFenceWithoutRenewing(t *testing.T) {
 	runtime, repository, lease := claimedExternalExecutionTask(t, 1)
 	before, _, err := repository.GetExternalExecutionLease(context.Background(), lease.ID)

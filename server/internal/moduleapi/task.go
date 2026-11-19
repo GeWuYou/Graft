@@ -6,7 +6,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 var (
@@ -57,6 +60,69 @@ const (
 	// ExecutionFailureClassUnknown 表示外部结果无法被安全确认。
 	ExecutionFailureClassUnknown ExecutionFailureClass = "unknown"
 )
+
+// ExecutionStage 标识外部执行器在固定协议中失败时所处的一组有界阶段。
+// 阶段集合随执行能力演进；新增值必须同步 OpenAPI 枚举与 Agent 侧写入边界。
+type ExecutionStage string
+
+const (
+	// ExecutionStageMaterialResolve 表示瞬时执行材料解析阶段。
+	ExecutionStageMaterialResolve ExecutionStage = "material_resolve"
+	// ExecutionStageComposeLoad 表示 Compose 项目与执行客户端加载阶段。
+	ExecutionStageComposeLoad ExecutionStage = "compose_load"
+	// ExecutionStageComposeApply 表示 Compose 副作用应用阶段。
+	ExecutionStageComposeApply ExecutionStage = "compose_apply"
+	// ExecutionStageContainerApply 表示容器资源副作用应用阶段。
+	ExecutionStageContainerApply ExecutionStage = "container_apply"
+	// ExecutionStageControllerPull 表示平台更新控制器镜像拉取阶段。
+	ExecutionStageControllerPull ExecutionStage = "controller_pull"
+)
+
+// ExecutionDiagnosticSummaryMaxRunes 是执行诊断摘要允许的最大字符数；
+// 摘要必须经过脱敏，禁止携带路径、凭据或原始 Provider stderr。
+const ExecutionDiagnosticSummaryMaxRunes = 256
+
+// ValidExecutionStage 判断给定值是否属于稳定执行阶段枚举；空值表示阶段未归类。
+func ValidExecutionStage(value string) bool {
+	switch ExecutionStage(value) {
+	case ExecutionStageMaterialResolve, ExecutionStageComposeLoad, ExecutionStageComposeApply,
+		ExecutionStageContainerApply, ExecutionStageControllerPull:
+		return true
+	default:
+		return false
+	}
+}
+
+// ValidExecutionFailureClass 判断给定值是否属于稳定失败分类枚举；空值表示分类未归类。
+func ValidExecutionFailureClass(value string) bool {
+	switch ExecutionFailureClass(value) {
+	case ExecutionFailureClassTransient, ExecutionFailureClassPermanent, ExecutionFailureClassConfiguration,
+		ExecutionFailureClassAuthorization, ExecutionFailureClassProvider, ExecutionFailureClassInfrastructure,
+		ExecutionFailureClassInternal, ExecutionFailureClassUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// SanitizeExecutionDiagnosticSummary 把执行诊断摘要归一为单行、可打印且有界的稳定文本。
+// 摘要来源必须已经过允许列表提取；这里只做防御性收口，不负责从任意错误文本中提取内容。
+func SanitizeExecutionDiagnosticSummary(value string) string {
+	value = strings.Join(strings.Fields(value), " ")
+	var builder strings.Builder
+	runes := 0
+	for _, symbol := range value {
+		if symbol == utf8.RuneError || unicode.IsControl(symbol) {
+			continue
+		}
+		if runes >= ExecutionDiagnosticSummaryMaxRunes {
+			break
+		}
+		builder.WriteRune(symbol)
+		runes++
+	}
+	return strings.TrimSpace(builder.String())
+}
 
 // RecoveryDisposition 是 Task Runtime 对受限执行失败结果允许作出的状态裁决。
 type RecoveryDisposition string
@@ -429,11 +495,16 @@ type ExternalExecutionResultRecorder interface {
 }
 
 // ExternalExecutionReceipt 是绑定 lease/fence 的受限外部执行结论。
+// FailureStage、FailureClass 与脱敏后的 DiagnosticSummary 是可选的可观察事实；
+// 它们不能替代稳定 FailureCode，也不得携带路径、凭据或原始 Provider stderr。
 type ExternalExecutionReceipt struct {
-	Handle          ExternalExecutionLeaseHandle
-	Outcome         ExternalReceiptOutcome
-	FailureCode     string
-	IntegritySHA256 string
+	Handle            ExternalExecutionLeaseHandle
+	Outcome           ExternalReceiptOutcome
+	FailureCode       string
+	FailureStage      ExecutionStage
+	FailureClass      ExecutionFailureClass
+	DiagnosticSummary string
+	IntegritySHA256   string
 }
 
 // ExternalReceiptOutcome 标识外部执行回执允许携带的受限终态结论。
@@ -554,6 +625,8 @@ type TaskView struct {
 	DurationMS      *int64
 	FailureCode     *string
 	FailureMessage  *string
+	FailureStage    *ExecutionStage
+	FailureClass    *ExecutionFailureClass
 }
 
 // TaskStageView 是稳定的 Stage 时间线读取模型。
@@ -571,6 +644,8 @@ type TaskStageView struct {
 	DurationMS     *int64
 	FailureCode    *string
 	FailureMessage *string
+	FailureStage   *ExecutionStage
+	FailureClass   *ExecutionFailureClass
 	// ExecutionMode 与版本来自冻结计划，用于追溯实际副作用归属。
 	ExecutionMode    string
 	ExecutionVersion string
