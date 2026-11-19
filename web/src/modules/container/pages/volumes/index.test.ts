@@ -17,9 +17,7 @@ describe('docker volume asset management page', () => {
   });
 
   it('uses medium controls for page-level actions while retaining compact row actions', () => {
-    expect(sourceText).toContain(
-      'size="medium"\n          variant="outline"\n          :loading="cleanup.loading.value"',
-    );
+    expect(sourceText).toContain('size="medium" variant="outline" :loading="cleanup.loading.value"');
     expect(sourceText).toContain('button-size="medium"');
     expect(sourceText).toContain('size="medium" theme="danger" variant="outline" @click="handleBatchRemove"');
     expect(sourceText).toContain('size="medium" variant="outline" @click="resetFilters"');
@@ -33,17 +31,16 @@ describe('docker volume asset management page', () => {
     expect(sourceText).toContain('density-scope="viewport"');
     expect(sourceText).toContain('entity-card-layout="compact"');
     expect(sourceText).toContain('preserve-inactive');
-    expect(sourceText).toContain('class="docker-volume-page__card"');
-    expect(sourceText).toContain('class="docker-volume-page__card-primary"');
-    expect(sourceText).toContain('class="docker-volume-page__card-secondary"');
-    expect(sourceText).toContain('block-size: 10rem;');
+    expect(sourceText).toContain('<management-entity-card');
+    expect(sourceText).toContain(':columns="cardColumns"');
+    expect(sourceText).toMatch(/:fields="\['size', 'references', 'driver', 'created_at'\]"/);
     expect(sourceText).toContain('middleEllipsis(row.name, 31)');
     expect(sourceText).toContain('<docker-resource-card-actions');
     expect(sourceText).toContain("danger: true, label: t('container.volume.actions.remove')");
   });
 
   it('uses the explicit mobile detail action instead of making the card navigate', () => {
-    expect(sourceText).not.toContain('class="docker-volume-page__card" @click="openDetailPage(row)"');
+    expect(sourceText).not.toContain('@click="openDetailPage(row)"');
     expect(sourceText).toContain('@detail="openDetailPage(row)"');
     expect(sourceText).toContain('CONTAINER_BOOTSTRAP_ROUTE.VOLUME_DETAIL.pageRouteName');
     expect(sourceText).not.toContain('CONTAINER_BOOTSTRAP_ROUTE.VOLUME_DETAIL.routeName, params');

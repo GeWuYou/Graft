@@ -1,26 +1,43 @@
 <template>
   <section :class="['management-statistics-bar', `management-statistics-bar--${layout}`]" :aria-label="label">
-    <div class="management-statistics-bar__content">
-      <template v-for="(item, index) in items" :key="`${item.label}-${index}`">
-        <t-divider v-if="index > 0" layout="vertical" />
-        <span class="management-statistics-bar__item">
-          <span v-if="item.marker" class="management-statistics-bar__marker" aria-hidden="true">{{ item.marker }}</span>
-          <span class="management-statistics-bar__label">{{ item.label }}</span>
+    <template v-if="layout === 'summary'">
+      <div class="management-statistics-bar__summary-content">
+        <article v-for="(item, index) in items" :key="`${item.label}-${index}`" :class="itemClass(item)">
+          <span class="management-statistics-bar__label">
+            <span v-if="item.marker" class="management-statistics-bar__marker" aria-hidden="true">{{
+              item.marker
+            }}</span>
+            {{ item.label }}
+          </span>
           <strong class="management-statistics-bar__value">{{ item.value }}</strong>
+        </article>
+      </div>
+    </template>
+    <template v-else>
+      <div class="management-statistics-bar__content">
+        <template v-for="(item, index) in items" :key="`${item.label}-${index}`">
+          <t-divider v-if="index > 0" layout="vertical" />
+          <span :class="itemClass(item)">
+            <span v-if="item.marker" class="management-statistics-bar__marker" aria-hidden="true">{{
+              item.marker
+            }}</span>
+            <span class="management-statistics-bar__label">{{ item.label }}</span>
+            <strong class="management-statistics-bar__value">{{ item.value }}</strong>
+          </span>
+        </template>
+      </div>
+      <div v-if="layout === 'chips'" class="management-statistics-bar__compact-content">
+        <span
+          v-for="(item, index) in compactItems.length ? compactItems : items"
+          :key="`${item.label}-${index}`"
+          :class="itemClass(item)"
+        >
+          <span v-if="item.marker" class="management-statistics-bar__marker" aria-hidden="true">{{ item.marker }}</span>
+          <strong class="management-statistics-bar__value">{{ item.value }}</strong>
+          <span class="management-statistics-bar__label">{{ item.label }}</span>
         </span>
-      </template>
-    </div>
-    <div v-if="layout === 'chips'" class="management-statistics-bar__compact-content">
-      <span
-        v-for="(item, index) in compactItems.length ? compactItems : items"
-        :key="`${item.label}-${index}`"
-        class="management-statistics-bar__item"
-      >
-        <span v-if="item.marker" class="management-statistics-bar__marker" aria-hidden="true">{{ item.marker }}</span>
-        <strong class="management-statistics-bar__value">{{ item.value }}</strong>
-        <span class="management-statistics-bar__label">{{ item.label }}</span>
-      </span>
-    </div>
+      </div>
+    </template>
   </section>
 </template>
 <script setup lang="ts">
@@ -40,8 +57,13 @@ withDefaults(
     compactItems: () => [],
   },
 );
+function itemClass(item: ManagementStatisticItem) {
+  return ['management-statistics-bar__item', item.tone && `management-statistics-bar__item--${item.tone}`];
+}
 </script>
 <style scoped lang="less">
+@import './card-surface.less';
+
 .management-statistics-bar {
   container-type: inline-size;
   min-width: 0;
@@ -87,6 +109,63 @@ withDefaults(
   margin: 0;
 }
 
+// summary 布局在全部宽度下渲染为统计卡片：每项独立一列，窄容器自动换行。
+.management-statistics-bar__summary-content {
+  .management-card-surface();
+
+  display: grid;
+  gap: var(--graft-density-gap-12);
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  min-width: 0;
+  padding: var(--graft-density-gap-14) var(--graft-density-gap-20);
+  width: 100%;
+}
+
+.management-statistics-bar__summary-content .management-statistics-bar__item {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--graft-density-gap-6);
+  min-width: 0;
+}
+
+.management-statistics-bar__summary-content .management-statistics-bar__label {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.management-statistics-bar__summary-content .management-statistics-bar__value {
+  font: var(--td-font-title-large);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.management-statistics-bar__item--success .management-statistics-bar__value {
+  color: var(--td-success-color);
+}
+
+.management-statistics-bar__item--warning .management-statistics-bar__value {
+  color: var(--td-warning-color);
+}
+
+.management-statistics-bar__item--danger .management-statistics-bar__value {
+  color: var(--td-error-color);
+}
+
+.management-statistics-bar__item--muted .management-statistics-bar__value {
+  color: var(--td-text-color-secondary);
+}
+
+.management-statistics-bar__item--muted .management-statistics-bar__label {
+  color: var(--td-text-color-secondary);
+}
+
+.management-statistics-bar__summary-content .management-statistics-bar__marker {
+  margin-inline-end: var(--graft-density-gap-4);
+}
+
 @container (width < 768px) {
   .management-statistics-bar--chips .management-statistics-bar__content {
     display: none;
@@ -116,40 +195,13 @@ withDefaults(
     font: var(--td-font-body-small);
   }
 
-  .management-statistics-bar--summary .management-statistics-bar__content {
-    border: 1px solid var(--td-component-stroke);
-    border-radius: var(--td-radius-medium);
-    display: grid;
-    gap: 0;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    overflow: hidden;
-    padding: 0;
-    white-space: normal;
+  .management-statistics-bar__summary-content {
+    gap: var(--graft-density-gap-10);
+    padding: var(--graft-density-gap-12) var(--graft-density-gap-16);
   }
 
-  .management-statistics-bar--summary .management-statistics-bar__item {
-    align-items: center;
-    flex-direction: column;
-    gap: var(--graft-density-gap-4);
-    min-width: 0;
-    padding: var(--graft-density-gap-12) var(--graft-density-gap-8);
-    text-align: center;
-  }
-
-  .management-statistics-bar--summary .management-statistics-bar__item ~ .management-statistics-bar__item {
-    border-left: 1px solid var(--td-component-stroke);
-  }
-
-  .management-statistics-bar--summary .management-statistics-bar__label {
-    overflow-wrap: anywhere;
-  }
-
-  .management-statistics-bar--summary .management-statistics-bar__value {
-    font: var(--td-font-title-small);
-  }
-
-  .management-statistics-bar--summary :deep(.t-divider--vertical) {
-    display: none;
+  .management-statistics-bar__summary-content .management-statistics-bar__value {
+    font: var(--td-font-title-medium);
   }
 }
 </style>

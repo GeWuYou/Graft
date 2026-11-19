@@ -37,7 +37,7 @@
       <slot name="empty-action" />
     </template>
     <template v-if="$slots.cards" #cards>
-      <slot name="cards" />
+      <slot name="cards" :columns="sourceColumns" />
     </template>
 
     <template #state="{ row }">
@@ -276,11 +276,11 @@ const cellSlotNames = [
   'restart_policy',
   'operation',
 ];
+const sourceColumns = computed(() => buildContainerResourceColumns(t));
 const columns = computed<TdBaseTableProps['columns']>(() =>
-  (
-    resolveManagedColumns(buildContainerResourceColumns(t), props.visibleColumnKeys, props.alwaysVisibleColumnKeys) ??
-    []
-  ).filter((column) => !props.readonlyMode || column.colKey !== 'row-select'),
+  (resolveManagedColumns(sourceColumns.value, props.visibleColumnKeys, props.alwaysVisibleColumnKeys) ?? []).filter(
+    (column) => !props.readonlyMode || column.colKey !== 'row-select',
+  ),
 );
 const resolvedMoreActionsLabel = computed(() => props.moreActionsLabel || t('container.list.actions.more'));
 

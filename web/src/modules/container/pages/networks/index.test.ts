@@ -1,11 +1,23 @@
 import { describe, expect, it } from 'vitest';
+import { parse } from 'vue/compiler-sfc';
 
 import referenceListText from '../../shared/ContainerReferenceList.vue?raw';
+import imagesSource from '../images/index.vue?raw';
+import containersSource from '../list/index.vue?raw';
+import volumesSource from '../volumes/index.vue?raw';
 import sourceText from './index.vue?raw';
 
 describe('Docker network management page', () => {
+  it('keeps each list page and its overlays inside one route transition root', () => {
+    for (const page of [sourceText, imagesSource, containersSource, volumesSource]) {
+      const template = parse(page).descriptor.template?.ast;
+      const rootElements = template?.children.filter((child) => 'tag' in child) ?? [];
+      expect(rootElements.map((element) => element.tag)).toEqual(['management-list-page']);
+    }
+  });
+
   it('provides list-form-detail controls with confirmed destructive removal', () => {
-    expect(sourceText).toContain('data-page-type="list-form-detail"');
+    expect(sourceText).toContain('page-type="list-form-detail"');
     expect(sourceText).toContain('useDockerNetworkListQuery(networkListQuery)');
     expect(sourceText).toContain('useDockerNetworkDetailQuery(selectedNetworkId)');
     expect(sourceText).toContain('confirm_network_name: removeConfirmation.value');
@@ -22,6 +34,22 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain('<t-dialog');
     expect(sourceText).not.toContain('window.confirm');
     expect(sourceText).not.toContain('window.alert');
+  });
+
+  it('keeps the create drawer within the viewport and above fixed navigation', () => {
+    const drawer = sourceText.match(/<t-drawer\s+v-model:visible="createDrawerVisible"[^>]*>/)?.[0];
+    expect(drawer).toContain('attach="body"');
+    expect(drawer).toContain('size="min(600px, 100vw)"');
+  });
+
+  it('asks for the subnet before submitting an explicit gateway', () => {
+    expect(sourceText).toContain('createForm.gateway.trim() && !createForm.subnet.trim()');
+    expect(sourceText).toMatch(
+      /if \(missingCreateSubnet\.value\) \{\s+createSubnetInput\.value\?\.focus\(\);\s+return;/,
+    );
+    expect(sourceText).toContain(
+      'const ipam = subnet ? { subnet, gateway: createForm.gateway.trim() || undefined } : undefined;',
+    );
   });
 
   it('submits permission-gated per-network Tasks without interpreting daemon partial results', () => {
@@ -46,6 +74,8 @@ describe('Docker network management page', () => {
     expect(sourceText).toContain(':cards-visible="true"');
     expect(sourceText).toContain('density-scope="viewport"');
     expect(sourceText).toContain('<responsive-card-list');
+    expect(sourceText).toContain('<management-entity-card');
+    expect(sourceText).toContain(':columns="cardColumns"');
     expect(sourceText).toContain('docker-network-page__mobile-card');
     expect(sourceText).toContain('docker-network-page__mobile-card-name');
     expect(sourceText).toContain('overflow-wrap: anywhere;');

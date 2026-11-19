@@ -94,7 +94,7 @@ function mountSelectionPage() {
           setup:
             (_, { slots }) =>
             () =>
-              h('section', slots.cards?.()),
+              h('section', slots.cards?.({ columns: [] })),
         }),
         'resource-detail-layout': true,
         'tag-manager-drawer': true,
@@ -131,14 +131,16 @@ describe('docker image list page', () => {
   });
 
   it('uses the shared server-paged table and summary contract', () => {
-    expect(sourceText).toContain('<management-page-header\n      compact');
+    expect(sourceText).toContain('<management-list-page');
+    expect(sourceText).toContain('\n    compact\n');
     expect(sourceText).toContain('<management-paged-table');
     expect(sourceText).toContain('v-model:current="pagination.current"');
     expect(sourceText).toContain('v-model:page-size="pagination.pageSize"');
     expect(sourceText).toContain(':total="total"');
     expect(sourceText).toContain('summary.value.size_bytes');
     expect(sourceText).not.toContain('filteredImages');
-    expect(sourceText).toContain('<management-statistics-bar');
+    expect(sourceText).toContain(':stats-items="metrics"');
+    expect(sourceText).toContain('stats-layout="chips"');
     expect(sourceText).toContain('<table-view-toolbar');
     expect(sourceText).not.toContain('docker-images-summary');
     expect(sourceText).toContain('summary.value.dangling');
@@ -158,7 +160,8 @@ describe('docker image list page', () => {
   });
 
   it('uses detail actions instead of opening compact cards outside selection mode', () => {
-    expect(sourceText).toContain('<template #cards>');
+    expect(sourceText).toContain('<template #cards="{ columns: cardColumns }">');
+    expect(sourceText).toContain('<management-entity-card');
     expect(sourceText).toContain('class="docker-images-card"');
     expect(sourceText).toContain('formatBytes(image.size_bytes)');
     expect(sourceText).toContain("t('container.images.fields.containers')");

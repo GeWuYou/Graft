@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/vue-query';
+import { computed, type MaybeRef, toValue } from 'vue';
 
 import { queryClient } from '@/shared/query';
 
@@ -12,8 +13,11 @@ export const systemConfigQueryKeys = {
 };
 
 /** 系统配置集合快照只由 Query cache 持有，树选择和编辑器草稿仍由页面管理。 */
-export function useSystemConfigsQuery() {
-  return useQuery({ queryKey: systemConfigQueryKeys.list(), queryFn: getSystemConfigs }, queryClient);
+export function useSystemConfigsQuery(enabled: MaybeRef<boolean> = true) {
+  return useQuery(
+    { queryKey: systemConfigQueryKeys.list(), queryFn: getSystemConfigs, enabled: computed(() => toValue(enabled)) },
+    queryClient,
+  );
 }
 
 /** 将更新或重置接口返回的权威配置项精确写回已缓存的集合。 */

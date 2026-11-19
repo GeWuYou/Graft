@@ -34,7 +34,7 @@
       :presentation="responsivePresentation"
     >
       <template v-if="$slots.cards" #cards>
-        <div class="management-paged-table__cards"><slot name="cards" /></div>
+        <div class="management-paged-table__cards"><slot name="cards" :columns="props.columns" /></div>
       </template>
       <template #default="{ variant }">
         <div

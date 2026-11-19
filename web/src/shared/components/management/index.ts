@@ -1,5 +1,7 @@
 export { default as ManagementBatchBar } from './ManagementBatchBar.vue';
 export { default as ManagementEmptyState } from './ManagementEmptyState.vue';
+export { default as ManagementEntityCard } from './ManagementEntityCard.vue';
+export { default as ManagementListPage } from './ManagementListPage.vue';
 export { default as ManagementPageContent } from './ManagementPageContent.vue';
 export { default as ManagementPageHeader } from './ManagementPageHeader.vue';
 export { default as ManagementStatisticsBar } from './ManagementStatisticsBar.vue';

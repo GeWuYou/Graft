@@ -22,19 +22,25 @@
       <template #feedback>
         <slot name="feedback" />
       </template>
-      <template #cards>
-        <div class="container-list__cards">
-          <container-card
-            v-for="row in rows"
-            :key="row.id"
-            :row="row"
-            :actions="rowActions(row)"
-            :selected="selectedRowKeys.includes(row.id)"
-            @detail="$emit('detail', $event)"
-            @action="$emit('action', $event)"
-            @select-change="toggleCardSelection(row.id, $event)"
-          />
-        </div>
+      <template #cards="{ columns: cardColumns }">
+        <t-loading :loading="loading">
+          <div v-if="rows.length" class="container-list__cards">
+            <container-card
+              v-for="row in rows"
+              :key="row.id"
+              :row="row"
+              :columns="cardColumns"
+              :actions="rowActions(row)"
+              :selected="selectedRowKeys.includes(row.id)"
+              @detail="$emit('detail', $event)"
+              @action="$emit('action', $event)"
+              @select-change="toggleCardSelection(row.id, $event)"
+            />
+          </div>
+          <t-empty v-else-if="!loading" :title="emptyTitle" :description="emptyDescription">
+            <template v-if="$slots['empty-action']" #action><slot name="empty-action" /></template>
+          </t-empty>
+        </t-loading>
       </template>
       <template #empty-action><slot name="empty-action" /></template>
     </container-resource-table>

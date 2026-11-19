@@ -11,8 +11,8 @@
   - `ai-plan/roadmap/Graft响应式架构迁移路线.md`
   - `web/AGENTS.md`
   - `web/src/shared/**` 与 `web/src/style/**`
-- Completed so far: B1 已建立规范、开发者 Manifest 与主题恢复材料；B2 已建立 shared 容器/variant 基础设施；B3 已建立首批 shared Responsive primitives 与过渡治理记录。
-- Not started yet: shell integration、ResponsiveTable/Form/CardList、页面迁移与 CI 治理门禁。
+- Completed so far: B1 已建立规范、开发者 Manifest 与主题恢复材料；B2 已建立 shared 容器/variant 基础设施；B3 已建立首批 shared Responsive primitives 与过渡治理记录；B4 已完成 shared/shell 最小迁移与治理门禁；B5 收敛 Docker 列表骨架与统计条；B6 将四页的表格列用于移动卡片并复用容器统计条。
+- Pending verification: 主检出区浏览器宽度与页面切换验收。
 
 ## Recovery Receipt
 
@@ -50,8 +50,9 @@ Out of scope:
 ## Current Recovery Point
 
 - B3 已收尾：首批无业务语义 primitives 实际消费 B2 container/variant API，且删除了 Knip temporary exemption。
-- 风险：B4 必须从 shell 与现有管理组件逐批接入，不能用业务状态、查询或分页语义替换 shared layout contract。
-- Next step: `B4-page-migration-and-governance-gate`。
+- B5 已收尾：`ManagementListPage` 共享列表骨架与 `ManagementStatisticsBar` summary 网格卡片/tone 落地，Docker 四个列表页（网络、数据卷、镜像、容器列表）接入共享骨架；业务状态、查询与分页语义保留在页面。
+- B6 将表格字段和移动卡片标题统一到同一列定义，容器统计接入共享组件。
+- Next step: 在主检出区验证响应式布局与页面切换。
 
 ## Work Intake
 
@@ -63,6 +64,8 @@ Out of scope:
 - `B2-foundation-runtime`
 - `B3-responsive-primitives`
 - `B4-page-migration-and-governance-gate`
+- `B5-docker-list-page-convergence`
+- `B6-column-driven-table-card-conversion`
 
 ## Validation Targets
 

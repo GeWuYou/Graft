@@ -1,41 +1,33 @@
 <template>
-  <div class="docker-volume-page" data-page-type="list-form-detail">
-    <management-page-header
-      action-layout="inline"
-      compact
-      :title="t('container.volume.list.title')"
-      :description="t('container.volume.list.description')"
-      :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
-    >
-      <template #actions>
-        <t-button
-          v-if="canRemove"
-          size="medium"
-          variant="outline"
-          :loading="cleanup.loading.value"
-          @click="openCleanup"
-        >
-          {{ t('container.volume.actions.cleanup') }}
-        </t-button>
-      </template>
-    </management-page-header>
+  <management-list-page
+    class="docker-volume-page"
+    page-type="list-form-detail"
+    compact
+    action-layout="inline"
+    :title="t('container.volume.list.title')"
+    :description="t('container.volume.list.description')"
+    :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
+    :stats-items="volumeStatistics"
+    stats-layout="inline"
+    :stats-label="t('container.volume.list.total', { count: volumeSummary?.total ?? 0 })"
+  >
+    <template #actions>
+      <t-button v-if="canRemove" size="medium" variant="outline" :loading="cleanup.loading.value" @click="openCleanup">
+        {{ t('container.volume.actions.cleanup') }}
+      </t-button>
+    </template>
 
-    <management-statistics-bar
-      :items="volumeStatistics"
-      layout="inline"
-      :label="t('container.volume.list.total', { count: volumeSummary?.total ?? 0 })"
-      aria-live="polite"
-    />
-
-    <resource-query-panel
-      v-model="resourceQueryState"
-      :config="queryConfig"
-      :loading="loading"
-      @reset="resetFilters"
-      @search="applyFilters"
-    >
-      <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
-    </resource-query-panel>
+    <template #filters>
+      <resource-query-panel
+        v-model="resourceQueryState"
+        :config="queryConfig"
+        :loading="loading"
+        @reset="resetFilters"
+        @search="applyFilters"
+      >
+        <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
+      </resource-query-panel>
+    </template>
 
     <management-paged-table
       v-model:current="pagination.current"
@@ -81,7 +73,7 @@
           :message="t('container.volume.metrics.abnormalNotice', { count: abnormalCount })"
         />
       </template>
-      <template #cards>
+      <template #cards="{ columns: cardColumns }">
         <t-empty
           v-if="!rows.length && !loading"
           :title="hasActiveFilters ? t('container.volume.pagination.empty') : t('container.volume.empty.title')"
@@ -96,45 +88,38 @@
           </template>
         </t-empty>
         <div v-else class="docker-volume-page__cards">
-          <article v-for="row in rows" :key="row.name" class="docker-volume-page__card">
-            <header class="docker-volume-page__card-header">
-              <t-tag :theme="relationshipPresentation(row.relationship_status).theme" size="small" variant="light">
-                {{ relationshipPresentation(row.relationship_status).label }}
-              </t-tag>
-              <t-tooltip :content="row.name">
-                <strong>{{ middleEllipsis(row.name, 31) }}</strong>
-              </t-tooltip>
-            </header>
-            <dl class="docker-volume-page__card-primary">
-              <div>
-                <dt>{{ t('container.volume.columns.size') }}</dt>
-                <dd>{{ formatBytes(row.size_bytes, t('container.volume.notCollected')) }}</dd>
-              </div>
-              <div>
-                <dt>{{ t('container.volume.columns.mountedContainers') }}</dt>
-                <dd>
-                  {{ t('container.volume.card.containerCount', { count: row.container_references?.length ?? 0 }) }}
-                </dd>
-              </div>
-            </dl>
-            <dl class="docker-volume-page__card-secondary">
-              <div>
-                <dt>{{ t('container.volume.columns.driver') }}</dt>
-                <dd>{{ row.driver }}</dd>
-              </div>
-              <div>
-                <dt>{{ t('container.volume.columns.createdAt') }}</dt>
-                <dd>{{ formatCardDate(row.created_at) }}</dd>
-              </div>
-            </dl>
-            <docker-resource-card-actions
-              :detail-label="t('container.volume.actions.detail')"
-              :more-actions="canRemove ? volumeCardOverflowOptions() : []"
-              :more-label="t('container.list.actions.more')"
-              @detail="openDetailPage(row)"
-              @action="handleVolumeRowAction($event, row)"
-            />
-          </article>
+          <management-entity-card
+            v-for="row in rows"
+            :key="row.name"
+            :columns="cardColumns"
+            :fields="['size', 'references', 'driver', 'created_at']"
+            :row="row"
+          >
+            <template #header>
+              <header class="docker-volume-page__card-header">
+                <t-tag :theme="relationshipPresentation(row.relationship_status).theme" size="small" variant="light">
+                  {{ relationshipPresentation(row.relationship_status).label }}
+                </t-tag>
+                <t-tooltip :content="row.name">
+                  <strong>{{ middleEllipsis(row.name, 31) }}</strong>
+                </t-tooltip>
+              </header>
+            </template>
+            <template #field-size>{{ formatBytes(row.size_bytes, t('container.volume.notCollected')) }}</template>
+            <template #field-references>
+              {{ t('container.volume.card.containerCount', { count: row.container_references?.length ?? 0 }) }}
+            </template>
+            <template #field-created_at>{{ formatCardDate(row.created_at) }}</template>
+            <template #actions>
+              <docker-resource-card-actions
+                :detail-label="t('container.volume.actions.detail')"
+                :more-actions="canRemove ? volumeCardOverflowOptions() : []"
+                :more-label="t('container.list.actions.more')"
+                @detail="openDetailPage(row)"
+                @action="handleVolumeRowAction($event, row)"
+              />
+            </template>
+          </management-entity-card>
         </div>
       </template>
       <template #name="{ row }">
@@ -307,7 +292,7 @@
         </div>
       </div>
     </resource-detail-layout>
-  </div>
+  </management-list-page>
 </template>
 <script setup lang="ts">
 // 数据卷页负责 Docker 数据卷查询与操作，清理流程通过现有批量删除契约执行未使用候选。
@@ -321,9 +306,9 @@ import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/contain
 import type { components } from '@/contracts/openapi/generated/schema';
 import {
   ManagementBatchBar,
-  ManagementPageHeader,
+  ManagementEntityCard,
+  ManagementListPage,
   type ManagementStatisticItem,
-  ManagementStatisticsBar,
   TableActionMenu,
 } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
@@ -780,12 +765,6 @@ function confirmRemove(row: VolumeRow) {
 }
 </script>
 <style scoped lang="less">
-.docker-volume-page {
-  container-type: inline-size;
-  display: grid;
-  gap: var(--graft-density-gap-16);
-}
-
 .docker-volume-page__alert {
   margin-bottom: var(--td-comp-margin-l);
 }
@@ -807,19 +786,6 @@ function confirmRemove(row: VolumeRow) {
   gap: var(--graft-density-gap-10);
 }
 
-.docker-volume-page__card {
-  background: var(--td-bg-color-container);
-  block-size: 10rem;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-small);
-  display: grid;
-  gap: var(--graft-density-gap-4);
-  grid-template-rows: 1.5rem 2.25rem 1.5rem 1fr;
-  min-width: 0;
-  overflow: hidden;
-  padding: var(--graft-density-gap-8) var(--graft-density-gap-10);
-}
-
 .docker-volume-page__card-header {
   align-items: center;
   display: grid;
@@ -832,46 +798,6 @@ function confirmRemove(row: VolumeRow) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.docker-volume-page__card-primary,
-.docker-volume-page__card-secondary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: 0;
-}
-
-.docker-volume-page__card-primary {
-  gap: var(--graft-density-gap-12);
-}
-
-.docker-volume-page__card-secondary {
-  gap: var(--graft-density-gap-8);
-}
-
-.docker-volume-page__card dt {
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
-.docker-volume-page__card dd {
-  font-variant-numeric: tabular-nums;
-  margin: var(--graft-density-gap-2) 0 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.docker-volume-page__card-secondary > div {
-  align-items: baseline;
-  display: flex;
-  gap: var(--graft-density-gap-4);
-  min-width: 0;
-}
-
-.docker-volume-page__card-primary > div,
-.docker-volume-page__card-secondary > div {
-  min-width: 0;
 }
 
 @container (width < 768px) {

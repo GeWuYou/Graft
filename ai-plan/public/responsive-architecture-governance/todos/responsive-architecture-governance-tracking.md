@@ -47,7 +47,10 @@ closeout:
 - `ResponsivePage`、`ResponsiveHeader`、`ResponsiveToolbar`、`ResponsiveContent`、`ResponsiveEmpty` 与 `ResponsiveDialog` 位于 `shared/components/responsive/**`，仅接收 slots 和语义 variant；`ResponsiveDialog` 以 `purpose`/`size` 解析表面，拒绝像素宽度与设备接口。
 - B2 Knip temporary exemption 已在 B3 删除，container/variant/token API 已被 shared primitives 真实消费；`bun run deadcode:check` 通过。
 - 受控 Exception 与 Responsive Debt 已登记在 `governance-records.md`，B4 必须按其 owner 完成 shell、Table/Form/CardList、治理门禁和页面迁移。
-- Next step: `B4-page-migration-and-governance-gate`。
+- B5 `docker-list-page-convergence` 已完成页面骨架收敛：`ManagementListPage` 共享骨架、`ManagementStatisticsBar` summary 网格卡片与语义 tone 落地，Docker 四个列表页（网络/数据卷/镜像/容器列表）接入共享骨架；业务查询、分页与操作语义保留在页面。
+- B6 将 Docker 网络、卷、镜像、容器卡片接入 ManagementEntityCard。卡片字段复用表格列的标签和列键；四页保留各自的状态、选择和详情操作。
+- 容器列表接入 ManagementStatisticsBar，局部列表包装仍持有用户选择的表格或卡片形态。镜像、卷与容器页保持单一根节点供路由过渡使用。
+- Next step: 在主检出区验证四宽度、窄容器、页面切换和网络表单焦点。
 
 ## Task Checklist
 
@@ -55,6 +58,8 @@ closeout:
 - [x] `B2-foundation-runtime`: shared token、container/variant 策略与壳层债务基线。
 - [x] `B3-responsive-primitives`: 共享 Responsive 组件、exception/debt 治理记录。
 - [x] `B4-page-migration-and-governance-gate`: shared/shell 最小迁移与 CI 规则；浏览器四宽度证据因本轮范围未执行，保留为后续页面迁移验收。
+- [x] `B5-docker-list-page-convergence`: Docker 列表页共享骨架收敛 + 统计条 summary 卡片与 tone；遗留列驱动卡片转换与容器列表本地组件收敛。
+- [x] `B6-column-driven-table-card-conversion`: 通过同一列定义呈现桌面表格和移动卡片；容器列表使用共享统计。
 
 ## Acceptance Conditions
 
@@ -70,10 +75,13 @@ closeout:
   "completed_batches": [
     "B1-docs-bootstrap",
     "B2-foundation-runtime",
-    "B3-responsive-primitives"
+    "B3-responsive-primitives",
+    "B4-page-migration-and-governance-gate",
+    "B5-docker-list-page-convergence",
+    "B6-column-driven-table-card-conversion"
   ],
   "pending_batches": [],
-  "current_batch": "B4-page-migration-and-governance-gate",
+  "current_batch": "B6-column-driven-table-card-conversion",
   "next_batch": null,
   "closeout_status": "completed"
 }

@@ -1,24 +1,27 @@
 <template>
-  <div class="container-page" data-page-type="list-form-detail">
-    <management-page-header
-      title-key="container.list.title"
-      :title="t('container.list.title')"
-      description-key="container.list.description"
-      :description="t('container.list.description')"
-      :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
-    />
-
-    <container-stats :items="containerStatistics" :label="t('container.list.tableSummary', { count: listTotal })" />
-
-    <resource-query-panel
-      v-model="resourceQueryState"
-      :config="queryConfig"
-      :loading="tableLoading"
-      @reset="resetFilters"
-      @search="applyQueryState"
-    >
-      <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
-    </resource-query-panel>
+  <management-list-page
+    class="container-page"
+    page-type="list-form-detail"
+    :title="t('container.list.title')"
+    title-key="container.list.title"
+    :description="t('container.list.description')"
+    description-key="container.list.description"
+    :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
+    :stats-items="containerStatistics"
+    :stats-label="t('container.list.tableSummary', { count: listTotal })"
+    stats-layout="chips"
+  >
+    <template #filters>
+      <resource-query-panel
+        v-model="resourceQueryState"
+        :config="queryConfig"
+        :loading="tableLoading"
+        @reset="resetFilters"
+        @search="applyQueryState"
+      >
+        <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
+      </resource-query-panel>
+    </template>
 
     <container-list
       :presentation="listPresentation"
@@ -195,7 +198,7 @@
         </t-button>
       </div>
     </t-alert>
-  </div>
+  </management-list-page>
 </template>
 <script setup lang="ts">
 import type { DialogInstance } from 'tdesign-vue-next';
@@ -214,7 +217,12 @@ import { resolveComposeApplicationReferences } from '@/modules/project/contract/
 import { listRuntimeTargets, type RuntimeTarget } from '@/modules/runtime-target/api/runtime-target';
 import { isTerminalTaskStatus, observeTask, type TaskObserver } from '@/modules/task/contract/task-observer';
 import { TaskDetailDrawer } from '@/modules/task/contract/task-ui';
-import { ManagementBatchBar, ManagementPageHeader, TableViewToolbar } from '@/shared/components/management';
+import {
+  ManagementBatchBar,
+  ManagementListPage,
+  type ManagementStatisticItem,
+  TableViewToolbar,
+} from '@/shared/components/management';
 import {
   type ResourceQueryConfig,
   ResourceQueryPanel,
@@ -270,7 +278,6 @@ import type {
   ContainerSummaryRecord,
 } from '../../types/container';
 import ContainerList from './ContainerList.vue';
-import ContainerStats from './ContainerStats.vue';
 
 defineOptions({
   name: 'ContainerListIndex',
@@ -456,12 +463,12 @@ const runningCount = computed(() => listSummary.value?.running ?? 0);
 const stoppedCount = computed(() => listSummary.value?.stopped ?? 0);
 const errorCount = computed(() => listSummary.value?.error ?? 0);
 const unhealthyCount = computed(() => listSummary.value?.unhealthy ?? 0);
-const containerStatistics = computed(() => [
-  { label: t('container.list.totalLabel'), theme: 'default' as const, value: totalCount.value },
-  { label: t('container.list.runningLabel'), theme: 'success' as const, value: runningCount.value },
-  { label: t('container.list.stoppedLabel'), theme: 'warning' as const, value: stoppedCount.value },
-  { label: t('container.list.errorLabel'), theme: 'danger' as const, value: errorCount.value },
-  { label: t('container.list.unhealthyLabel'), theme: 'danger' as const, value: unhealthyCount.value },
+const containerStatistics = computed<ManagementStatisticItem[]>(() => [
+  { label: t('container.list.totalLabel'), tone: 'default', value: totalCount.value },
+  { label: t('container.list.runningLabel'), tone: 'success', value: runningCount.value },
+  { label: t('container.list.stoppedLabel'), tone: 'warning', value: stoppedCount.value },
+  { label: t('container.list.errorLabel'), tone: 'danger', value: errorCount.value },
+  { label: t('container.list.unhealthyLabel'), tone: 'danger', value: unhealthyCount.value },
 ]);
 const tableDensityLabel = computed(() =>
   tableDensity.value === 'medium' ? t('container.list.compactDensity') : t('container.list.defaultDensity'),
@@ -1585,13 +1592,6 @@ function normalizeVisibleColumnKeys(keys: unknown[]) {
 }
 </script>
 <style scoped lang="less">
-.container-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-16);
-  min-width: 0;
-}
-
 .container-toolbar-row {
   align-items: center;
   display: flex;

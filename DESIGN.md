@@ -72,6 +72,7 @@ Rules:
 - Standard backend pages should think in `page header`, `primary action area`, `main content surface`, and `feedback surface`.
 - Different page types may trim those surfaces; do not force every page into a table/card/detail shape.
 - Use cards for grouping, not for decoration.
+- Management lists share the page frame and pagination. Reuse table columns for compact card fields and preserve the same row actions and query state.
 
 ## Components
 

@@ -1,40 +1,39 @@
 <template>
-  <div class="docker-images-page" data-page-type="list-form-detail">
-    <management-page-header
-      compact
-      title-key="container.images.title"
-      :title="t('container.images.title')"
-      description-key="container.images.description"
-      :description="t('container.images.description')"
-      :source="{ labelKey: 'container.images.eyebrow', fallback: t('container.images.eyebrow') }"
-    >
-      <template #actions>
-        <t-space>
-          <t-button variant="outline" :loading="cleanupLoading" @click="openCleanup">
-            {{ t('container.images.actions.cleanup') }}
-          </t-button>
-          <t-button theme="primary" @click="pullDrawerVisible = true">{{
-            t('container.images.actions.pull')
-          }}</t-button>
-        </t-space>
-      </template>
-      <template #compactActions>
-        <t-space>
-          <t-button theme="primary" @click="pullDrawerVisible = true">{{
-            t('container.images.actions.pull')
-          }}</t-button>
-          <t-dropdown :options="compactHeaderActions" trigger="click" @click="handleCompactHeaderAction">
-            <t-button variant="outline">{{ t('container.images.actions.more') }}</t-button>
-          </t-dropdown>
-        </t-space>
-      </template>
-    </management-page-header>
+  <management-list-page
+    class="docker-images-page"
+    page-type="list-form-detail"
+    compact
+    :title="t('container.images.title')"
+    title-key="container.images.title"
+    :description="t('container.images.description')"
+    description-key="container.images.description"
+    :source="{ labelKey: 'container.images.eyebrow', fallback: t('container.images.eyebrow') }"
+    :stats-items="metrics"
+    stats-layout="chips"
+    :stats-compact-items="compactMetrics"
+  >
+    <template #actions>
+      <t-space>
+        <t-button variant="outline" :loading="cleanupLoading" @click="openCleanup">
+          {{ t('container.images.actions.cleanup') }}
+        </t-button>
+        <t-button theme="primary" @click="pullDrawerVisible = true">{{ t('container.images.actions.pull') }}</t-button>
+      </t-space>
+    </template>
+    <template #compactActions>
+      <t-space>
+        <t-button theme="primary" @click="pullDrawerVisible = true">{{ t('container.images.actions.pull') }}</t-button>
+        <t-dropdown :options="compactHeaderActions" trigger="click" @click="handleCompactHeaderAction">
+          <t-button variant="outline">{{ t('container.images.actions.more') }}</t-button>
+        </t-dropdown>
+      </t-space>
+    </template>
 
-    <management-statistics-bar layout="chips" :items="metrics" :compact-items="compactMetrics" aria-live="polite" />
-
-    <resource-query-panel v-model="resourceQueryState" :config="queryConfig" :loading="query.isFetching.value">
-      <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
-    </resource-query-panel>
+    <template #filters>
+      <resource-query-panel v-model="resourceQueryState" :config="queryConfig" :loading="query.isFetching.value">
+        <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
+      </resource-query-panel>
+    </template>
 
     <management-paged-table
       v-model:current="pagination.current"
@@ -81,7 +80,7 @@
           </t-button>
         </management-batch-bar>
       </template>
-      <template #cards>
+      <template #cards="{ columns: cardColumns }">
         <t-empty
           v-if="!images.length && !query.isFetching.value"
           :title="t('container.images.emptyTitle')"
@@ -96,9 +95,13 @@
           </template>
         </t-empty>
         <div v-else class="docker-images-card-list">
-          <article
+          <management-entity-card
             v-for="image in images"
             :key="image.id"
+            :columns="cardColumns"
+            :fields="['containers', 'created_at']"
+            :row="image"
+            stacked
             class="docker-images-card"
             :class="{
               'docker-images-card--selected': isImageSelected(image),
@@ -112,60 +115,56 @@
             @keydown.enter="handleCardKeydown($event, image)"
             @keydown.space="handleCardKeydown($event, image)"
           >
-            <header class="docker-images-card__header">
-              <div class="docker-images-card__identity">
-                <strong>{{ imageReference(imageTags(image)[0] ?? '').repository || shortId(image.id) }}</strong>
-                <t-space v-if="imageTags(image).length" size="small" break-line>
-                  <t-tag v-for="tag in imageTags(image)" :key="tag" size="small" variant="light-outline">
-                    {{ imageReference(tag).tag }}
-                  </t-tag>
-                </t-space>
-                <span v-else class="docker-images-muted">{{ t('container.images.untagged') }}</span>
-              </div>
-              <t-checkbox
-                v-if="cardSelectionMode"
-                :checked="isImageSelected(image)"
-                :aria-label="t('container.images.selection.toggle', { image: shortId(image.id) })"
-                @click.stop
-                @change="toggleCardSelection(image, $event)"
-              />
-            </header>
-            <div class="docker-images-card__primary">
-              <strong>{{ formatBytes(image.size_bytes) }}</strong>
-              <t-tag :theme="imageStatus(image).theme" size="small" variant="light-outline">
-                {{ imageStatus(image).label }}
-              </t-tag>
-            </div>
-            <dl class="docker-images-card__details">
-              <div>
-                <dt>{{ t('container.images.fields.containers') }}</dt>
-                <dd>
-                  <t-space v-if="image.container_references?.length" size="small" break-line>
-                    <t-tag
-                      v-for="container in image.container_references"
-                      :key="container.id"
-                      size="small"
-                      variant="light-outline"
-                    >
-                      {{ container.name }}
+            <template #header>
+              <header class="docker-images-card__header">
+                <div class="docker-images-card__identity">
+                  <strong>{{ imageReference(imageTags(image)[0] ?? '').repository || shortId(image.id) }}</strong>
+                  <t-space v-if="imageTags(image).length" size="small" break-line>
+                    <t-tag v-for="tag in imageTags(image)" :key="tag" size="small" variant="light-outline">
+                      {{ imageReference(tag).tag }}
                     </t-tag>
                   </t-space>
-                  <span v-else>{{ t('container.images.unused') }}</span>
-                </dd>
+                  <span v-else class="docker-images-muted">{{ t('container.images.untagged') }}</span>
+                </div>
+                <t-checkbox
+                  v-if="cardSelectionMode"
+                  :checked="isImageSelected(image)"
+                  :aria-label="t('container.images.selection.toggle', { image: shortId(image.id) })"
+                  @click.stop
+                  @change="toggleCardSelection(image, $event)"
+                />
+              </header>
+              <div class="docker-images-card__primary">
+                <strong>{{ formatBytes(image.size_bytes) }}</strong>
+                <t-tag :theme="imageStatus(image).theme" size="small" variant="light-outline">
+                  {{ imageStatus(image).label }}
+                </t-tag>
               </div>
-              <div>
-                <dt>{{ t('container.images.fields.createdAt') }}</dt>
-                <dd>{{ formatLocaleDateTime(image.created_at, locale) }}</dd>
-              </div>
-            </dl>
-            <docker-resource-card-actions
-              :detail-label="t('container.images.actions.detail')"
-              :more-actions="cardMoreActions"
-              :more-label="t('container.images.actions.more')"
-              @detail="openDetail(image)"
-              @action="handleCardAction($event, image)"
-            />
-          </article>
+            </template>
+            <template #field-containers>
+              <t-space v-if="image.container_references?.length" size="small" break-line>
+                <t-tag
+                  v-for="container in image.container_references"
+                  :key="container.id"
+                  size="small"
+                  variant="light-outline"
+                >
+                  {{ container.name }}
+                </t-tag>
+              </t-space>
+              <span v-else>{{ t('container.images.unused') }}</span>
+            </template>
+            <template #field-created_at>{{ formatLocaleDateTime(image.created_at, locale) }}</template>
+            <template #actions>
+              <docker-resource-card-actions
+                :detail-label="t('container.images.actions.detail')"
+                :more-actions="cardMoreActions"
+                :more-label="t('container.images.actions.more')"
+                @detail="openDetail(image)"
+                @action="handleCardAction($event, image)"
+              />
+            </template>
+          </management-entity-card>
         </div>
       </template>
       <template #feedback>
@@ -669,7 +668,7 @@
       :resolve-task-type="resolveTaskType"
       @update:visible="pullTaskDrawerVisible = $event"
     />
-  </div>
+  </management-list-page>
 </template>
 <script setup lang="ts">
 // 镜像页面只管理当前 Docker runtime 的镜像快照；批量删除按服务端上限分块，结构化拒绝直接展示稳定错误，网络结果未知时才通过详情查询对账。
@@ -686,8 +685,8 @@ import {
 } from '@/contracts/generated/modules/container';
 import {
   ManagementBatchBar,
-  ManagementPageHeader,
-  ManagementStatisticsBar,
+  ManagementEntityCard,
+  ManagementListPage,
   TableActionMenu,
   TableViewToolbar,
 } from '@/shared/components/management';
@@ -1238,13 +1237,6 @@ onUnmounted(() => {
 });
 </script>
 <style scoped lang="less">
-.docker-images-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-16);
-  min-width: 0;
-}
-
 .docker-images-muted {
   color: var(--td-text-color-secondary);
   font: var(--td-font-body-small);
@@ -1269,17 +1261,6 @@ onUnmounted(() => {
   display: grid;
   gap: var(--graft-density-gap-12);
   min-width: 0;
-}
-
-.docker-images-card {
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-14);
-  min-width: 0;
-  padding: var(--graft-density-gap-16);
 }
 
 .docker-images-card--selection-mode {
@@ -1321,37 +1302,6 @@ onUnmounted(() => {
 .docker-images-card__primary > strong {
   color: var(--td-text-color-primary);
   font: var(--td-font-title-small);
-}
-
-.docker-images-card__details {
-  display: grid;
-  gap: var(--graft-density-gap-10);
-  margin: 0;
-}
-
-.docker-images-card__details > div {
-  align-items: baseline;
-  display: grid;
-  gap: var(--graft-density-gap-8);
-  grid-template-columns: minmax(72px, auto) minmax(0, 1fr);
-  min-width: 0;
-}
-
-.docker-images-card__details dt,
-.docker-images-card__details dd {
-  margin: 0;
-  min-width: 0;
-}
-
-.docker-images-card__details dt {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-}
-
-.docker-images-card__details dd {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-body-small);
-  overflow-wrap: anywhere;
 }
 
 .docker-images-detail {

@@ -7,19 +7,21 @@ import type { RouteRecordRaw } from 'vue-router';
 import type { BootstrapResponse } from '@/modules/auth/contract/types';
 import { CONTAINER_ROUTE_PATH } from '@/modules/container/contract/paths';
 import { resetContainerStatsManager } from '@/modules/container/shared/stats-manager';
+import { clearQueryCache, queryClient } from '@/shared/query';
 import { usePermissionStore } from '@/store/modules/permission';
 
+import { DASHBOARD_QUICK_ACTION_STORAGE_KEY } from '../contract/quick-actions';
 import type { WorkbenchPresentation } from '../presentation/workbench';
 import type { DashboardSummaryResponse } from '../types/dashboard';
 import DashboardHomePage from './index.vue';
 
 const dashboardApiMocks = vi.hoisted(() => ({ getDashboardSummary: vi.fn(), getDashboardWidget: vi.fn() }));
-const configApiMocks = vi.hoisted(() => ({ getDashboardSystemConfigs: vi.fn() }));
+const configApiMocks = vi.hoisted(() => ({ getSystemConfigs: vi.fn() }));
 const containerApiMocks = vi.hoisted(() => ({ getContainerDashboardSummary: vi.fn() }));
 const routerMocks = vi.hoisted(() => ({ push: vi.fn() }));
 
 vi.mock('../api/dashboard', () => dashboardApiMocks);
-vi.mock('../api/quick-actions-config', () => configApiMocks);
+vi.mock('@/modules/system-config/api/system-config', () => configApiMocks);
 vi.mock('vue-router', () => ({ useRouter: () => routerMocks }));
 vi.mock('@/modules/container', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/modules/container')>();
@@ -203,13 +205,14 @@ function mountPage() {
 describe('DashboardHomePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearQueryCache();
     window.localStorage.clear();
     resetContainerStatsManager();
     setActivePinia(createPinia());
     usePermissionStore().routers = routes();
-    usePermissionStore().setBootstrapSnapshot(bootstrapSnapshot(['container.view']));
+    usePermissionStore().setBootstrapSnapshot(bootstrapSnapshot(['container.view', 'system-config.read']));
     dashboardApiMocks.getDashboardSummary.mockResolvedValue(summaryResponse());
-    configApiMocks.getDashboardSystemConfigs.mockResolvedValue({ items: [] });
+    configApiMocks.getSystemConfigs.mockResolvedValue({ items: [] });
     containerApiMocks.getContainerDashboardSummary.mockResolvedValue(containerSummary());
   });
 
@@ -226,8 +229,40 @@ describe('DashboardHomePage', () => {
     expect(wrapper.findAll('.quick-action')).toHaveLength(4);
   });
 
+  it('reuses fresh dashboard snapshots across remounts and refetches them on demand', async () => {
+    const first = mountPage();
+    await flushPromises();
+    first.unmount();
+
+    const second = mountPage();
+    await flushPromises();
+    expect(second.getComponent({ name: 'DashboardWorkbenchStub' }).props('ready')).toBe(true);
+    expect(dashboardApiMocks.getDashboardSummary).toHaveBeenCalledTimes(1);
+    expect(configApiMocks.getSystemConfigs).toHaveBeenCalledTimes(1);
+    expect(containerApiMocks.getContainerDashboardSummary).toHaveBeenCalledTimes(1);
+
+    await second.get('.refresh-page').trigger('click');
+    await flushPromises();
+    expect(dashboardApiMocks.getDashboardSummary).toHaveBeenCalledTimes(2);
+    expect(configApiMocks.getSystemConfigs).toHaveBeenCalledTimes(2);
+    expect(containerApiMocks.getContainerDashboardSummary).toHaveBeenCalledTimes(2);
+    second.unmount();
+  });
+
+  it('keeps default quick actions without querying system config when permission is absent', async () => {
+    usePermissionStore().setBootstrapSnapshot(bootstrapSnapshot(['container.view']));
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper.get('.refresh-page').trigger('click');
+    await flushPromises();
+
+    expect(configApiMocks.getSystemConfigs).not.toHaveBeenCalled();
+    expect(wrapper.findAll('.quick-action')).toHaveLength(4);
+    wrapper.unmount();
+  });
+
   it('honors configurable quick-action counts without fixing the homepage to four items', async () => {
-    configApiMocks.getDashboardSystemConfigs.mockResolvedValueOnce({
+    configApiMocks.getSystemConfigs.mockResolvedValueOnce({
       items: [configItem('{"enabled":true,"maxItems":6,"strategy":"hybrid"}')],
     });
     const wrapper = mountPage();
@@ -242,7 +277,7 @@ describe('DashboardHomePage', () => {
   });
 
   it('hides quick actions when the existing system config disables them', async () => {
-    configApiMocks.getDashboardSystemConfigs.mockResolvedValueOnce({
+    configApiMocks.getSystemConfigs.mockResolvedValueOnce({
       items: [configItem('{"enabled":false,"maxItems":4,"strategy":"hybrid"}')],
     });
     const wrapper = mountPage();
@@ -286,6 +321,94 @@ describe('DashboardHomePage', () => {
     expect(dashboardApiMocks.getDashboardWidget).toHaveBeenCalledWith('access-log-source');
   });
 
+  it('keeps the overview refresh failure through failed and successful widget retries', async () => {
+    const snapshot = summaryResponse();
+    const recoveredWidget = snapshot.widgets[0]!;
+    const failedSnapshot = summaryResponse({ widgets: [{ ...recoveredWidget, status: 'error' }] });
+    dashboardApiMocks.getDashboardSummary
+      .mockResolvedValueOnce(failedSnapshot)
+      .mockRejectedValueOnce(new Error('Overview refresh failed'))
+      .mockResolvedValueOnce(failedSnapshot);
+    dashboardApiMocks.getDashboardWidget
+      .mockRejectedValueOnce(new Error('Widget refresh failed'))
+      .mockResolvedValueOnce(recoveredWidget);
+    const wrapper = mountPage();
+    const workbench = wrapper.getComponent({ name: 'DashboardWorkbenchStub' });
+    await flushPromises();
+    expect(workbench.props('ready')).toBe(true);
+    expect(wrapper.get('.attention-item').attributes('data-evidence')).toBe('source-failed');
+
+    await wrapper.get('.refresh-page').trigger('click');
+    await flushPromises();
+    expect(workbench.props('errorMessage')).toBe('Overview refresh failed');
+
+    await wrapper.get('.attention-item').trigger('click');
+    await flushPromises();
+    expect(workbench.props('errorMessage')).toBe('Overview refresh failed');
+    expect(wrapper.get('.attention-item').attributes('data-evidence')).toBe('source-failed');
+
+    await wrapper.get('.attention-item').trigger('click');
+    await flushPromises();
+    expect(workbench.props('errorMessage')).toBe('Overview refresh failed');
+    expect(wrapper.find('.attention-item').exists()).toBe(false);
+
+    await wrapper.get('.refresh-page').trigger('click');
+    await flushPromises();
+    expect(workbench.props('errorMessage')).toBe('');
+    expect(wrapper.get('.attention-item').attributes('data-evidence')).toBe('source-failed');
+    wrapper.unmount();
+  });
+
+  it('retains a widget retry across remounts until a new overview succeeds', async () => {
+    const recoveredWidget = summaryResponse().widgets[0]!;
+    const failedSnapshot = summaryResponse({ widgets: [{ ...recoveredWidget, status: 'error' }] });
+    dashboardApiMocks.getDashboardSummary.mockResolvedValue(failedSnapshot);
+    dashboardApiMocks.getDashboardWidget.mockResolvedValueOnce(recoveredWidget);
+    const first = mountPage();
+    await flushPromises();
+    const overviewUpdatedAt = queryClient.getQueryState(['dashboard', 'summary'])?.dataUpdatedAt;
+
+    await first.get('.attention-item').trigger('click');
+    await flushPromises();
+    expect(first.find('.attention-item').exists()).toBe(false);
+    expect(queryClient.getQueryState(['dashboard', 'summary'])?.dataUpdatedAt).toBe(overviewUpdatedAt);
+    first.unmount();
+
+    const second = mountPage();
+    await flushPromises();
+    expect(dashboardApiMocks.getDashboardSummary).toHaveBeenCalledTimes(1);
+    expect(second.find('.attention-item').exists()).toBe(false);
+
+    await second.get('.refresh-page').trigger('click');
+    await flushPromises();
+    expect(dashboardApiMocks.getDashboardSummary).toHaveBeenCalledTimes(2);
+    expect(second.get('.attention-item').attributes('data-evidence')).toBe('source-failed');
+    second.unmount();
+  });
+
+  it('discards a widget retry that settles after a new overview succeeds', async () => {
+    const recoveredWidget = summaryResponse().widgets[0]!;
+    const failedSnapshot = summaryResponse({ widgets: [{ ...recoveredWidget, status: 'error' }] });
+    const retry = Promise.withResolvers<typeof recoveredWidget>();
+    dashboardApiMocks.getDashboardSummary.mockResolvedValue(failedSnapshot);
+    dashboardApiMocks.getDashboardWidget.mockReturnValueOnce(retry.promise);
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('.attention-item').trigger('click');
+    await flushPromises();
+    expect(dashboardApiMocks.getDashboardWidget).toHaveBeenCalledTimes(1);
+
+    await wrapper.get('.refresh-page').trigger('click');
+    await flushPromises();
+    expect(dashboardApiMocks.getDashboardSummary).toHaveBeenCalledTimes(2);
+    retry.resolve(recoveredWidget);
+    await flushPromises();
+
+    expect(wrapper.get('.attention-item').attributes('data-evidence')).toBe('source-failed');
+    wrapper.unmount();
+  });
+
   it('distinguishes failed resource loading from missing permission', async () => {
     containerApiMocks.getContainerDashboardSummary.mockRejectedValueOnce(new Error('container unavailable'));
     const failedWrapper = mountPage();
@@ -308,7 +431,7 @@ describe('DashboardHomePage', () => {
     await flushPromises();
     await wrapper.get('.quick-action').trigger('click');
     expect(routerMocks.push).toHaveBeenCalledWith('/feature-0');
-    expect(window.localStorage.getItem('dashboard:quick-actions:route-usage')).toContain('/feature-0');
+    expect(window.localStorage.getItem(DASHBOARD_QUICK_ACTION_STORAGE_KEY.ROUTE_USAGE)).toContain('/feature-0');
   });
 
   it('opens contextual resource actions without changing quick-entry usage ranking', async () => {
@@ -318,6 +441,6 @@ describe('DashboardHomePage', () => {
     await wrapper.get('.resource-item').trigger('click');
 
     expect(routerMocks.push).toHaveBeenCalledWith(CONTAINER_ROUTE_PATH.LIST);
-    expect(window.localStorage.getItem('dashboard:quick-actions:route-usage')).toBeNull();
+    expect(window.localStorage.getItem(DASHBOARD_QUICK_ACTION_STORAGE_KEY.ROUTE_USAGE)).toBeNull();
   });
 });

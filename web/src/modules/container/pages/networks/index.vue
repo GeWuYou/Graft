@@ -1,52 +1,53 @@
 <template>
-  <div class="docker-network-page" data-page-type="list-form-detail">
-    <management-page-header
-      compact
-      :title="t('container.networks.title')"
-      :description="t('container.networks.description')"
-      :source="{ labelKey: 'container.networks.eyebrow', fallback: t('container.networks.eyebrow') }"
-    >
-      <template #actions>
-        <t-space v-if="!isCompactDensity">
-          <t-button v-if="canRemove" variant="outline" @click="openCleanup">
-            {{ t('container.networks.cleanup.action') }}
-          </t-button>
-          <t-button v-if="canCreate" theme="primary" @click="openCreateDrawer">
-            {{ t('container.networks.create') }}
-          </t-button>
-        </t-space>
-        <t-space v-else>
-          <t-dropdown
-            v-if="canRemove"
-            :options="headerActionOptions"
-            placement="bottom-right"
-            trigger="click"
-            @click="handleHeaderAction"
-          >
-            <t-tooltip :content="t('container.networks.mobile.moreActions')">
-              <t-button shape="square" variant="outline" :aria-label="t('container.networks.mobile.moreActions')">
-                <template #icon><ellipsis-icon /></template>
-              </t-button>
-            </t-tooltip>
-          </t-dropdown>
-          <t-button v-if="canCreate" theme="primary" @click="openCreateDrawer">
-            {{ t('container.networks.create') }}
-          </t-button>
-        </t-space>
-      </template>
-    </management-page-header>
-
-    <management-statistics-bar :items="metrics" aria-live="polite" layout="summary" />
-
-    <resource-query-panel
-      v-model="resourceQueryState"
-      :config="queryConfig"
-      :loading="networkQuery.isFetching.value"
-      @reset="resetFilters"
-      @search="applyQueryState"
-    >
-      <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
-    </resource-query-panel>
+  <management-list-page
+    class="docker-network-page"
+    compact
+    page-type="list-form-detail"
+    :title="t('container.networks.title')"
+    :description="t('container.networks.description')"
+    :source="{ labelKey: 'container.networks.eyebrow', fallback: t('container.networks.eyebrow') }"
+    :stats-items="metrics"
+    stats-layout="summary"
+  >
+    <template #actions>
+      <t-space v-if="!isCompactDensity">
+        <t-button v-if="canRemove" variant="outline" @click="openCleanup">
+          {{ t('container.networks.cleanup.action') }}
+        </t-button>
+        <t-button v-if="canCreate" theme="primary" @click="openCreateDrawer">
+          {{ t('container.networks.create') }}
+        </t-button>
+      </t-space>
+      <t-space v-else>
+        <t-dropdown
+          v-if="canRemove"
+          :options="headerActionOptions"
+          placement="bottom-right"
+          trigger="click"
+          @click="handleHeaderAction"
+        >
+          <t-tooltip :content="t('container.networks.mobile.moreActions')">
+            <t-button shape="square" variant="outline" :aria-label="t('container.networks.mobile.moreActions')">
+              <template #icon><ellipsis-icon /></template>
+            </t-button>
+          </t-tooltip>
+        </t-dropdown>
+        <t-button v-if="canCreate" theme="primary" @click="openCreateDrawer">
+          {{ t('container.networks.create') }}
+        </t-button>
+      </t-space>
+    </template>
+    <template #filters>
+      <resource-query-panel
+        v-model="resourceQueryState"
+        :config="queryConfig"
+        :loading="networkQuery.isFetching.value"
+        @reset="resetFilters"
+        @search="applyQueryState"
+      >
+        <template #toolbar-actions><saved-query-view-control :controller="savedViews" /></template>
+      </resource-query-panel>
+    </template>
 
     <t-alert
       v-if="networkQuery.isError.value"
@@ -130,41 +131,46 @@
           }}</t-button>
         </t-space>
       </template>
-      <template #cards>
+      <template #cards="{ columns: cardColumns }">
         <t-loading :loading="networkQuery.isFetching.value">
           <responsive-card-list v-if="networks.length" class="docker-network-page__mobile-list">
-            <article v-for="row in networks" :key="row.id" class="docker-network-page__mobile-card">
-              <header class="docker-network-page__mobile-card-head">
-                <strong class="docker-network-page__mobile-card-name">{{ row.name }}</strong>
-                <t-tag :theme="relationshipPresentation(row.relationship_status).theme" size="small" variant="light">
-                  {{ relationshipPresentation(row.relationship_status).label }}
-                </t-tag>
-              </header>
-              <dl class="docker-network-page__mobile-card-details">
-                <div>
-                  <dt>{{ t('container.resourceContext.source') }}</dt>
-                  <dd>{{ sourceDescription(row) }}</dd>
+            <management-entity-card
+              v-for="row in networks"
+              :key="row.id"
+              :columns="cardColumns"
+              :fields="['context', 'containers']"
+              :row="row"
+              stacked
+            >
+              <template #header>
+                <header class="docker-network-page__mobile-card-head">
+                  <strong class="docker-network-page__mobile-card-name">{{ row.name }}</strong>
+                  <t-tag :theme="relationshipPresentation(row.relationship_status).theme" size="small" variant="light">
+                    {{ relationshipPresentation(row.relationship_status).label }}
+                  </t-tag>
+                </header>
+              </template>
+              <template #field-context>{{ sourceDescription(row) }}</template>
+              <template #field-containers>
+                <div v-if="row.container_references?.length" class="docker-network-page__container-list">
+                  <container-reference-list
+                    :references="row.container_references"
+                    :title="t('container.networks.connectedContainers')"
+                    @open="openContainerReference"
+                  />
                 </div>
-                <div>
-                  <dt>{{ t('container.resourceContext.containers') }}</dt>
-                  <dd v-if="row.container_references?.length" class="docker-network-page__container-list">
-                    <container-reference-list
-                      :references="row.container_references"
-                      :title="t('container.networks.connectedContainers')"
-                      @open="openContainerReference"
-                    />
-                  </dd>
-                  <dd v-else class="docker-network-page__muted">{{ relationEmptyLabel(row.relationship_status) }}</dd>
-                </div>
-              </dl>
-              <docker-resource-card-actions
-                :detail-label="t('container.networks.detail')"
-                :more-actions="networkActionOptions"
-                :more-label="t('container.list.actions.more')"
-                @detail="openDetail(row.id)"
-                @action="handleNetworkAction(row, $event)"
-              />
-            </article>
+                <span v-else class="docker-network-page__muted">{{ relationEmptyLabel(row.relationship_status) }}</span>
+              </template>
+              <template #actions>
+                <docker-resource-card-actions
+                  :detail-label="t('container.networks.detail')"
+                  :more-actions="networkActionOptions"
+                  :more-label="t('container.list.actions.more')"
+                  @detail="openDetail(row.id)"
+                  @action="handleNetworkAction(row, $event)"
+                />
+              </template>
+            </management-entity-card>
           </responsive-card-list>
           <t-empty
             v-else-if="!networkQuery.isFetching.value"
@@ -241,36 +247,58 @@
     <t-drawer
       v-model:visible="createDrawerVisible"
       :header="t('container.networks.createTitle')"
-      size="600px"
+      attach="body"
+      size="min(600px, 100vw)"
       destroy-on-close
     >
-      <t-form :data="createForm" label-align="top">
-        <t-form-item :label="t('container.networks.form.name')" required>
-          <t-input v-model="createForm.name" :placeholder="t('container.networks.form.namePlaceholder')" />
-        </t-form-item>
-        <t-form-item :label="t('container.networks.form.driver')" required>
-          <t-select v-model="createForm.driver">
-            <t-option v-for="driver in drivers" :key="driver" :value="driver" :label="driverLabel(driver)" />
-          </t-select>
-        </t-form-item>
-        <t-form-item :label="t('container.networks.form.options')">
-          <t-space direction="vertical">
-            <t-switch
-              v-model="createForm.internal"
-              :label="[t('container.networks.internal'), t('container.networks.internal')]"
+      <t-form class="docker-network-page__create-form" :data="createForm" label-align="top">
+        <section class="docker-network-page__form-section">
+          <h4 class="docker-network-page__form-section-title">{{ t('container.networks.form.sectionBasic') }}</h4>
+          <t-form-item :label="t('container.networks.form.name')" name="name" required>
+            <t-input v-model="createForm.name" :placeholder="t('container.networks.form.namePlaceholder')" />
+          </t-form-item>
+          <t-form-item :label="t('container.networks.form.driver')" name="driver" required>
+            <t-select v-model="createForm.driver">
+              <t-option v-for="driver in drivers" :key="driver" :value="driver" :label="driverLabel(driver)" />
+            </t-select>
+          </t-form-item>
+          <t-form-item :label="t('container.networks.form.options')" name="options">
+            <t-space direction="vertical">
+              <t-switch
+                v-model="createForm.internal"
+                :label="[t('container.networks.internal'), t('container.networks.internal')]"
+              />
+              <t-switch
+                v-model="createForm.attachable"
+                :label="[t('container.networks.attachable'), t('container.networks.attachable')]"
+              />
+            </t-space>
+          </t-form-item>
+        </section>
+        <section class="docker-network-page__form-section">
+          <h4 class="docker-network-page__form-section-title">{{ t('container.networks.form.sectionIpam') }}</h4>
+          <t-form-item
+            :help="t('container.networks.form.subnetTip')"
+            :label="t('container.networks.form.subnet')"
+            name="subnet"
+            :required="Boolean(createForm.gateway.trim())"
+            :status="missingCreateSubnet ? 'error' : undefined"
+            :tips="missingCreateSubnet ? t('container.networks.form.subnetRequired') : undefined"
+          >
+            <t-input
+              ref="createSubnetInput"
+              v-model="createForm.subnet"
+              :placeholder="t('container.networks.form.subnetPlaceholder')"
             />
-            <t-switch
-              v-model="createForm.attachable"
-              :label="[t('container.networks.attachable'), t('container.networks.attachable')]"
-            />
-          </t-space>
-        </t-form-item>
-        <t-form-item :label="t('container.networks.form.subnet')">
-          <t-input v-model="createForm.subnet" :placeholder="t('container.networks.form.subnetPlaceholder')" />
-        </t-form-item>
-        <t-form-item :label="t('container.networks.form.gateway')">
-          <t-input v-model="createForm.gateway" :placeholder="t('container.networks.form.gatewayPlaceholder')" />
-        </t-form-item>
+          </t-form-item>
+          <t-form-item
+            :help="t('container.networks.form.gatewayTip')"
+            :label="t('container.networks.form.gateway')"
+            name="gateway"
+          >
+            <t-input v-model="createForm.gateway" :placeholder="t('container.networks.form.gatewayPlaceholder')" />
+          </t-form-item>
+        </section>
       </t-form>
       <template #footer>
         <t-space>
@@ -429,7 +457,7 @@
         }}
       </p>
     </t-dialog>
-  </div>
+  </management-list-page>
 </template>
 <script setup lang="ts">
 import { ArrowDownIcon, ArrowUpIcon, EllipsisIcon } from 'tdesign-icons-vue-next';
@@ -443,8 +471,9 @@ import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/contain
 import type { components } from '@/contracts/openapi/generated/schema';
 import {
   ManagementBatchBar,
-  ManagementPageHeader,
-  ManagementStatisticsBar,
+  ManagementEntityCard,
+  ManagementListPage,
+  type ManagementStatisticItem,
   TableViewToolbar,
 } from '@/shared/components/management';
 import ManagementPagedTable from '@/shared/components/management/ManagementPagedTable.vue';
@@ -550,6 +579,8 @@ const createForm = reactive({
   subnet: '',
   gateway: '',
 });
+const createSubnetInput = ref<{ focus: () => void } | null>(null);
+const missingCreateSubnet = computed(() => Boolean(createForm.gateway.trim() && !createForm.subnet.trim()));
 const queryConfig = computed<ResourceQueryConfig>(() => ({
   resource: 'docker-network.list',
   search: true,
@@ -629,10 +660,10 @@ const savedViews = useDockerResourceSavedViews({
 const networks = computed(() => networkQuery.data.value?.items ?? []);
 const networkTotal = computed(() => networkQuery.data.value?.total ?? 0);
 const networkSummary = computed(() => networkQuery.data.value?.summary);
-const metrics = computed(() => [
+const metrics = computed<ManagementStatisticItem[]>(() => [
   { label: t('container.networks.summary.totalLabel'), value: networkSummary.value?.total ?? '--' },
-  { label: t('container.networks.summary.inUseLabel'), value: networkSummary.value?.in_use ?? '--' },
-  { label: t('container.networks.summary.unusedLabel'), value: networkSummary.value?.unused ?? '--' },
+  { label: t('container.networks.summary.inUseLabel'), tone: 'success', value: networkSummary.value?.in_use ?? '--' },
+  { label: t('container.networks.summary.unusedLabel'), tone: 'muted', value: networkSummary.value?.unused ?? '--' },
 ]);
 const paginationSummary = computed(() =>
   networkTotal.value
@@ -807,10 +838,12 @@ async function submitCreate() {
     MessagePlugin.warning(t('container.networks.form.nameRequired'));
     return;
   }
-  const ipam =
-    createForm.subnet.trim() || createForm.gateway.trim()
-      ? { subnet: createForm.subnet.trim() || undefined, gateway: createForm.gateway.trim() || undefined }
-      : undefined;
+  if (missingCreateSubnet.value) {
+    createSubnetInput.value?.focus();
+    return;
+  }
+  const subnet = createForm.subnet.trim();
+  const ipam = subnet ? { subnet, gateway: createForm.gateway.trim() || undefined } : undefined;
   const body: DockerNetworkCreateRequest = {
     name: createForm.name.trim(),
     driver: createForm.driver,
@@ -1024,17 +1057,6 @@ async function submitBatchRemove() {
   font: var(--td-font-body-small);
 }
 
-.docker-network-page__mobile-card {
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  box-shadow: var(--td-shadow-1);
-  display: grid;
-  gap: var(--graft-density-gap-16);
-  min-width: 0;
-  padding: var(--graft-density-gap-16);
-}
-
 .docker-network-page__mobile-card-head {
   align-items: flex-start;
   display: flex;
@@ -1053,29 +1075,6 @@ async function submitBatchRemove() {
   flex: 0 0 auto;
 }
 
-.docker-network-page__mobile-card-details {
-  display: grid;
-  gap: var(--graft-density-gap-16);
-  margin: 0;
-}
-
-.docker-network-page__mobile-card-details > div {
-  display: grid;
-  gap: var(--graft-density-gap-4);
-}
-
-.docker-network-page__mobile-card-details dt {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-}
-
-.docker-network-page__mobile-card-details dd {
-  color: var(--td-text-color-primary);
-  margin: 0;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
 @media (width < 768px) {
   .docker-network-page__detail-fields,
   .docker-network-page__relation-cards {
@@ -1085,5 +1084,21 @@ async function submitBatchRemove() {
   .docker-network-page__danger-zone :deep(.t-button) {
     width: 100%;
   }
+}
+
+.docker-network-page__create-form .docker-network-page__form-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.docker-network-page__create-form .docker-network-page__form-section + .docker-network-page__form-section {
+  margin-top: var(--graft-density-gap-24);
+}
+
+.docker-network-page__form-section-title {
+  color: var(--td-text-color-secondary);
+  font: var(--td-font-body-small);
+  font-weight: 600;
+  margin: 0 0 var(--graft-density-gap-8);
 }
 </style>

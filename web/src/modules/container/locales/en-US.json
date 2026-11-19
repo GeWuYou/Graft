@@ -712,7 +712,12 @@
         "subnet": "IPv4 subnet",
         "subnetPlaceholder": "For example, 172.28.0.0/16",
         "gateway": "IPv4 gateway",
-        "gatewayPlaceholder": "For example, 172.28.0.1"
+        "gatewayPlaceholder": "For example, 172.28.0.1",
+        "subnetTip": "Leave both fields blank to let Docker choose the subnet and gateway.",
+        "gatewayTip": "The gateway is optional and must be within the specified subnet.",
+        "subnetRequired": "Enter an IPv4 subnet when specifying a gateway.",
+        "sectionBasic": "Basic information",
+        "sectionIpam": "IPAM configuration"
       }
     },
     "detail": {
