@@ -18,6 +18,7 @@ help:
       '  just check-changed     Run worktree-scoped commit-preparation checks' \
       '  just check-local-plan  Inspect scoped checks and coverage gaps' \
       '  just check-local       Execute scoped checks and explicit consumer tests' \
+      '  just check-local-verify <report> [args...]  Verify a previous report still applies, then execute' \
       '  just lint              Run the highest-value local lint slices' \
       '  just lint-server       Run the authoritative backend lint stage' \
       '  just buildtest-server  Run the authoritative backend build/test stage' \
@@ -75,6 +76,13 @@ check-local *args:
 [positional-arguments]
 check-changed *args:
     python3 -B scripts/local_validation.py --execute "$@"
+
+# Evidence reuse: verify a previous plan/check report still binds this worktree,
+# then execute the current scoped plan. A plan-only comparison passes --compare-report
+# to check-local-plan directly.
+[positional-arguments]
+check-local-verify *args:
+    python3 -B scripts/local_validation.py --execute --compare-report "$1" "${@:2}"
 
 check-governance:
     python3 -B scripts/validate_ai_governance.py
