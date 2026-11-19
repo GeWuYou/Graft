@@ -1,0 +1,4 @@
+# Runtime outputs of the browser acceptance harness (self-ignored, mirrors
+# scripts/check_suite.py artifact handling; keep the tracked tree clean).
+test-results/
+playwright-output/

@@ -1,0 +1,39 @@
+# Browser acceptance environment overlay: one ephemeral PostgreSQL + Redis pair
+# provisioned per attempt by scripts/browser_acceptance.py. Ports are injected
+# through the environment so each attempt is isolated on the host as well.
+# The overlay owns no named volumes and no restart policies: `docker compose down`
+# fully removes the environment, mirroring the production service images.
+services:
+  postgres:
+    image: postgres:16.16-alpine
+    restart: "no"
+    environment:
+      POSTGRES_DB: graft
+      POSTGRES_USER: graft
+      POSTGRES_PASSWORD: graft
+    ports:
+      - "${GRAFT_BROWSER_PG_HOST_PORT:?GRAFT_BROWSER_PG_HOST_PORT is required}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U graft -d graft"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7.4.12-alpine
+    restart: "no"
+    ports:
+      - "${GRAFT_BROWSER_REDIS_HOST_PORT:?GRAFT_BROWSER_REDIS_HOST_PORT is required}:6379"
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
