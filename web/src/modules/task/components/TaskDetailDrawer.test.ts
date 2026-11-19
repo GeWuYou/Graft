@@ -160,4 +160,53 @@ describe('TaskDetailDrawer', () => {
     expect(wrapper.text()).toContain(summary);
     wrapper.unmount();
   });
+
+  it('withholds the raw failure message when the row carries no stage or class provenance', async () => {
+    const ordinaryError = '/srv/graft/workspace/current working directory does not exist';
+    apiMocks.getTask.mockResolvedValue({
+      id: 10,
+      type: 'project.cleanup',
+      owner_type: 'application',
+      owner_id: 'app-1',
+      status: 'failed',
+      current_stage_key: 'cleanup',
+      created_at: '2026-11-20T00:00:00Z',
+      duration_ms: 800,
+      failure_code: 'unrecognized_provider_code',
+      failure_message: ordinaryError,
+      capabilities: { cancel: false, retry: false, downloadLog: false },
+      stages: [
+        {
+          id: 4,
+          key: 'cleanup',
+          sequence: 1,
+          executor_type: 'project.cleanup',
+          execution_mode: 'server',
+          execution_version: '',
+          status: 'failed',
+          attempt: 1,
+          max_attempts: 1,
+          recovery_policy: 'manual_reconcile',
+          failure_code: 'unrecognized_provider_code',
+          failure_message: ordinaryError,
+        },
+      ],
+    });
+    apiMocks.getTaskLogs.mockResolvedValue({ items: [], total: 0, limit: 200 });
+    realtimeMocks.openRealtimeTopicSocket.mockReturnValue({ close: vi.fn() });
+
+    const wrapper = mount(TaskDetailDrawer, {
+      props: { taskId: 10, visible: true },
+      global: globalStubs,
+    });
+    await flushPromises();
+
+    const alert = wrapper.get('[data-testid="failure-alert"]');
+    const alertText = alert.text();
+    // 无 stage/class provenance 的行只渲染稳定码文案，failure_message 原文不得出现。
+    expect(alertText).toContain(i18n.global.t('task.detail.failureCodes.unknown'));
+    expect(alertText).not.toContain(ordinaryError);
+    expect(wrapper.text()).not.toContain(ordinaryError);
+    wrapper.unmount();
+  });
 });

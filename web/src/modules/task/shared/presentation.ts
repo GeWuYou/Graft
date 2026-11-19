@@ -28,10 +28,15 @@ type TaskFailureAttributionFields = {
 // 超长或多行的历史文本不属于受信摘要，渲染时保持缺席。
 const taskDiagnosticSummaryMaxRunes = 256;
 
-// taskDiagnosticSummary 渲染受信的服务端脱敏诊断摘要。结算边界已保证摘要单行、
-// 有界且不含路径与凭据；这里再做一次形态复核，历史原始错误文本不会被透出。
-export function taskDiagnosticSummary(message: string | null | undefined) {
-  const summary = message?.trim() ?? '';
+// taskDiagnosticSummary 渲染受信的服务端脱敏诊断摘要。来源边界按 provenance 判定：
+// 结算路径总是同时写入 failure_stage/failure_class 与摘要，缺少两者的事件行意味着
+// failure_message 是任务运行时原样保存的普通错误（可能携带路径等细节），不予透出。
+// 通过来源判定后再复核单行与有界形态，历史原始错误文本不会被渲染。
+export function taskDiagnosticSummary(failure: TaskFailureAttributionFields & { failure_message?: string | null }) {
+  const stage = failure.failure_stage?.trim();
+  const failureClass = failure.failure_class?.trim();
+  if (!stage && !failureClass) return '';
+  const summary = failure.failure_message?.trim() ?? '';
   if (
     !summary ||
     summary.includes('\n') ||
@@ -63,7 +68,7 @@ export function taskFailureDetail(
 ) {
   return [
     resolveTaskFailureMessage(failure.failure_code, failure.failure_message, translate),
-    taskDiagnosticSummary(failure.failure_message),
+    taskDiagnosticSummary(failure),
     taskFailureAttribution(failure, translate),
   ]
     .filter(Boolean)
