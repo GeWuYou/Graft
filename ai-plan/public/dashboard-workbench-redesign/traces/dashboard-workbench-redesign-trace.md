@@ -278,3 +278,15 @@
   contract changed.
 - Human subjective acceptance remains pending. The preview route and its artifacts therefore remain intact until the
   existing explicit acceptance gate is satisfied.
+
+## 2026-11-19 Workbench Home Layout And Title
+
+- Updated the frontend-owned home tab, formal title, and preview route title. The formal and preview routes share
+  the Workbench presentation, including the four KPI cards and compact quick entries.
+- Grouped attention and container resources in the main column. Placed system health and module deployment in the
+  secondary column. Narrow content renders the same sections in document order.
+- Used existing container samples for CPU and memory progress. Anomaly actions use the canonical container detail
+  route when the user has detail permission. The Dashboard API and cached overview and widget retries retain their
+  existing ownership.
+- The development-only preview remains available. Browser verification for this layout is tracked separately from the prior
+  formal-homepage inspection.

@@ -1,4 +1,5 @@
 import type { ContainerDashboardSummary } from '@/modules/container/contract/dashboard-summary';
+import { CONTAINER_ROUTE_PATH } from '@/modules/container/contract/paths';
 
 import {
   asAlertListPayload,
@@ -34,6 +35,7 @@ import {
 export type DashboardResourceLoadState = 'hidden' | 'loading' | 'failed' | 'loaded';
 
 export type DashboardResourceProjection = {
+  canViewDetails?: boolean;
   route?: string;
   state: DashboardResourceLoadState;
   summary?: ContainerDashboardSummary;
@@ -239,7 +241,13 @@ export function projectResourceSummary(resources: DashboardResourceProjection): 
     },
     topCpu: summary.hotspots.cpu.slice(0, 3).map((item) => ({ ...item })),
     topMemory: summary.hotspots.memory.slice(0, 3).map((item) => ({ ...item })),
-    anomalies: summary.anomalies.slice(0, 5).map((item) => ({ ...item })),
+    anomalies: summary.anomalies.slice(0, 5).map((item) => ({
+      ...item,
+      route:
+        resources.canViewDetails && item.id
+          ? CONTAINER_ROUTE_PATH.DETAIL.replace(':id', encodeURIComponent(item.id))
+          : undefined,
+    })),
   };
 }
 

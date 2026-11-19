@@ -48,11 +48,11 @@ const emit = defineEmits<{
   color: inherit;
   cursor: pointer;
   display: grid;
-  gap: var(--graft-density-gap-12);
+  gap: var(--graft-density-gap-8);
   grid-template-columns: auto minmax(0, 1fr);
-  min-height: 64px;
+  min-height: 56px;
   min-width: 0;
-  padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
+  padding: var(--graft-density-gap-8) var(--graft-density-gap-10);
   text-align: left;
   transition:
     background-color 120ms ease,

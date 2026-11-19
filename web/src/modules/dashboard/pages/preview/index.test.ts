@@ -59,9 +59,6 @@ vi.mock('@/locales', () => ({
     if (key === 'dashboard.workbench.operational.needsAttention') {
       return 'Needs Attention';
     }
-    if (key === 'dashboard.workbench.operational.itemCount') {
-      return `${params?.count ?? 0} Items`;
-    }
     if (key === 'dashboard.workbench.operational.distribution') {
       return `${params?.warning ?? 0} warning, ${params?.unknown ?? 0} unknown`;
     }
@@ -172,6 +169,8 @@ function mountPreview() {
         TInput: inputStub,
         TList: surfaceStub,
         TListItem: surfaceStub,
+        TStatistic: { props: ['value'], template: '<strong>{{ value }}</strong>' },
+        TProgress: surfaceStub,
         TTag: surfaceStub,
       },
     },
@@ -195,7 +194,7 @@ describe('DashboardWorkbenchPreviewPage', () => {
     expect(outbound.classes()).not.toContain('attention-row--warning');
     expect(outbound.classes()).not.toContain('attention-row--error');
     expect(wrapper.text()).toContain('Needs Attention');
-    expect(wrapper.text()).toContain('6 Items');
+    expect(wrapper.get('[data-workbench-kpi="attention"] strong').text()).toBe('6');
     expect(wrapper.text()).toContain('3 warning, 3 unknown');
     expect(wrapper.text()).toContain('Attention');
     expect(wrapper.text()).not.toContain('items need confirmation');

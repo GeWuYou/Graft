@@ -1,6 +1,6 @@
-import { flushPromises, mount } from '@vue/test-utils';
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, type PropType } from 'vue';
 import type { RouteRecordRaw } from 'vue-router';
 
@@ -201,6 +201,8 @@ function bootstrapSnapshot(permissions: string[]): BootstrapResponse {
 function mountPage() {
   return mount(DashboardHomePage);
 }
+
+enableAutoUnmount(afterEach);
 
 describe('DashboardHomePage', () => {
   beforeEach(() => {

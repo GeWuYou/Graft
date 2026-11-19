@@ -3,7 +3,7 @@
 ## Current Status Summary
 
 - Topic objective: redesign the global dashboard into a stable operational workbench without letting module count control page geometry.
-- Current status: `active · formal-homepage-human-acceptance-pending`
+- Current status: `active · workbench-home-layout-verification`
 - Task class: `cross-boundary`
 - Intake summary: a long-running feature with repository-wide design truth, active recovery material, and a topic-local roadmap.
 - Canonical authority:
@@ -11,7 +11,7 @@
   - `server/internal/dashboard/**` and `openapi/**` for production contribution facts
   - `web/src/modules/dashboard/**` for the dashboard presentation policy and preview
 - Completed so far: authority discovery, status-semantics audit, TDesign MCP preflight, Work Intake bootstrap, the deterministic preview, visual refinement, production Web adoption, and the corrective repair for key-first alerts and duplicate platform health facts.
-- In progress: human inspection and annotation of the refreshed formal homepage.
+- In progress: verify the consolidated workbench layout and title in the formal homepage and development preview.
 - Not started yet: the additive typed attention contract evolution.
 
 ## Recovery Receipt
@@ -40,7 +40,7 @@ Out of scope:
 
 1. The page type is `overview-dashboard`, and the production registry continues to contribute structured facts rather than arbitrary Vue components.
 2. Presentation status is independent from widget load status, display state, and ordering priority.
-3. The preview route is development-only and must be deleted when the accepted design replaces the production homepage.
+3. The development-only preview shares the formal workbench layout and remains available for scenario verification.
 
 ## Phase Plan
 
@@ -53,7 +53,10 @@ Out of scope:
 - Work Intake bootstrap and design authority are established.
 - Preview v2 improves secondary-text readability, separates overall status from concrete Attention items, restores the authenticated shell menu, groups Health and Resources in the right rail, and renders a configurable set of independent Quick Action items.
 - “全部入口” now projects the current authorized top-level navigation into a searchable compact list; it uses the shared responsive workspace surface as a desktop Drawer and a narrow-screen fullscreen workspace.
-- The production `/` homepage now uses the accepted workbench component and a pure typed-payload projector; the preview remains available for final comparison.
+- The production `/` homepage uses the shared workbench and typed presentation projectors.
+- The workbench title is shared by the home navigation and both presentations. The operating summary uses four KPI
+  cards, with Attention and container resources in the main column and system health and module deployment in the
+  secondary column. The preview uses the same layout with fixed samples.
 - Access-log authority now maps 4xx and slow requests to warning and reserves error for 5xx.
 - Formal-homepage acceptance found two corrective issues: key-first audit/access alerts were rejected because the OpenAPI and Web guard incorrectly required fallback `title`, and Monitor duplicated PostgreSQL/Redis facts already owned by CapabilityCoordinator.
 - The corrective batch now treats `title_key` as authoritative and fallback `title` as optional, keeps Monitor focused on active anomalies, and leaves PostgreSQL/Redis/outbound-network health with CapabilityCoordinator.
@@ -67,7 +70,7 @@ Out of scope:
 ## Pending Batch Direction
 
 - Manually refresh the open formal homepage, collect final annotations, and record visual acceptance.
-- Remove the preview after acceptance, then plan the additive typed-attention contract slice separately.
+- Keep the development preview current with the formal dashboard. Plan the additive typed-attention contract separately.
 
 ## Validation Targets
 

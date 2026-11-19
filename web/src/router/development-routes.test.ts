@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { localizeRouteTitleKey } from '@/utils/route/title';
+
 import { developmentRouterList as developmentRoutes } from './development-routes.development';
 import { developmentRouterList as releaseRoutes } from './development-routes.release';
 
@@ -15,6 +17,8 @@ describe('development-only routes', () => {
       hiddenBreadcrumb: true,
       keepAlive: false,
       pageKind: 'overview',
+      semanticTitle: localizeRouteTitleKey('dashboard.previewWorkbench.routeTitle'),
+      tabTitle: localizeRouteTitleKey('dashboard.previewWorkbench.routeTitle'),
     });
     expect(releaseRoutes).toEqual([]);
   });

@@ -118,12 +118,11 @@
       "summaryHealthyWithCounts": "{healthy} modules running, {attention} modules need attention.",
       "unknown": "Unknown"
     },
-    "loading": "Loading Dashboard",
+    "loading": "Loading Workbench",
     "page": {
       "description": "Review items that need attention and recent activity.",
-      "eyebrow": "Operations Workbench",
       "lastUpdated": "Last refreshed: {time}",
-      "title": "What Needs Attention Today?"
+      "title": "Workbench"
     },
     "quickActions": {
       "description": "Entries available to current permissions",
@@ -172,9 +171,8 @@
       }
     },
     "previewWorkbench": {
-      "routeTitle": "Workbench Design Preview",
-      "eyebrow": "Operations Workbench · Design Preview",
-      "title": "What Needs Attention Today?",
+      "routeTitle": "Workbench Preview",
+      "title": "Workbench",
       "description": "Review items that need attention and recent activity.",
       "updatedAt": "Sample data · Data time: {time}",
       "refresh": "Refresh Data",
@@ -247,9 +245,7 @@
       },
       "operational": {
         "title": "Operational Status",
-        "eyebrow": "Operational Status",
         "needsAttention": "Needs Attention",
-        "itemCount": "{count} Items",
         "distribution": "{warning} Warning · {unknown} Unknown",
         "distributionWithError": "{error} Error · {warning} Warning · {unknown} Unknown",
         "modules": "Enabled Modules",
@@ -268,12 +264,12 @@
       },
       "health": {
         "title": "System Health",
-        "description": "Critical infrastructure services are operating normally.",
+        "description": "Current status of critical infrastructure and its dependencies.",
         "empty": "No infrastructure health data is available."
       },
       "moduleCoverage": {
-        "title": "Module Coverage",
-        "description": "Registered modules and visible contribution sources.",
+        "title": "Module Deployment",
+        "description": "Runtime status and data sources for registered modules.",
         "registered": "Registered",
         "enabled": "Enabled",
         "degraded": "Degraded",
@@ -287,8 +283,8 @@
         "view": "View Record"
       },
       "resources": {
-        "title": "Resources",
-        "description": "Container and runtime resource usage.",
+        "title": "Container Resources",
+        "description": "Container usage, hotspots, and anomalies.",
         "empty": "No resource information is available.",
         "loading": {
           "title": "Loading resource data",
@@ -314,10 +310,15 @@
         "noHotspots": "No resource hotspots in the current sample.",
         "noAnomalies": "No container anomalies in the current sample.",
         "notCollected": "Not collected",
-        "memoryUsage": "{usage} / {limit} · {percent}",
+        "memoryCapacity": "{usage} / {limit}",
         "hotspotMemory": "{usage} · {percent}",
         "restartCount": "{count} restarts",
         "unknownAnomaly": "Container state needs attention",
+        "viewContainer": "View details for {name}",
+        "anomalyStatus": {
+          "health": { "unhealthy": "Unhealthy" },
+          "state": { "restarting": "Restarting", "exited": "Exited", "dead": "Dead", "unknown": "Unknown" }
+        },
         "noSample": {
           "title": "No Resource Sample Yet",
           "description": "Waiting for the next resource collection.",
@@ -512,7 +513,7 @@
       "core_httpx": "Access Log",
       "core_logger": "App Log",
       "container": "Container Management",
-      "dashboard": "Dashboard",
+      "dashboard": "Workbench",
       "monitor": "Monitor",
       "rbac": "RBAC",
       "scheduler": "Scheduled Tasks",
