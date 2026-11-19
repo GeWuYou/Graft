@@ -17,7 +17,7 @@
 <script setup lang="ts">
 // 正式首页把注册表事实投影为工作台语义；loader 状态、业务状态与页面展示分别处理。
 import { useQuery } from '@tanstack/vue-query';
-import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref, shallowReactive, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { API_CODE } from '@/contracts/api/codes';
@@ -55,7 +55,7 @@ import {
   projectWorkbenchScenario,
   type WorkbenchNavigationSource,
 } from '../presentation/workbench';
-import type { DashboardSummaryResponse, DashboardWidgetResponse } from '../types/dashboard';
+import type { DashboardWidgetResponse } from '../types/dashboard';
 
 defineOptions({ name: 'DashboardHomePage' });
 
@@ -67,12 +67,20 @@ const containerSummaryQueryKey = ['dashboard', 'container-summary'] as const;
 const initialTimestamp = new Date().toISOString();
 const dashboardPageActive = ref(false);
 const retryingPresentationItemId = ref('');
+const retriedWidgets = shallowReactive(new Map<string, DashboardWidgetResponse>());
 let dashboardContainerRealtimeSubscribed = false;
 
 const canViewContainerOverview = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.VIEW));
 const canReadSystemConfig = computed(() => permissionStore.hasPermission(SYSTEM_CONFIG_PERMISSION_CODE.READ));
 const summaryQuery = useQuery(
-  { queryKey: summaryQueryKey, queryFn: getDashboardSummary, enabled: dashboardPageActive, retry: false },
+  {
+    queryKey: summaryQueryKey,
+    queryFn: async () => ({ summary: await getDashboardSummary() }),
+    enabled: dashboardPageActive,
+    retry: false,
+    // 每次成功返回都是新的摘要快照，即使响应字段与上一次完全相同。
+    structuralSharing: false,
+  },
   queryClient,
 );
 const configQuery = useSystemConfigsQuery(computed(() => dashboardPageActive.value && canReadSystemConfig.value));
@@ -85,7 +93,7 @@ const containerQuery = useQuery(
   },
   queryClient,
 );
-const summary = summaryQuery.data;
+const summary = computed(() => summaryQuery.data.value?.summary);
 const loading = computed(
   () => summaryQuery.isFetching.value || configQuery.isFetching.value || containerQuery.isFetching.value,
 );
@@ -129,7 +137,8 @@ const containerDashboardSummary = computed<ContainerDashboardSummary>(
   () => selectContainerDashboardSummaryView() ?? emptyContainerDashboardSummary(),
 );
 const presentation = computed(() => {
-  if (!summary.value) {
+  const snapshot = summary.value;
+  if (!snapshot) {
     return emptyPresentation;
   }
 
@@ -142,7 +151,9 @@ const presentation = computed(() => {
       state: canViewContainerOverview.value ? containerResourceState.value : 'hidden',
       summary: containerDashboardSummary.value,
     },
-    summary: summary.value,
+    summary: retriedWidgets.size
+      ? { ...snapshot, widgets: snapshot.widgets.map((widget) => retriedWidgets.get(widget.id) ?? widget) }
+      : snapshot,
   });
 });
 
@@ -151,6 +162,8 @@ onActivated(activateDashboard);
 onDeactivated(deactivateDashboard);
 onUnmounted(deactivateDashboard);
 
+// 单组件重试只修正展示，整页摘要及其请求状态仍由摘要 Query 持有。
+watch(summaryQuery.data, () => retriedWidgets.clear(), { flush: 'sync' });
 watch(summaryQuery.error, (error) => {
   if (error) logger.error('dashboard summary request failed', error);
 });
@@ -238,9 +251,13 @@ function navigate(route: string, source: WorkbenchNavigationSource) {
 
 async function retryItem(item: PresentationItem) {
   const widgetId = item.sourceWidgetId;
-  if (!widgetId || retryingPresentationItemId.value) {
+  const snapshot = summaryQuery.data.value;
+  if (!widgetId || !snapshot || retryingPresentationItemId.value) {
     return;
   }
+
+  const previous = retriedWidgets.get(widgetId) ?? snapshot.summary.widgets.find((widget) => widget.id === widgetId);
+  if (!previous) return;
 
   retryingPresentationItemId.value = item.id;
   try {
@@ -250,30 +267,23 @@ async function retryItem(item: PresentationItem) {
       staleTime: 0,
       retry: false,
     });
-    updateSummaryWidget(widget.id, () => widget);
+    if (summaryQuery.data.value === snapshot) retriedWidgets.set(widget.id, widget);
   } catch (error) {
     logger.error('dashboard widget refresh failed', error);
-    updateSummaryWidget(widgetId, (current) => ({
-      ...current,
-      status: 'error',
-      error: {
-        code: requestErrorCode(error),
-        message_key: requestErrorMessageKey(error),
-        message: requestErrorMessage(error, t('dashboard.widget.errorFallback')),
-      },
-    }));
+    if (summaryQuery.data.value === snapshot) {
+      retriedWidgets.set(widgetId, {
+        ...previous,
+        status: 'error',
+        error: {
+          code: requestErrorCode(error),
+          message_key: requestErrorMessageKey(error),
+          message: requestErrorMessage(error, t('dashboard.widget.errorFallback')),
+        },
+      });
+    }
   } finally {
     retryingPresentationItemId.value = '';
   }
-}
-
-function updateSummaryWidget(id: string, update: (widget: DashboardWidgetResponse) => DashboardWidgetResponse) {
-  queryClient.setQueryData<DashboardSummaryResponse>(
-    summaryQueryKey,
-    (current) =>
-      current && { ...current, widgets: current.widgets.map((widget) => (widget.id === id ? update(widget) : widget)) },
-    { updatedAt: summaryQuery.dataUpdatedAt.value },
-  );
 }
 
 function isApiRequestError(error: unknown): error is ApiRequestError {

@@ -321,6 +321,44 @@ describe('DashboardHomePage', () => {
     expect(dashboardApiMocks.getDashboardWidget).toHaveBeenCalledWith('access-log-source');
   });
 
+  it('keeps the overview refresh failure through failed and successful widget retries', async () => {
+    const snapshot = summaryResponse();
+    const recoveredWidget = snapshot.widgets[0]!;
+    const failedSnapshot = summaryResponse({ widgets: [{ ...recoveredWidget, status: 'error' }] });
+    dashboardApiMocks.getDashboardSummary
+      .mockResolvedValueOnce(failedSnapshot)
+      .mockRejectedValueOnce(new Error('Overview refresh failed'))
+      .mockResolvedValueOnce(failedSnapshot);
+    dashboardApiMocks.getDashboardWidget
+      .mockRejectedValueOnce(new Error('Widget refresh failed'))
+      .mockResolvedValueOnce(recoveredWidget);
+    const wrapper = mountPage();
+    const workbench = wrapper.getComponent({ name: 'DashboardWorkbenchStub' });
+    await flushPromises();
+    expect(workbench.props('ready')).toBe(true);
+    expect(wrapper.get('.attention-item').attributes('data-evidence')).toBe('source-failed');
+
+    await wrapper.get('.refresh-page').trigger('click');
+    await flushPromises();
+    expect(workbench.props('errorMessage')).toBe('Overview refresh failed');
+
+    await wrapper.get('.attention-item').trigger('click');
+    await flushPromises();
+    expect(workbench.props('errorMessage')).toBe('Overview refresh failed');
+    expect(wrapper.get('.attention-item').attributes('data-evidence')).toBe('source-failed');
+
+    await wrapper.get('.attention-item').trigger('click');
+    await flushPromises();
+    expect(workbench.props('errorMessage')).toBe('Overview refresh failed');
+    expect(wrapper.find('.attention-item').exists()).toBe(false);
+
+    await wrapper.get('.refresh-page').trigger('click');
+    await flushPromises();
+    expect(workbench.props('errorMessage')).toBe('');
+    expect(wrapper.get('.attention-item').attributes('data-evidence')).toBe('source-failed');
+    wrapper.unmount();
+  });
+
   it('distinguishes failed resource loading from missing permission', async () => {
     containerApiMocks.getContainerDashboardSummary.mockRejectedValueOnce(new Error('container unavailable'));
     const failedWrapper = mountPage();
