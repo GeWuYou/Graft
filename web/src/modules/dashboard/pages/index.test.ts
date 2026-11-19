@@ -7,7 +7,7 @@ import type { RouteRecordRaw } from 'vue-router';
 import type { BootstrapResponse } from '@/modules/auth/contract/types';
 import { CONTAINER_ROUTE_PATH } from '@/modules/container/contract/paths';
 import { resetContainerStatsManager } from '@/modules/container/shared/stats-manager';
-import { clearQueryCache } from '@/shared/query';
+import { clearQueryCache, queryClient } from '@/shared/query';
 import { usePermissionStore } from '@/store/modules/permission';
 
 import { DASHBOARD_QUICK_ACTION_STORAGE_KEY } from '../contract/quick-actions';
@@ -355,6 +355,56 @@ describe('DashboardHomePage', () => {
     await wrapper.get('.refresh-page').trigger('click');
     await flushPromises();
     expect(workbench.props('errorMessage')).toBe('');
+    expect(wrapper.get('.attention-item').attributes('data-evidence')).toBe('source-failed');
+    wrapper.unmount();
+  });
+
+  it('retains a widget retry across remounts until a new overview succeeds', async () => {
+    const recoveredWidget = summaryResponse().widgets[0]!;
+    const failedSnapshot = summaryResponse({ widgets: [{ ...recoveredWidget, status: 'error' }] });
+    dashboardApiMocks.getDashboardSummary.mockResolvedValue(failedSnapshot);
+    dashboardApiMocks.getDashboardWidget.mockResolvedValueOnce(recoveredWidget);
+    const first = mountPage();
+    await flushPromises();
+    const overviewUpdatedAt = queryClient.getQueryState(['dashboard', 'summary'])?.dataUpdatedAt;
+
+    await first.get('.attention-item').trigger('click');
+    await flushPromises();
+    expect(first.find('.attention-item').exists()).toBe(false);
+    expect(queryClient.getQueryState(['dashboard', 'summary'])?.dataUpdatedAt).toBe(overviewUpdatedAt);
+    first.unmount();
+
+    const second = mountPage();
+    await flushPromises();
+    expect(dashboardApiMocks.getDashboardSummary).toHaveBeenCalledTimes(1);
+    expect(second.find('.attention-item').exists()).toBe(false);
+
+    await second.get('.refresh-page').trigger('click');
+    await flushPromises();
+    expect(dashboardApiMocks.getDashboardSummary).toHaveBeenCalledTimes(2);
+    expect(second.get('.attention-item').attributes('data-evidence')).toBe('source-failed');
+    second.unmount();
+  });
+
+  it('discards a widget retry that settles after a new overview succeeds', async () => {
+    const recoveredWidget = summaryResponse().widgets[0]!;
+    const failedSnapshot = summaryResponse({ widgets: [{ ...recoveredWidget, status: 'error' }] });
+    const retry = Promise.withResolvers<typeof recoveredWidget>();
+    dashboardApiMocks.getDashboardSummary.mockResolvedValue(failedSnapshot);
+    dashboardApiMocks.getDashboardWidget.mockReturnValueOnce(retry.promise);
+    const wrapper = mountPage();
+    await flushPromises();
+
+    await wrapper.get('.attention-item').trigger('click');
+    await flushPromises();
+    expect(dashboardApiMocks.getDashboardWidget).toHaveBeenCalledTimes(1);
+
+    await wrapper.get('.refresh-page').trigger('click');
+    await flushPromises();
+    expect(dashboardApiMocks.getDashboardSummary).toHaveBeenCalledTimes(2);
+    retry.resolve(recoveredWidget);
+    await flushPromises();
+
     expect(wrapper.get('.attention-item').attributes('data-evidence')).toBe('source-failed');
     wrapper.unmount();
   });
