@@ -18,6 +18,9 @@ help:
       '  just check-changed     Run worktree-scoped commit-preparation checks' \
       '  just check-local-plan  Inspect scoped checks and coverage gaps' \
       '  just check-local       Execute scoped checks and explicit consumer tests' \
+      '  just check-local-verify <report> [args...]  Verify a previous report still applies, then execute' \
+      '  just check-suite [groups...]  Run grouped check suites with per-check logs and a deadline' \
+      '  just ci-impact [args...]     Select conservative CI impact for changed paths' \
       '  just lint              Run the highest-value local lint slices' \
       '  just lint-server       Run the authoritative backend lint stage' \
       '  just buildtest-server  Run the authoritative backend build/test stage' \
@@ -76,11 +79,31 @@ check-local *args:
 check-changed *args:
     python3 -B scripts/local_validation.py --execute "$@"
 
+# Evidence reuse: verify a previous plan/check report still binds this worktree,
+# then execute the current scoped plan. A plan-only comparison passes --compare-report
+# to check-local-plan directly.
+[positional-arguments]
+check-local-verify *args:
+    python3 -B scripts/local_validation.py --execute --compare-report "$1" "${@:2}"
+
+# Grouped sequential runner with per-check logs, requires= dependencies and a
+# process-level deadline. Groups mirror the Justfile and CI job structure.
+# Example: just check-suite --groups governance,core --dry-run
+[positional-arguments]
+check-suite *args:
+    python3 -B scripts/check_suite.py "$@"
+
+# Conservative CI impact selection for changed paths. Example:
+# just ci-impact --file server/modules/task/runtime.go --json
+[positional-arguments]
+ci-impact *args:
+    python3 -B scripts/ci_impact.py "$@"
+
 check-governance:
     python3 -B scripts/validate_ai_governance.py
     python3 -B scripts/validate_ai_plan_structure.py
     python3 -B scripts/validate_shared_asset_registries.py
-    python3 -B -m unittest scripts/test_local_validation.py scripts/test_governance_workflow.py scripts/test_ci_runtime_artifacts.py scripts/test_build_runtime_acceptance.py
+    python3 -B -m unittest scripts/test_local_validation.py scripts/test_governance_workflow.py scripts/test_ci_runtime_artifacts.py scripts/test_build_runtime_acceptance.py scripts/test_check_suite.py scripts/test_ci_impact.py
     node --test scripts/test-turbo.mjs
 
 lint:

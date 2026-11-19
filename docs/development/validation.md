@@ -12,6 +12,16 @@
 默认选择 HEAD 与 worktree 的差异及未跟踪文件，删除项保留在影响分析中。
 检查目标是当前 worktree；所选文件存在 staged/worktree 内容分歧时执行入口返回缺口，提交前须使验证内容与暂存内容一致。
 
+计划输出绑定证据：记录当前 head SHA、每个所选路径的 SHA-256 摘要、逐文件的选择原因
+（worktree 差异、显式 `--file`/`--test` 或派生消费者）以及覆盖该文件的检查命令。空选择、
+缺失消费者测试或任何覆盖缺口使 `check-local-plan` 返回非零；工具从不静默回退到完整门禁。
+
+证据复用：`--report-out <path>` 在执行后保存检查报告，`--compare-report <path>` 校验既有
+计划/检查报告是否仍适用于当前状态。比较以 head SHA 与所选文件摘要为界：head 前移、所选文件
+被修改或删除、或当前选择未被报告覆盖，都判定为 stale 并给出逐文件差异原因，`--plan` 与
+`--execute` 都返回非零且不执行。`just check-local-verify <report>` 先做该校验再执行当前计划；
+计划态校验可直接 `just check-local-plan --compare-report <path>`。
+
 Go 按直接及显式消费者包测试，Web 按文件格式、lint、样式和选定测试检查。OpenAPI 变更另执行
 `just openapi-check` 并选择两端消费者测试。治理变更执行对应结构校验。
 空范围、未知影响、缺少测试和缺少工具均明确报告，执行过程收集独立失败，缺口返回非零状态。
@@ -19,6 +29,18 @@ Go 按直接及显式消费者包测试，Web 按文件格式、lint、样式和
 
 `just check-changed` 是 `check-local` 的兼容入口。完整领域检查由 `just check-server`、
 `just check-web` 和 `just check` 显式调用。检查成功、完成提交准备、通过 CI 和完成运行验收分别记录。
+
+`just check-suite` 运行分组检查套件（`scripts/check_suite.py`）：governance、openapi、core、
+compose、frontend-source、frontend-artifacts 六组映射 Justfile 与 CI 的真实入口。检查按序执行、
+独立失败、套件以任何失败或超时返回非零；`requires=` 依赖跨组解析并自动前置（例如 core 的
+backend buildtest 先运行 OpenAPI bundle）；`--deadline-seconds` 是进程级预算，超时的检查连同
+子进程被终止；逐检查日志写入 `.artifacts/checks/<group>/`（运行时自忽略），`--json` 输出汇总。
+该套件不替代 `just check-server`、`just check-web` 与 `just check` 的完整验收。
+
+`just ci-impact`（`scripts/ci_impact.py`）按变更路径保守映射 pull-request 校验 job：
+未知路径、workflow 定义、scripts、工具链与镜像/Compose 表面强制 FULL；server/web/openapi/
+治理/迁移表面选择子集并始终包含 hygiene 与 summary job；输出带逐路径规则证据与本地套件组提示。
+该选择仅供本地参考，CI 仍按 workflow 定义完整执行。
 
 ## Bun workspace 与 Turbo
 
@@ -37,6 +59,13 @@ Just 包装开发、生成和运维命令，`bun run build`、`bun run test`、`
 CI 分别执行治理、契约、迁移、server 和 web 检查，并在汇总 job 收集独立结果。
 后端 buildtest 的 `--test-report <path>` 将同一次 Go 测试流交给报告生成器，再继续构建。
 测试失败和报告生成失败分别传播到门禁。报告呈现消费已有结果。
+
+Workflow 按 source hygiene、governance 与 contract 报告、web/server 校验、迁移与运行验收、
+summary 分组组织。每个带 steps 的 job 都有显式 timeout；PR run 取消过期运行，main push
+按分支分组且从不取消。`Required checks passed` 通过 `needs` 覆盖 workflow 中其余全部 job，
+并用 Actions API 对当前 run、attempt 与 SHA 逐 job 复核：仅 success 可通过，failure、skipped、
+cancelled、blocked 或仍在运行的 job 都使汇总失败（仅 push 事件的 Secret Scan 跳过按既有政策放行）。
+job 名称保持不变以维持分支保护规则。
 
 项目命令、CI 和领域规范可独立于个人 harness 使用。个人启动、任务池和交付编排可以通过外部 adapter
 映射已有命令，仓库技能引用产品权威，避免重复定义阶段与权限。
