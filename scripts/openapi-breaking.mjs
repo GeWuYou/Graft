@@ -75,20 +75,29 @@ function pointer(document, fragment) {
   return value;
 }
 
-// 契约投影 = 该 operation 对象、作用于它的 path item 级共享字段（parameters/servers/description 等）
-// 以及两者传递引用的全部本地组件。兄弟 operation 不进入投影，
-// 因此无关端点变化不会互相使台账失效；path 级参数变化则会让该 path 上所有审批过期。
+// 契约投影包含 operation、path item 共享字段、实际生效的鉴权与服务器配置及本地组件引用。
+// 接口级覆盖限定继承范围；无关接口和未使用的鉴权方案变化不会使审批过期。
 export function projectionHash(document, path, method) {
   const pathItem = isRecord(document?.paths) ? document.paths[path] : undefined;
   const operationKey = method.toLowerCase();
   if (!isRecord(pathItem) || !isRecord(pathItem[operationKey])) return null;
+  const {
+    security = document.security,
+    servers = pathItem.servers ?? document.servers,
+    ...operation
+  } = pathItem[operationKey];
   const sharedPathItem = {};
   for (const [key, value] of Object.entries(pathItem)) {
-    if (!HTTP_METHODS.has(key)) sharedPathItem[key] = value;
+    if (!HTTP_METHODS.has(key) && key !== 'servers') sharedPathItem[key] = value;
   }
-  const operation = pathItem[operationKey];
+  const securityReferences = (security ?? []).flatMap((requirement) =>
+    Object.keys(requirement).map((name) => {
+      const fragment = encodeURIComponent(name.replaceAll('~', '~0').replaceAll('/', '~1'));
+      return '#/components/securitySchemes/' + fragment;
+    }),
+  );
   const dependencies = {};
-  const pending = references([operation, sharedPathItem]);
+  const pending = [...references([operation, sharedPathItem, servers]), ...securityReferences];
   while (pending.length > 0) {
     const fragment = pending.pop();
     if (Object.hasOwn(dependencies, fragment)) continue;
@@ -96,7 +105,7 @@ export function projectionHash(document, path, method) {
     dependencies[fragment] = value;
     pending.push(...references(value));
   }
-  return sha256(stableStringify({ pathItem: sharedPathItem, operation, dependencies }));
+  return sha256(stableStringify({ pathItem: sharedPathItem, operation, security, servers, dependencies }));
 }
 
 function normalizeMethod(value, label) {

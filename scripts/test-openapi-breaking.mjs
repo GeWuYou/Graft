@@ -91,6 +91,72 @@ test('path-item-level shared parameters are covered but sibling operations are n
   assert.equal(polluted.stale.length, 1);
 });
 
+test('approval follows effective security and its named scheme references', () => {
+  const base = fixtureDocument();
+  base.security = [{ privateAccess: [] }];
+  base.components.securitySchemes = {
+    privateAccess: { $ref: '#/components/securitySchemes/bearer' },
+    bearer: { type: 'http', scheme: 'bearer' },
+    key: { type: 'apiKey', in: 'header', name: 'X-Fixture-Key' },
+  };
+  const reviewed = structuredClone(base);
+  delete reviewed.components.schemas.Item.required;
+  const approval = {
+    reason: 'reviewed delta',
+    method: 'GET',
+    path: '/items',
+    changeKind: 'response-required-property-removed',
+    baseContractSha256: projectionHash(base, '/items', 'get'),
+    newContractSha256: projectionHash(reviewed, '/items', 'get'),
+  };
+  const findings = [finding('GET', '/items', approval.changeKind)];
+  assert.deepEqual(applyApprovals(findings, base, reviewed, [approval]).approved, findings);
+
+  const changedRequirement = structuredClone(reviewed);
+  changedRequirement.security = [{ key: [] }];
+  const changedScheme = structuredClone(reviewed);
+  changedScheme.components.securitySchemes.bearer.bearerFormat = 'JWT';
+  for (const revision of [changedRequirement, changedScheme]) {
+    const result = applyApprovals(findings, base, revision, [approval]);
+    assert.deepEqual(result.unapproved, findings);
+    assert.equal(result.stale.length, 1);
+  }
+  assert.equal(applyApprovals(findings, changedScheme, reviewed, [approval]).stale.length, 1);
+
+  const unrelatedScheme = structuredClone(reviewed);
+  unrelatedScheme.components.securitySchemes.key.name = 'X-Other-Fixture-Key';
+  assert.deepEqual(applyApprovals(findings, base, unrelatedScheme, [approval]).approved, findings);
+
+  const publicOperation = structuredClone(reviewed);
+  publicOperation.paths['/items'].get.security = [];
+  const publicWithRootChange = structuredClone(publicOperation);
+  publicWithRootChange.security = changedRequirement.security;
+  assert.equal(projectionHash(publicOperation, '/items', 'get'), projectionHash(publicWithRootChange, '/items', 'get'));
+  assert.notEqual(projectionHash(publicOperation, '/items', 'get'), projectionHash(reviewed, '/items', 'get'));
+});
+
+test('only the effective server list enters the operation projection', () => {
+  const base = fixtureDocument();
+  base.servers = [{ url: '/first' }];
+  const rootChange = structuredClone(base);
+  rootChange.servers = [{ url: '/second' }];
+  assert.notEqual(projectionHash(base, '/items', 'get'), projectionHash(rootChange, '/items', 'get'));
+
+  const pathOverride = [{ url: '/path' }];
+  base.paths['/items'].servers = pathOverride;
+  rootChange.paths['/items'].servers = pathOverride;
+  assert.equal(projectionHash(base, '/items', 'get'), projectionHash(rootChange, '/items', 'get'));
+
+  const pathChange = structuredClone(base);
+  pathChange.paths['/items'].servers = [{ url: '/different-path' }];
+  assert.notEqual(projectionHash(base, '/items', 'get'), projectionHash(pathChange, '/items', 'get'));
+
+  const operationOverride = [{ url: '/operation' }];
+  base.paths['/items'].get.servers = operationOverride;
+  pathChange.paths['/items'].get.servers = operationOverride;
+  assert.equal(projectionHash(base, '/items', 'get'), projectionHash(pathChange, '/items', 'get'));
+});
+
 test('operation removals are approvable through the deleted sentinel', () => {
   const base = fixtureDocument();
   const target = fixtureDocument();
