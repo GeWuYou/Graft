@@ -7,7 +7,7 @@
 - Task class: `docs/automation with server impact`
 - Intake summary: long-running refactor with an active topic, roadmap, and batch-oriented execution.
 - Canonical authority: `.github/workflows/pull-request-validation.yml`, `.github/workflows/migration-check.yml`, and `scripts/check_migration_bootstrap.py`.
-- Completed so far: historical Actions failure analysis, first reliability batch, and local validation.
+- Completed so far: historical Actions failure analysis, first reliability batch, OpenAPI breaking-change gate batch, and local validation.
 - Not started yet: observe the changed workflow on GitHub and review the repository ruleset checklist with a maintainer.
 
 ## Recovery Receipt
@@ -24,12 +24,17 @@
 - `scripts/check_migration_bootstrap.py`
 - `scripts/test_check_migration_bootstrap.py`
 - `server/internal/realtime/ws_handler_test.go`
+- `scripts/openapi-breaking.mjs`
+- `scripts/test-openapi-breaking.mjs`
+- `openapi/approved-breaking.json`
+- `server/go.mod` and `server/go.sum` tool directive for the OpenAPI breaking gate
 - `ai-plan/public/pipeline-governance/**`
 
 Out of scope:
 
 - `Build Artifacts` implementation changes.
 - `Web Check` implementation changes.
+- OpenAPI source graph, server, and web source changes.
 - GitHub repository or ruleset API writes.
 
 ## Locked Decisions
@@ -42,12 +47,14 @@ Out of scope:
 
 - Batch 1: stabilize PR workflow orchestration, migration bootstrap image retrieval, and SSE test delivery ordering.
 - Batch 2: verify real GitHub Actions behavior and have a maintainer apply the documented repository-settings checklist.
+- Batch 3: add an OpenAPI breaking-change gate to pull-request validation with an approval ledger.
 
 ## Current Recovery Point
 
 - Batch 1 is committed after local validation.
+- Batch 3 implementation is committed on branch `ci/openapi-breaking-gate`; the gate runs `scripts/openapi-breaking.mjs` against the merge-base with `origin/main` and blocks on unapproved ERR findings from `openapi/approved-breaking.json`.
 - GitHub Actions history showed fake-fixture secret-scan findings, one Docker Hub pull reset, and an SSE delivery race.
-- Next step: observe a PR run after the branch is pushed by a maintainer.
+- Next step: observe the first pull-request run that includes the `OpenAPI Breaking Change Gate` job after the branch is pushed by a maintainer.
 
 ## Work Intake
 
@@ -57,6 +64,7 @@ Out of scope:
 ## Pending Batch Direction
 
 - Verify cancellation, timeout, secret scanning, and migration bootstrap behavior in GitHub Actions.
+- Verify the `OpenAPI Breaking Change Gate` job behavior on a real pull request, including the unapproved-finding failure path.
 - Review and apply repository settings manually; this topic only records the checklist.
 
 ## Validation Targets
@@ -64,6 +72,8 @@ Out of scope:
 ```bash
 actionlint .github/workflows/*.yml
 python3 -m unittest scripts/test_check_migration_bootstrap.py
+node --test scripts/test-openapi-breaking.mjs
+node scripts/openapi-breaking.mjs --mode report
 (
   cd server
   go test ./internal/realtime -count=20
