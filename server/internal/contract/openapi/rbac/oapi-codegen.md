@@ -1,26 +1,9 @@
-RBAC generated server bindings are produced through `go generate`.
+# RBAC generated bindings
 
-This package is intentionally limited to a guarded RBAC management migration batch:
+Run `go generate ./internal/contract/openapi/rbac` from `server` to rebuild the
+models and Gin strict wrappers selected by `oapi-codegen.yaml`. The selected
+operations include role and permission management, user-role bindings, and
+the two saved-view surfaces.
 
-- `getPermission`
-- `getPermissions`
-- `getRole`
-- `getRoles`
-- `getRolePermissions`
-- `postRoleDelete`
-- `deleteRolePermissions`
-- `postRolePermissionsAdd`
-- `postRolePermissionsReplace`
-- `postRoleStatus`
-- `postRoleUpdate`
-- `postRoles`
-- `getUserRoles`
-- `deleteUserRoles`
-- `postUserRolesAdd`
-- `postUserRolesReplace`
-- `deleteUsersRoles`
-- `postUsersRolesAdd`
-- `postUsersRolesReplace`
-
-The generated layer constrains header semantics, request-body shape, and the handler-facing method signatures without
-broadening route ownership, middleware ownership, or `httpx` envelope ownership.
+The RBAC module owns the mount paths, operation-specific permissions and
+business validation. Its responses use the shared `httpx` envelope.

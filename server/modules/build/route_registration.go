@@ -1,8 +1,12 @@
 package build
 
 import (
+	"context"
 	"errors"
+	buildopenapi "graft/server/internal/contract/openapi/build"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"math"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"strings"
@@ -44,24 +48,20 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	group := ctx.Router.Group("/build")
 	group.Use(httpx.RequestIDMiddleware())
-	group.POST("/input-snapshots", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), func(c *gin.Context) {
-		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxInputSnapshotUploadBytes+inputSnapshotMultipartOverhead)
+	uploadSnapshot := func(c *gin.Context, reader *multipart.Reader) {
+		form, err := reader.ReadForm(inputSnapshotMultipartOverhead)
+		if err != nil {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
+		}
+		defer func() { _ = form.RemoveAll() }()
+		files := form.File["archive"]
+		if len(files) == 0 || files[0].Size == 0 {
+			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
+		}
 		var request openapigen.PostBuildInputSnapshotMultipartRequestBody
-		if err := c.Request.ParseMultipartForm(inputSnapshotMultipartOverhead); err != nil {
-			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
-			return
-		}
-		defer func() {
-			if c.Request.MultipartForm != nil {
-				_ = c.Request.MultipartForm.RemoveAll()
-			}
-		}()
-		_, header, err := c.Request.FormFile("archive")
-		if err != nil || header == nil || header.Size == 0 {
-			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
-			return
-		}
-		request.Archive.InitFromMultipart(header)
+		request.Archive.InitFromMultipart(files[0])
 		file, err := request.Archive.Reader()
 		if err != nil {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
@@ -78,8 +78,8 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			return
 		}
 		httpx.WriteSuccess(c, http.StatusCreated, openapigen.BuildInputSnapshot{SnapshotId: snapshot.ID, SourceKind: openapigen.BuildInputSnapshotSourceKind(snapshot.SourceKind), ContentDigest: snapshot.ContentDigest, LifecycleState: openapigen.BuildInputSnapshotLifecycleState("available")})
-	})
-	group.GET("/input-snapshots", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+	}
+	listSnapshots := func(c *gin.Context) {
 		query, ok := buildPaginationQuery(c)
 		if !ok {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
@@ -95,8 +95,8 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			items = append(items, openapigen.BuildInputSnapshot{SnapshotId: snapshot.ID, SourceKind: openapigen.BuildInputSnapshotSourceKind(snapshot.SourceKind), ContentDigest: snapshot.ContentDigest, LifecycleState: openapigen.BuildInputSnapshotLifecycleState("available")})
 		}
 		httpx.WriteSuccess(c, http.StatusOK, openapigen.BuildInputSnapshotList{Items: items, Total: result.Total, Limit: query.Limit, Offset: query.Offset})
-	})
-	group.GET("/workspaces", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+	}
+	listWorkspaces := func(c *gin.Context) {
 		pagination, ok := buildPaginationQuery(c)
 		if !ok {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
@@ -113,24 +113,24 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			return
 		}
 		httpx.WriteSuccess(c, http.StatusOK, toBuildWorkspaceList(result, buildstore.WorkspaceListQuery{Limit: pagination.Limit, Offset: pagination.Offset}))
-	})
-	group.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+	}
+	listTargets := func(c *gin.Context) {
 		items, listErr := service.ListBuildTargets(c.Request.Context(), requestUserID(c))
 		if listErr != nil {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
 			return
 		}
 		httpx.WriteSuccess(c, http.StatusOK, openapigen.BuildRuntimeTargetList{Items: mapBuildRuntimeTargets(items)})
-	})
-	group.GET("/builder-pools", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+	}
+	listPools := func(c *gin.Context) {
 		items, listErr := service.ListBuilderPools(c.Request.Context(), requestUserID(c))
 		if listErr != nil {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusInternalServerError, "common.internalError", nil)
 			return
 		}
 		httpx.WriteSuccess(c, http.StatusOK, openapigen.BuildBuilderPoolList{Items: mapBuilderPools(items)})
-	})
-	group.GET("/artifacts", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+	}
+	listArtifacts := func(c *gin.Context) {
 		query, ok := buildPaginationQuery(c)
 		if !ok {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
@@ -142,8 +142,8 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			return
 		}
 		httpx.WriteSuccess(c, http.StatusOK, toBuildArtifactList(result, query.Limit, query.Offset))
-	})
-	group.GET("/artifacts/:artifactId/publications", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+	}
+	listPublications := func(c *gin.Context) {
 		artifactID := strings.TrimSpace(c.Param("artifactId"))
 		if artifactID == "" || utf8.RuneCountInString(artifactID) > 64 {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
@@ -164,8 +164,8 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			return
 		}
 		httpx.WriteSuccess(c, http.StatusOK, toBuildArtifactPublicationList(result, query.Limit, query.Offset))
-	})
-	group.GET(buildJobsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+	}
+	listJobs := func(c *gin.Context) {
 		query, ok := buildListQuery(c)
 		if !ok {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
@@ -177,8 +177,8 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			return
 		}
 		httpx.WriteSuccess(c, http.StatusOK, toBuildJobList(result, query))
-	})
-	group.GET(buildJobsRoute+"/:buildId", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), func(c *gin.Context) {
+	}
+	getJob := func(c *gin.Context) {
 		job, err := service.GetJob(c.Request.Context(), requestUserID(c), c.Param("buildId"))
 		if errors.Is(err, buildstore.ErrNotFound) {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusNotFound, "common.notFound", nil)
@@ -193,10 +193,9 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			return
 		}
 		httpx.WriteSuccess(c, http.StatusOK, toBuildJobDetail(job))
-	})
-	group.POST(buildJobsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), func(c *gin.Context) {
-		var request openapigen.PostBuildJobJSONRequestBody
-		if err := c.ShouldBindJSON(&request); err != nil {
+	}
+	createJob := func(c *gin.Context, request *buildopenapi.PostBuildJobJSONRequestBody) {
+		if request == nil {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
 			return
 		}
@@ -244,10 +243,9 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			return
 		}
 		httpx.WriteSuccess(c, http.StatusAccepted, openapigen.TaskReceipt{TaskId: int64(receipt.TaskID), Status: openapigen.TaskStatus(receipt.Status)})
-	})
-	group.POST("/artifact-promotions", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), func(c *gin.Context) {
-		var request openapigen.PostBuildArtifactPromotionJSONRequestBody
-		if err := c.ShouldBindJSON(&request); err != nil || !validArtifactPromotionRequest(request) {
+	}
+	promoteArtifact := func(c *gin.Context, request *buildopenapi.PostBuildArtifactPromotionJSONRequestBody) {
+		if request == nil || !validArtifactPromotionRequest(*request) {
 			httpx.WriteLocalizedError(c, ctx.I18n, http.StatusBadRequest, "common.invalidArgument", nil)
 			return
 		}
@@ -279,15 +277,34 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			return
 		}
 		httpx.WriteSuccess(c, http.StatusAccepted, openapigen.TaskReceipt{TaskId: int64(receipt.TaskID), Status: openapigen.TaskStatus(receipt.Status)})
-	})
+	}
+	wrapper := buildopenapi.ServerInterfaceWrapper{
+		Handler: buildopenapi.NewStrictHandlerWithOptions(buildStrictServer{uploadSnapshot: uploadSnapshot, listSnapshots: listSnapshots, listWorkspaces: listWorkspaces, listTargets: listTargets, listPools: listPools, listArtifacts: listArtifacts, listPublications: listPublications, listJobs: listJobs, getJob: getJob, createJob: createJob, promoteArtifact: promoteArtifact}, nil, buildopenapi.StrictGinServerOptions{
+			RequestErrorHandlerFunc: strictsupport.RequestErrorHandler(ctx.I18n, "common.invalidArgument", nil),
+			HandlerErrorFunc:        strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
+		}),
+		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, "common.invalidArgument"),
+	}
+	group.POST("/input-snapshots", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), limitBuildSnapshotBody, strictsupport.Route(wrapper.PostBuildInputSnapshot, nil))
+	group.GET("/input-snapshots", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), strictsupport.Route(wrapper.GetBuildInputSnapshots, listSnapshots))
+	group.GET("/workspaces", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), strictsupport.Route(wrapper.GetBuildWorkspaces, listWorkspaces))
+	group.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), strictsupport.Route(wrapper.GetBuildRuntimeTargets, nil))
+	group.GET("/builder-pools", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), strictsupport.Route(wrapper.GetBuildBuilderPools, nil))
+	group.GET("/artifacts", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), strictsupport.Route(wrapper.GetBuildArtifacts, listArtifacts))
+	group.GET("/artifacts/:artifactId/publications", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), strictsupport.Route(wrapper.GetBuildArtifactPublications, listPublications))
+	group.GET(buildJobsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), strictsupport.Route(wrapper.GetBuildJobs, listJobs))
+	group.GET(buildJobsRoute+"/:buildId", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), strictsupport.Route(wrapper.GetBuildJob, getJob))
+	group.POST(buildJobsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), preserveBuildIdempotencyKey, strictsupport.Route(wrapper.PostBuildJob, nil))
+	group.POST("/artifact-promotions", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), preserveBuildIdempotencyKey, strictsupport.Route(wrapper.PostBuildArtifactPromotion, nil))
+
 	return nil
 }
 
-func validArtifactPromotionRequest(request openapigen.PostBuildArtifactPromotionJSONRequestBody) bool {
+func validArtifactPromotionRequest(request buildopenapi.PostBuildArtifactPromotionJSONRequestBody) bool {
 	return strings.TrimSpace(request.ArtifactId) != "" &&
 		strings.TrimSpace(request.PublicationId) != "" &&
 		request.RuntimeTargetId > 0 &&
-		request.Destination.Kind == openapigen.BuildArtifactPromotionCreateRequestDestinationKind("oci_registry") &&
+		request.Destination.Kind == "oci_registry" &&
 		strings.TrimSpace(request.Destination.ConnectionRef) != "" &&
 		strings.TrimSpace(request.Destination.RepositoryRef) != "" &&
 		strings.TrimSpace(request.Destination.Reference) != ""
@@ -435,4 +452,82 @@ func buildSubmissionFailure(err error) (int, string) {
 	default:
 		return http.StatusInternalServerError, "common.internalError"
 	}
+}
+
+// buildStrictServer 将现有 HTTP 响应写入接入生成的请求契约。
+type buildStrictServer struct {
+	uploadSnapshot   func(*gin.Context, *multipart.Reader)
+	listSnapshots    gin.HandlerFunc
+	listWorkspaces   gin.HandlerFunc
+	listTargets      gin.HandlerFunc
+	listPools        gin.HandlerFunc
+	listArtifacts    gin.HandlerFunc
+	listPublications gin.HandlerFunc
+	listJobs         gin.HandlerFunc
+	getJob           gin.HandlerFunc
+	createJob        func(*gin.Context, *buildopenapi.PostBuildJobJSONRequestBody)
+	promoteArtifact  func(*gin.Context, *buildopenapi.PostBuildArtifactPromotionJSONRequestBody)
+}
+
+var _ buildopenapi.StrictServerInterface = buildStrictServer{}
+
+func (s buildStrictServer) PostBuildInputSnapshot(ctx context.Context, req buildopenapi.PostBuildInputSnapshotRequestObject) (buildopenapi.PostBuildInputSnapshotResponseObject, error) {
+	if req.Body == nil {
+		return nil, strictsupport.ErrMissingRequestBody
+	}
+	return nil, strictsupport.Dispatch(ctx, func(c *gin.Context) { s.uploadSnapshot(c, req.Body) })
+}
+
+func limitBuildSnapshotBody(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxInputSnapshotUploadBytes+inputSnapshotMultipartOverhead)
+	c.Next()
+}
+
+func (s buildStrictServer) GetBuildInputSnapshots(ctx context.Context, _ buildopenapi.GetBuildInputSnapshotsRequestObject) (buildopenapi.GetBuildInputSnapshotsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.listSnapshots)
+}
+
+func (s buildStrictServer) GetBuildWorkspaces(ctx context.Context, _ buildopenapi.GetBuildWorkspacesRequestObject) (buildopenapi.GetBuildWorkspacesResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.listWorkspaces)
+}
+
+func (s buildStrictServer) GetBuildRuntimeTargets(ctx context.Context, _ buildopenapi.GetBuildRuntimeTargetsRequestObject) (buildopenapi.GetBuildRuntimeTargetsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.listTargets)
+}
+
+func (s buildStrictServer) GetBuildBuilderPools(ctx context.Context, _ buildopenapi.GetBuildBuilderPoolsRequestObject) (buildopenapi.GetBuildBuilderPoolsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.listPools)
+}
+
+func (s buildStrictServer) GetBuildArtifacts(ctx context.Context, _ buildopenapi.GetBuildArtifactsRequestObject) (buildopenapi.GetBuildArtifactsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.listArtifacts)
+}
+
+func (s buildStrictServer) GetBuildArtifactPublications(ctx context.Context, _ buildopenapi.GetBuildArtifactPublicationsRequestObject) (buildopenapi.GetBuildArtifactPublicationsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.listPublications)
+}
+
+func (s buildStrictServer) GetBuildJobs(ctx context.Context, _ buildopenapi.GetBuildJobsRequestObject) (buildopenapi.GetBuildJobsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.listJobs)
+}
+
+func (s buildStrictServer) GetBuildJob(ctx context.Context, _ buildopenapi.GetBuildJobRequestObject) (buildopenapi.GetBuildJobResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.getJob)
+}
+
+func (s buildStrictServer) PostBuildJob(ctx context.Context, req buildopenapi.PostBuildJobRequestObject) (buildopenapi.PostBuildJobResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, func(c *gin.Context) { s.createJob(c, req.Body) })
+}
+
+func (s buildStrictServer) PostBuildArtifactPromotion(ctx context.Context, req buildopenapi.PostBuildArtifactPromotionRequestObject) (buildopenapi.PostBuildArtifactPromotionResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, func(c *gin.Context) { s.promoteArtifact(c, req.Body) })
+}
+
+// preserveBuildIdempotencyKey 保持任务提交端点采用首个幂等请求头的旧行为。
+func preserveBuildIdempotencyKey(c *gin.Context) {
+	const name = "Idempotency-Key"
+	if values := c.Request.Header.Values(name); len(values) > 1 {
+		c.Request.Header.Set(name, values[0])
+	}
+	c.Next()
 }

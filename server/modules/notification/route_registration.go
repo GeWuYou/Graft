@@ -45,11 +45,11 @@ func registerNotificationRoutes(ctx *module.Context, service *Service, guards no
 		),
 		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
 	}
-	group.GET("", guards.view, wrapper.GetNotifications)
-	group.GET("/unread-count", guards.view, wrapper.GetNotificationsUnreadCount)
-	group.POST("/:delivery_id/read", guards.read, wrapper.PostNotificationRead)
-	group.POST("/read-all", guards.read, wrapper.PostNotificationsReadAll)
-	group.DELETE("/:delivery_id", guards.read, wrapper.DeleteNotification)
+	group.GET("", guards.view, strictsupport.Route(wrapper.GetNotifications, nil))
+	group.GET("/unread-count", guards.view, strictsupport.Route(wrapper.GetNotificationsUnreadCount, nil))
+	group.POST("/:delivery_id/read", guards.read, strictsupport.Route(wrapper.PostNotificationRead, nil))
+	group.POST("/read-all", guards.read, strictsupport.Route(wrapper.PostNotificationsReadAll, nil))
+	group.DELETE("/:delivery_id", guards.read, strictsupport.Route(wrapper.DeleteNotification, nil))
 }
 
 // notificationStrictServer 将通知路由主体适配到生成的 strict server 契约；
@@ -147,7 +147,10 @@ func (r notificationRouteRuntime) handleReadAll(ginCtx *gin.Context, body *notif
 	if !ok {
 		return
 	}
-	query := readAllQueryFromBody(*body)
+	var query ListQuery
+	if body != nil {
+		query = readAllQueryFromBody(*body)
+	}
 	query.RecipientUserID = userID
 	count, err := r.service.MarkAllReadMatching(ginCtx.Request.Context(), query, time.Now().UTC())
 	if err != nil {

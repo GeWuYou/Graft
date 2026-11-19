@@ -1,0 +1,24 @@
+package: networkopenapi
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  include-operation-ids:
+    - deletePlatformConnectivityCustomTarget
+    - getPlatformConnectivityAggregate
+    - getPlatformConnectivityCustomTargets
+    - getPlatformConnectivityExport
+    - getPlatformConnectivityHistory
+    - getPlatformConnectivityLatest
+    - getPlatformConnectivityReport
+    - getPlatformConnectivityTargets
+    - getPlatformConnectivityTrace
+    - getPlatformNetworkDiagnosticHistory
+    - getPlatformNetworkOutbound
+    - postPlatformConnectivityBatchRun
+    - postPlatformConnectivityCustomTarget
+    - postPlatformConnectivityRun
+    - postPlatformNetworkDiagnostic
+    - putPlatformNetworkOutbound
+    - resetPlatformNetworkOutbound

@@ -43,10 +43,11 @@ capability, realtime, mcp, healthz).
   `ServerInterfaceWrapper` methods per route. `RequirePermission` stays a per-route
   middleware with the module contract permission constants, preserving middleware order.
 - Public, optional-auth and WebSocket endpoints keep explicit handling.
-- Freshness is checked through `scripts/openapi_generated_freshness_check.py` targets and
-  `graft validate openapi`.
+- Freshness discovers all per-domain outputs from their Go generation directives.
+- Route coverage compares each business operation and HTTP method with its unique generated mount in module source. Existing module tests exercise Gin registration and behavior.
 
 ## Pending Directions
 
-- Finish module migration batches; see `todos/openapi-strict-server-migration-tracking.md`.
-- Record contract drift findings as follow-ups; do not edit OpenAPI semantics here.
+- The 19 route-owning modules mount 295 generated strict operations. The other three business modules expose services only.
+- Core HTTP routes and the container Shell WebSocket retain their own registration.
+- The audit deletion URL mismatch remains a separately owned contract decision. The existing live fragment now mounts the generated operation without changing its URL or permission.

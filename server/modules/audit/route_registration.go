@@ -21,10 +21,13 @@ import (
 func registerAuditRoutes(ctx *module.Context, moduleName string, reader auditReader, guard auditGuard, savedViews moduleapi.SavedViewService) {
 	group := ctx.Router.Group(auditcontract.AuditGroup)
 	group.Use(httpx.RequestIDMiddleware())
+	deleteLogs := handleBatchDeleteAuditLogs(ctx, moduleName, reader)
+	legacyDelete := func(c *gin.Context) { deleteLogs(c, nil) }
+	saved := auditSavedViewHandlersOf(ctx, savedViews)
 	wrapper := auditopenapi.ServerInterfaceWrapper{
 		Handler: auditopenapi.NewStrictHandlerWithOptions(
 			auditStrictServer{
-				savedViews:          auditSavedViewHandlersOf(ctx, savedViews),
+				savedViews:          saved,
 				listLogs:            handleListAuditLogs(ctx, moduleName, reader),
 				readLog:             handleReadAuditLog(ctx, moduleName, reader),
 				readIncident:        handleReadAuditIncident(ctx, moduleName, reader),
@@ -33,28 +36,29 @@ func registerAuditRoutes(ctx *module.Context, moduleName string, reader auditRea
 				upsertOverride:      handleUpsertAuditVisibilityOverride(ctx, moduleName, reader),
 				upsertOverrideBatch: handleUpsertAuditVisibilityOverrides(ctx, moduleName, reader),
 				deleteOverride:      handleDeleteAuditVisibilityOverride(ctx, moduleName, reader),
-				batchDeleteLogs:     handleBatchDeleteAuditLogs(ctx, moduleName, reader),
+				batchDeleteLogs:     deleteLogs,
 			},
 			nil,
 			auditopenapi.StrictGinServerOptions{
-				HandlerErrorFunc: strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
+				RequestErrorHandlerFunc: strictsupport.RequestErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String(), gin.H{"field": "body"}),
+				HandlerErrorFunc:        strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
 			},
 		),
 		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
 	}
 	if savedViews != nil {
-		registerAuditSavedViewRoutes(group, ctx, guard.read, wrapper)
+		registerAuditSavedViewRoutes(group, guard.read, wrapper, saved)
 	}
-	group.GET(auditcontract.AuditCollection, guard.read, wrapper.GetAuditLogs)
-	// 手写保留：与 canonical OpenAPI 的 /logs/deletions 存在契约漂移，等待契约修复后切换挂载。
-	group.POST(auditcontract.AuditBatchDeleteCollection, guard.delete, handleBatchDeleteAuditLogs(ctx, moduleName, reader))
-	group.GET(auditcontract.AuditItem, guard.read, wrapper.GetAuditLogDetail)
-	group.GET(auditcontract.AuditIncidentItem, guard.read, wrapper.GetAuditIncident)
-	group.GET(auditcontract.AuditVisibilityPolicyCollection, guard.manage, wrapper.GetAuditVisibilityPolicy)
-	group.PUT(auditcontract.AuditVisibilityPolicyCollection, guard.manage, wrapper.PutAuditVisibilityPolicy)
-	group.PUT(auditcontract.AuditVisibilityOverrideCollection, guard.manage, wrapper.PutAuditVisibilityOverride)
-	group.PUT(auditcontract.AuditVisibilityOverrideBatchCollection, guard.manage, wrapper.PutAuditVisibilityOverridesBatch)
-	group.DELETE(auditcontract.AuditVisibilityOverrideCollection, guard.manage, wrapper.DeleteAuditVisibilityOverride)
+	group.GET(auditcontract.AuditCollection, guard.read, strictsupport.Route(wrapper.GetAuditLogs, handleListAuditLogs(ctx, moduleName, reader)))
+	// 当前客户端仍访问批量删除的旧路径；沿用其路由与权限，并绑定该操作的 OpenAPI 请求。
+	group.POST(auditcontract.AuditBatchDeleteCollection, guard.delete, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostAuditLogDeletion, legacyDelete))
+	group.GET(auditcontract.AuditItem, guard.read, strictsupport.Route(wrapper.GetAuditLogDetail, nil))
+	group.GET(auditcontract.AuditIncidentItem, guard.read, strictsupport.Route(wrapper.GetAuditIncident, nil))
+	group.GET(auditcontract.AuditVisibilityPolicyCollection, guard.manage, strictsupport.Route(wrapper.GetAuditVisibilityPolicy, nil))
+	group.PUT(auditcontract.AuditVisibilityPolicyCollection, guard.manage, strictsupport.Route(wrapper.PutAuditVisibilityPolicy, nil))
+	group.PUT(auditcontract.AuditVisibilityOverrideCollection, guard.manage, strictsupport.Route(wrapper.PutAuditVisibilityOverride, nil))
+	group.PUT(auditcontract.AuditVisibilityOverrideBatchCollection, guard.manage, strictsupport.Route(wrapper.PutAuditVisibilityOverridesBatch, nil))
+	group.DELETE(auditcontract.AuditVisibilityOverrideCollection, guard.manage, strictsupport.Route(wrapper.DeleteAuditVisibilityOverride, nil))
 }
 
 // auditStrictServer 将审计路由主体适配到生成的 strict server 契约；
@@ -69,7 +73,7 @@ type auditStrictServer struct {
 	upsertOverride      func(*gin.Context, auditopenapi.PutAuditVisibilityOverrideJSONRequestBody)
 	upsertOverrideBatch func(*gin.Context, auditopenapi.PutAuditVisibilityOverridesBatchJSONRequestBody)
 	deleteOverride      gin.HandlerFunc
-	batchDeleteLogs     gin.HandlerFunc
+	batchDeleteLogs     func(*gin.Context, *auditopenapi.PostAuditLogDeletionJSONRequestBody)
 }
 
 var _ auditopenapi.StrictServerInterface = auditStrictServer{}
@@ -78,8 +82,8 @@ func (s auditStrictServer) GetAuditLogs(ctx context.Context, _ auditopenapi.GetA
 	return nil, strictsupport.Dispatch(ctx, s.listLogs)
 }
 
-func (s auditStrictServer) PostAuditLogDeletion(ctx context.Context, _ auditopenapi.PostAuditLogDeletionRequestObject) (auditopenapi.PostAuditLogDeletionResponseObject, error) {
-	return nil, strictsupport.Dispatch(ctx, s.batchDeleteLogs)
+func (s auditStrictServer) PostAuditLogDeletion(ctx context.Context, req auditopenapi.PostAuditLogDeletionRequestObject) (auditopenapi.PostAuditLogDeletionResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, func(c *gin.Context) { s.batchDeleteLogs(c, req.Body) })
 }
 
 func (s auditStrictServer) GetAuditLogDetail(ctx context.Context, _ auditopenapi.GetAuditLogDetailRequestObject) (auditopenapi.GetAuditLogDetailResponseObject, error) {

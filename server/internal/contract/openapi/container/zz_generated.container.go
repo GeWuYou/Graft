@@ -4,7 +4,18 @@
 package containeropenapi
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/oapi-codegen/runtime"
 )
 
 // Defines values for GetDockerImageSavedViews401JSONResponseBodySuccess.
@@ -2275,96 +2286,6 @@ func (e PostContainerShellSession500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
-// Defines values for GetContainerShellWebSocket400JSONResponseBodySuccess.
-const (
-	GetContainerShellWebSocket400JSONResponseBodySuccessFalse GetContainerShellWebSocket400JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the GetContainerShellWebSocket400JSONResponseBodySuccess enum.
-func (e GetContainerShellWebSocket400JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case GetContainerShellWebSocket400JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetContainerShellWebSocket401JSONResponseBodySuccess.
-const (
-	GetContainerShellWebSocket401JSONResponseBodySuccessFalse GetContainerShellWebSocket401JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the GetContainerShellWebSocket401JSONResponseBodySuccess enum.
-func (e GetContainerShellWebSocket401JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case GetContainerShellWebSocket401JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetContainerShellWebSocket403JSONResponseBodySuccess.
-const (
-	GetContainerShellWebSocket403JSONResponseBodySuccessFalse GetContainerShellWebSocket403JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the GetContainerShellWebSocket403JSONResponseBodySuccess enum.
-func (e GetContainerShellWebSocket403JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case GetContainerShellWebSocket403JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetContainerShellWebSocket404JSONResponseBodySuccess.
-const (
-	GetContainerShellWebSocket404JSONResponseBodySuccessFalse GetContainerShellWebSocket404JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the GetContainerShellWebSocket404JSONResponseBodySuccess enum.
-func (e GetContainerShellWebSocket404JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case GetContainerShellWebSocket404JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetContainerShellWebSocket409JSONResponseBodySuccess.
-const (
-	GetContainerShellWebSocket409JSONResponseBodySuccessFalse GetContainerShellWebSocket409JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the GetContainerShellWebSocket409JSONResponseBodySuccess enum.
-func (e GetContainerShellWebSocket409JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case GetContainerShellWebSocket409JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GetContainerShellWebSocket500JSONResponseBodySuccess.
-const (
-	GetContainerShellWebSocket500JSONResponseBodySuccessFalse GetContainerShellWebSocket500JSONResponseBodySuccess = false
-)
-
-// Valid indicates whether the value is a known member of the GetContainerShellWebSocket500JSONResponseBodySuccess enum.
-func (e GetContainerShellWebSocket500JSONResponseBodySuccess) Valid() bool {
-	switch e {
-	case GetContainerShellWebSocket500JSONResponseBodySuccessFalse:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for PostContainerStart202JSONResponseBodyDataStatus.
 const (
 	PostContainerStart202JSONResponseBodyDataStatusCancelled      PostContainerStart202JSONResponseBodyDataStatus = "cancelled"
@@ -3394,6 +3315,129 @@ func (e GetDockerNetworks500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for PostDockerNetworkJSONBodyDriver.
+const (
+	Bridge  PostDockerNetworkJSONBodyDriver = "bridge"
+	Ipvlan  PostDockerNetworkJSONBodyDriver = "ipvlan"
+	Macvlan PostDockerNetworkJSONBodyDriver = "macvlan"
+	None    PostDockerNetworkJSONBodyDriver = "none"
+	Overlay PostDockerNetworkJSONBodyDriver = "overlay"
+)
+
+// Valid indicates whether the value is a known member of the PostDockerNetworkJSONBodyDriver enum.
+func (e PostDockerNetworkJSONBodyDriver) Valid() bool {
+	switch e {
+	case Bridge:
+		return true
+	case Ipvlan:
+		return true
+	case Macvlan:
+		return true
+	case None:
+		return true
+	case Overlay:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerNetwork202JSONResponseBodyDataStatus.
+const (
+	PostDockerNetwork202JSONResponseBodyDataStatusCancelled      PostDockerNetwork202JSONResponseBodyDataStatus = "cancelled"
+	PostDockerNetwork202JSONResponseBodyDataStatusFailed         PostDockerNetwork202JSONResponseBodyDataStatus = "failed"
+	PostDockerNetwork202JSONResponseBodyDataStatusNeedsAttention PostDockerNetwork202JSONResponseBodyDataStatus = "needs_attention"
+	PostDockerNetwork202JSONResponseBodyDataStatusPending        PostDockerNetwork202JSONResponseBodyDataStatus = "pending"
+	PostDockerNetwork202JSONResponseBodyDataStatusReady          PostDockerNetwork202JSONResponseBodyDataStatus = "ready"
+	PostDockerNetwork202JSONResponseBodyDataStatusRunning        PostDockerNetwork202JSONResponseBodyDataStatus = "running"
+	PostDockerNetwork202JSONResponseBodyDataStatusScheduled      PostDockerNetwork202JSONResponseBodyDataStatus = "scheduled"
+	PostDockerNetwork202JSONResponseBodyDataStatusSuccess        PostDockerNetwork202JSONResponseBodyDataStatus = "success"
+)
+
+// Valid indicates whether the value is a known member of the PostDockerNetwork202JSONResponseBodyDataStatus enum.
+func (e PostDockerNetwork202JSONResponseBodyDataStatus) Valid() bool {
+	switch e {
+	case PostDockerNetwork202JSONResponseBodyDataStatusCancelled:
+		return true
+	case PostDockerNetwork202JSONResponseBodyDataStatusFailed:
+		return true
+	case PostDockerNetwork202JSONResponseBodyDataStatusNeedsAttention:
+		return true
+	case PostDockerNetwork202JSONResponseBodyDataStatusPending:
+		return true
+	case PostDockerNetwork202JSONResponseBodyDataStatusReady:
+		return true
+	case PostDockerNetwork202JSONResponseBodyDataStatusRunning:
+		return true
+	case PostDockerNetwork202JSONResponseBodyDataStatusScheduled:
+		return true
+	case PostDockerNetwork202JSONResponseBodyDataStatusSuccess:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerNetwork401JSONResponseBodySuccess.
+const (
+	PostDockerNetwork401JSONResponseBodySuccessFalse PostDockerNetwork401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerNetwork401JSONResponseBodySuccess enum.
+func (e PostDockerNetwork401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerNetwork401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerNetwork403JSONResponseBodySuccess.
+const (
+	PostDockerNetwork403JSONResponseBodySuccessFalse PostDockerNetwork403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerNetwork403JSONResponseBodySuccess enum.
+func (e PostDockerNetwork403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerNetwork403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerNetwork500JSONResponseBodySuccess.
+const (
+	PostDockerNetwork500JSONResponseBodySuccessFalse PostDockerNetwork500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerNetwork500JSONResponseBodySuccess enum.
+func (e PostDockerNetwork500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerNetwork500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostDockerNetwork503JSONResponseBodySuccess.
+const (
+	PostDockerNetwork503JSONResponseBodySuccessFalse PostDockerNetwork503JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the PostDockerNetwork503JSONResponseBodySuccess enum.
+func (e PostDockerNetwork503JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case PostDockerNetwork503JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetDockerNetworkSavedViews401JSONResponseBodySuccess.
 const (
 	GetDockerNetworkSavedViews401JSONResponseBodySuccessFalse GetDockerNetworkSavedViews401JSONResponseBodySuccess = false
@@ -3508,6 +3552,102 @@ const (
 func (e PutDockerNetworkSavedView403JSONResponseBodySuccess) Valid() bool {
 	switch e {
 	case PutDockerNetworkSavedView403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDockerNetwork202JSONResponseBodyDataStatus.
+const (
+	DeleteDockerNetwork202JSONResponseBodyDataStatusCancelled      DeleteDockerNetwork202JSONResponseBodyDataStatus = "cancelled"
+	DeleteDockerNetwork202JSONResponseBodyDataStatusFailed         DeleteDockerNetwork202JSONResponseBodyDataStatus = "failed"
+	DeleteDockerNetwork202JSONResponseBodyDataStatusNeedsAttention DeleteDockerNetwork202JSONResponseBodyDataStatus = "needs_attention"
+	DeleteDockerNetwork202JSONResponseBodyDataStatusPending        DeleteDockerNetwork202JSONResponseBodyDataStatus = "pending"
+	DeleteDockerNetwork202JSONResponseBodyDataStatusReady          DeleteDockerNetwork202JSONResponseBodyDataStatus = "ready"
+	DeleteDockerNetwork202JSONResponseBodyDataStatusRunning        DeleteDockerNetwork202JSONResponseBodyDataStatus = "running"
+	DeleteDockerNetwork202JSONResponseBodyDataStatusScheduled      DeleteDockerNetwork202JSONResponseBodyDataStatus = "scheduled"
+	DeleteDockerNetwork202JSONResponseBodyDataStatusSuccess        DeleteDockerNetwork202JSONResponseBodyDataStatus = "success"
+)
+
+// Valid indicates whether the value is a known member of the DeleteDockerNetwork202JSONResponseBodyDataStatus enum.
+func (e DeleteDockerNetwork202JSONResponseBodyDataStatus) Valid() bool {
+	switch e {
+	case DeleteDockerNetwork202JSONResponseBodyDataStatusCancelled:
+		return true
+	case DeleteDockerNetwork202JSONResponseBodyDataStatusFailed:
+		return true
+	case DeleteDockerNetwork202JSONResponseBodyDataStatusNeedsAttention:
+		return true
+	case DeleteDockerNetwork202JSONResponseBodyDataStatusPending:
+		return true
+	case DeleteDockerNetwork202JSONResponseBodyDataStatusReady:
+		return true
+	case DeleteDockerNetwork202JSONResponseBodyDataStatusRunning:
+		return true
+	case DeleteDockerNetwork202JSONResponseBodyDataStatusScheduled:
+		return true
+	case DeleteDockerNetwork202JSONResponseBodyDataStatusSuccess:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDockerNetwork401JSONResponseBodySuccess.
+const (
+	DeleteDockerNetwork401JSONResponseBodySuccessFalse DeleteDockerNetwork401JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteDockerNetwork401JSONResponseBodySuccess enum.
+func (e DeleteDockerNetwork401JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteDockerNetwork401JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDockerNetwork403JSONResponseBodySuccess.
+const (
+	DeleteDockerNetwork403JSONResponseBodySuccessFalse DeleteDockerNetwork403JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteDockerNetwork403JSONResponseBodySuccess enum.
+func (e DeleteDockerNetwork403JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteDockerNetwork403JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDockerNetwork500JSONResponseBodySuccess.
+const (
+	DeleteDockerNetwork500JSONResponseBodySuccessFalse DeleteDockerNetwork500JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteDockerNetwork500JSONResponseBodySuccess enum.
+func (e DeleteDockerNetwork500JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteDockerNetwork500JSONResponseBodySuccessFalse:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeleteDockerNetwork503JSONResponseBodySuccess.
+const (
+	DeleteDockerNetwork503JSONResponseBodySuccessFalse DeleteDockerNetwork503JSONResponseBodySuccess = false
+)
+
+// Valid indicates whether the value is a known member of the DeleteDockerNetwork503JSONResponseBodySuccess enum.
+func (e DeleteDockerNetwork503JSONResponseBodySuccess) Valid() bool {
+	switch e {
+	case DeleteDockerNetwork503JSONResponseBodySuccessFalse:
 		return true
 	default:
 		return false
@@ -5040,34 +5180,6 @@ type PostContainerShellSession409JSONResponseBodySuccess bool
 // PostContainerShellSession500JSONResponseBodySuccess defines parameters for PostContainerShellSession.
 type PostContainerShellSession500JSONResponseBodySuccess bool
 
-// GetContainerShellWebSocketParams defines parameters for GetContainerShellWebSocket.
-type GetContainerShellWebSocketParams struct {
-	// Ticket Opaque single-use shell session ticket issued by the authenticated shell session endpoint. The server must validate and consume this ticket before upgrading the connection to WebSocket.
-	Ticket string `form:"ticket" json:"ticket"`
-
-	// XRequestId Optional caller-supplied request id. If omitted, the runtime generates one and echoes it
-	// through the response header and envelope traceId field.
-	XRequestId *string `json:"X-Request-Id,omitempty"`
-}
-
-// GetContainerShellWebSocket400JSONResponseBodySuccess defines parameters for GetContainerShellWebSocket.
-type GetContainerShellWebSocket400JSONResponseBodySuccess bool
-
-// GetContainerShellWebSocket401JSONResponseBodySuccess defines parameters for GetContainerShellWebSocket.
-type GetContainerShellWebSocket401JSONResponseBodySuccess bool
-
-// GetContainerShellWebSocket403JSONResponseBodySuccess defines parameters for GetContainerShellWebSocket.
-type GetContainerShellWebSocket403JSONResponseBodySuccess bool
-
-// GetContainerShellWebSocket404JSONResponseBodySuccess defines parameters for GetContainerShellWebSocket.
-type GetContainerShellWebSocket404JSONResponseBodySuccess bool
-
-// GetContainerShellWebSocket409JSONResponseBodySuccess defines parameters for GetContainerShellWebSocket.
-type GetContainerShellWebSocket409JSONResponseBodySuccess bool
-
-// GetContainerShellWebSocket500JSONResponseBodySuccess defines parameters for GetContainerShellWebSocket.
-type GetContainerShellWebSocket500JSONResponseBodySuccess bool
-
 // PostContainerStartParams defines parameters for PostContainerStart.
 type PostContainerStartParams struct {
 	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
@@ -5386,6 +5498,42 @@ type GetDockerNetworks403JSONResponseBodySuccess bool
 // GetDockerNetworks500JSONResponseBodySuccess defines parameters for GetDockerNetworks.
 type GetDockerNetworks500JSONResponseBodySuccess bool
 
+// PostDockerNetworkJSONBody defines parameters for PostDockerNetwork.
+type PostDockerNetworkJSONBody struct {
+	Attachable *bool                           `json:"attachable,omitempty"`
+	Driver     PostDockerNetworkJSONBodyDriver `json:"driver"`
+	Internal   *bool                           `json:"internal,omitempty"`
+	Ipam       *struct {
+		Gateway *string `json:"gateway,omitempty"`
+		Subnet  *string `json:"subnet,omitempty"`
+	} `json:"ipam,omitempty"`
+	Name string `json:"name"`
+}
+
+// PostDockerNetworkParams defines parameters for PostDockerNetwork.
+type PostDockerNetworkParams struct {
+	// IdempotencyKey Opaque caller-generated key used to replay an accepted Task receipt safely. Reusing a key with different input returns 409.
+	IdempotencyKey string `json:"Idempotency-Key"`
+}
+
+// PostDockerNetworkJSONBodyDriver defines parameters for PostDockerNetwork.
+type PostDockerNetworkJSONBodyDriver string
+
+// PostDockerNetwork202JSONResponseBodyDataStatus defines parameters for PostDockerNetwork.
+type PostDockerNetwork202JSONResponseBodyDataStatus string
+
+// PostDockerNetwork401JSONResponseBodySuccess defines parameters for PostDockerNetwork.
+type PostDockerNetwork401JSONResponseBodySuccess bool
+
+// PostDockerNetwork403JSONResponseBodySuccess defines parameters for PostDockerNetwork.
+type PostDockerNetwork403JSONResponseBodySuccess bool
+
+// PostDockerNetwork500JSONResponseBodySuccess defines parameters for PostDockerNetwork.
+type PostDockerNetwork500JSONResponseBodySuccess bool
+
+// PostDockerNetwork503JSONResponseBodySuccess defines parameters for PostDockerNetwork.
+type PostDockerNetwork503JSONResponseBodySuccess bool
+
 // GetDockerNetworkSavedViewsParams defines parameters for GetDockerNetworkSavedViews.
 type GetDockerNetworkSavedViewsParams struct {
 	// XGraftLocale Explicit locale override header already supported by the runtime.
@@ -5469,6 +5617,26 @@ type PutDockerNetworkSavedView401JSONResponseBodySuccess bool
 
 // PutDockerNetworkSavedView403JSONResponseBodySuccess defines parameters for PutDockerNetworkSavedView.
 type PutDockerNetworkSavedView403JSONResponseBodySuccess bool
+
+// DeleteDockerNetworkJSONBody defines parameters for DeleteDockerNetwork.
+type DeleteDockerNetworkJSONBody struct {
+	ConfirmNetworkName string `json:"confirm_network_name"`
+}
+
+// DeleteDockerNetwork202JSONResponseBodyDataStatus defines parameters for DeleteDockerNetwork.
+type DeleteDockerNetwork202JSONResponseBodyDataStatus string
+
+// DeleteDockerNetwork401JSONResponseBodySuccess defines parameters for DeleteDockerNetwork.
+type DeleteDockerNetwork401JSONResponseBodySuccess bool
+
+// DeleteDockerNetwork403JSONResponseBodySuccess defines parameters for DeleteDockerNetwork.
+type DeleteDockerNetwork403JSONResponseBodySuccess bool
+
+// DeleteDockerNetwork500JSONResponseBodySuccess defines parameters for DeleteDockerNetwork.
+type DeleteDockerNetwork500JSONResponseBodySuccess bool
+
+// DeleteDockerNetwork503JSONResponseBodySuccess defines parameters for DeleteDockerNetwork.
+type DeleteDockerNetwork503JSONResponseBodySuccess bool
 
 // GetDockerNetworkParams defines parameters for GetDockerNetwork.
 type GetDockerNetworkParams struct {
@@ -5822,11 +5990,17 @@ type PostDockerImageTagJSONRequestBody PostDockerImageTagJSONBody
 // PostDockerImageUntagJSONRequestBody defines body for PostDockerImageUntag for application/json ContentType.
 type PostDockerImageUntagJSONRequestBody PostDockerImageUntagJSONBody
 
+// PostDockerNetworkJSONRequestBody defines body for PostDockerNetwork for application/json ContentType.
+type PostDockerNetworkJSONRequestBody PostDockerNetworkJSONBody
+
 // PostDockerNetworkSavedViewJSONRequestBody defines body for PostDockerNetworkSavedView for application/json ContentType.
 type PostDockerNetworkSavedViewJSONRequestBody PostDockerNetworkSavedViewJSONBody
 
 // PutDockerNetworkSavedViewJSONRequestBody defines body for PutDockerNetworkSavedView for application/json ContentType.
 type PutDockerNetworkSavedViewJSONRequestBody PutDockerNetworkSavedViewJSONBody
+
+// DeleteDockerNetworkJSONRequestBody defines body for DeleteDockerNetwork for application/json ContentType.
+type DeleteDockerNetworkJSONRequestBody DeleteDockerNetworkJSONBody
 
 // PostDockerVolumeBatchRemoveJSONRequestBody defines body for PostDockerVolumeBatchRemove for application/json ContentType.
 type PostDockerVolumeBatchRemoveJSONRequestBody PostDockerVolumeBatchRemoveJSONBody
@@ -5839,3 +6013,15601 @@ type PutDockerVolumeSavedViewJSONRequestBody PutDockerVolumeSavedViewJSONBody
 
 // PostDockerVolumeRemoveJSONRequestBody defines body for PostDockerVolumeRemove for application/json ContentType.
 type PostDockerVolumeRemoveJSONRequestBody PostDockerVolumeRemoveJSONBody
+
+// ServerInterface represents all server handlers.
+type ServerInterface interface {
+	// GetDockerImageSavedViews List private Docker image-list saved views
+	// (GET /api/docker/images/saved-views)
+	GetDockerImageSavedViews(c *gin.Context, params GetDockerImageSavedViewsParams)
+	// PostDockerImageSavedView Create a private Docker image-list saved view
+	// (POST /api/docker/images/saved-views)
+	PostDockerImageSavedView(c *gin.Context, params PostDockerImageSavedViewParams)
+	// DeleteDockerImageSavedView Delete a private Docker image-list saved view
+	// (DELETE /api/docker/images/saved-views/{viewId})
+	DeleteDockerImageSavedView(c *gin.Context, viewId int64, params DeleteDockerImageSavedViewParams)
+	// PutDockerImageSavedView Update a private Docker image-list saved view
+	// (PUT /api/docker/images/saved-views/{viewId})
+	PutDockerImageSavedView(c *gin.Context, viewId int64, params PutDockerImageSavedViewParams)
+	// GetContainers List containers
+	// (GET /api/ops/containers)
+	GetContainers(c *gin.Context, params GetContainersParams)
+	// PostContainerBatchActions Execute container actions in batch
+	// (POST /api/ops/containers/batch-actions)
+	PostContainerBatchActions(c *gin.Context, params PostContainerBatchActionsParams)
+	// GetContainerDashboardSummary Read container dashboard summary
+	// (GET /api/ops/containers/dashboard-summary)
+	GetContainerDashboardSummary(c *gin.Context, params GetContainerDashboardSummaryParams)
+	// GetContainerSavedViews List private container-list saved views
+	// (GET /api/ops/containers/saved-views)
+	GetContainerSavedViews(c *gin.Context, params GetContainerSavedViewsParams)
+	// PostContainerSavedView Create a private container-list saved view
+	// (POST /api/ops/containers/saved-views)
+	PostContainerSavedView(c *gin.Context, params PostContainerSavedViewParams)
+	// DeleteContainerSavedView Delete a private container-list saved view
+	// (DELETE /api/ops/containers/saved-views/{viewId})
+	DeleteContainerSavedView(c *gin.Context, viewId int64, params DeleteContainerSavedViewParams)
+	// PutContainerSavedView Update a private container-list saved view
+	// (PUT /api/ops/containers/saved-views/{viewId})
+	PutContainerSavedView(c *gin.Context, viewId int64, params PutContainerSavedViewParams)
+	// GetContainer Read container detail
+	// (GET /api/ops/containers/{id})
+	GetContainer(c *gin.Context, id string, params GetContainerParams)
+	// GetContainerEvents Read container runtime events
+	// (GET /api/ops/containers/{id}/events)
+	GetContainerEvents(c *gin.Context, id string, params GetContainerEventsParams)
+	// GetContainerLogs Read container logs
+	// (GET /api/ops/containers/{id}/logs)
+	GetContainerLogs(c *gin.Context, id string, params GetContainerLogsParams)
+	// GetContainerMountUsage List container mount usage
+	// (GET /api/ops/containers/{id}/mounts/usage)
+	GetContainerMountUsage(c *gin.Context, id string, params GetContainerMountUsageParams)
+	// PostContainerMountUsageRefresh Refresh one container mount usage statistic
+	// (POST /api/ops/containers/{id}/mounts/{mountId}/usage/refresh)
+	PostContainerMountUsageRefresh(c *gin.Context, id string, mountId string, params PostContainerMountUsageRefreshParams)
+	// PostContainerRemove Remove container
+	// (POST /api/ops/containers/{id}/remove)
+	PostContainerRemove(c *gin.Context, id string, params PostContainerRemoveParams)
+	// PostContainerRestart Submit a container restart Task
+	// (POST /api/ops/containers/{id}/restart)
+	PostContainerRestart(c *gin.Context, id string, params PostContainerRestartParams)
+	// PostContainerShellSession Issue container shell session ticket
+	// (POST /api/ops/containers/{id}/shell/sessions)
+	PostContainerShellSession(c *gin.Context, id string, params PostContainerShellSessionParams)
+	// PostContainerStart Submit a container start Task
+	// (POST /api/ops/containers/{id}/start)
+	PostContainerStart(c *gin.Context, id string, params PostContainerStartParams)
+	// PostContainerStop Submit a container stop Task
+	// (POST /api/ops/containers/{id}/stop)
+	PostContainerStop(c *gin.Context, id string, params PostContainerStopParams)
+	// GetDockerImages List Docker images
+	// (GET /api/ops/docker/images)
+	GetDockerImages(c *gin.Context, params GetDockerImagesParams)
+	// PostDockerImageBatchRemove Remove Docker images in batch
+	// (POST /api/ops/docker/images/batch-remove)
+	PostDockerImageBatchRemove(c *gin.Context, params PostDockerImageBatchRemoveParams)
+	// PostDockerImagePull Submit a Docker image pull Task
+	// (POST /api/ops/docker/images/pull)
+	PostDockerImagePull(c *gin.Context, params PostDockerImagePullParams)
+	// GetDockerImage Read Docker image
+	// (GET /api/ops/docker/images/{id})
+	GetDockerImage(c *gin.Context, id string)
+	// PostDockerImageRemove Remove a Docker image
+	// (POST /api/ops/docker/images/{id}/remove)
+	PostDockerImageRemove(c *gin.Context, id string, params PostDockerImageRemoveParams)
+	// PostDockerImageTag Tag a Docker image
+	// (POST /api/ops/docker/images/{id}/tag)
+	PostDockerImageTag(c *gin.Context, id string, params PostDockerImageTagParams)
+	// PostDockerImageUntag Remove a Docker image tag
+	// (POST /api/ops/docker/images/{id}/untag)
+	PostDockerImageUntag(c *gin.Context, id string, params PostDockerImageUntagParams)
+	// GetDockerNetworks List Docker networks
+	// (GET /api/ops/docker/networks)
+	GetDockerNetworks(c *gin.Context, params GetDockerNetworksParams)
+	// PostDockerNetwork Create Docker network
+	// (POST /api/ops/docker/networks)
+	PostDockerNetwork(c *gin.Context, params PostDockerNetworkParams)
+	// GetDockerNetworkSavedViews List private Docker network-list saved views
+	// (GET /api/ops/docker/networks/saved-views)
+	GetDockerNetworkSavedViews(c *gin.Context, params GetDockerNetworkSavedViewsParams)
+	// PostDockerNetworkSavedView Create a private Docker network-list saved view
+	// (POST /api/ops/docker/networks/saved-views)
+	PostDockerNetworkSavedView(c *gin.Context, params PostDockerNetworkSavedViewParams)
+	// DeleteDockerNetworkSavedView Delete a private Docker network-list saved view
+	// (DELETE /api/ops/docker/networks/saved-views/{viewId})
+	DeleteDockerNetworkSavedView(c *gin.Context, viewId int64, params DeleteDockerNetworkSavedViewParams)
+	// PutDockerNetworkSavedView Update a private Docker network-list saved view
+	// (PUT /api/ops/docker/networks/saved-views/{viewId})
+	PutDockerNetworkSavedView(c *gin.Context, viewId int64, params PutDockerNetworkSavedViewParams)
+	// DeleteDockerNetwork Remove Docker network
+	// (DELETE /api/ops/docker/networks/{id})
+	DeleteDockerNetwork(c *gin.Context, id string)
+	// GetDockerNetwork Read Docker network
+	// (GET /api/ops/docker/networks/{id})
+	GetDockerNetwork(c *gin.Context, id string, params GetDockerNetworkParams)
+	// GetDockerSystem Read Docker system information
+	// (GET /api/ops/docker/system)
+	GetDockerSystem(c *gin.Context)
+	// GetDockerVolumes List Docker volumes
+	// (GET /api/ops/docker/volumes)
+	GetDockerVolumes(c *gin.Context, params GetDockerVolumesParams)
+	// PostDockerVolumeBatchRemove Remove Docker volumes in batch
+	// (POST /api/ops/docker/volumes/batch-remove)
+	PostDockerVolumeBatchRemove(c *gin.Context, params PostDockerVolumeBatchRemoveParams)
+	// GetDockerVolumeSavedViews List private Docker volume-list saved views
+	// (GET /api/ops/docker/volumes/saved-views)
+	GetDockerVolumeSavedViews(c *gin.Context, params GetDockerVolumeSavedViewsParams)
+	// PostDockerVolumeSavedView Create a private Docker volume-list saved view
+	// (POST /api/ops/docker/volumes/saved-views)
+	PostDockerVolumeSavedView(c *gin.Context, params PostDockerVolumeSavedViewParams)
+	// DeleteDockerVolumeSavedView Delete a private Docker volume-list saved view
+	// (DELETE /api/ops/docker/volumes/saved-views/{viewId})
+	DeleteDockerVolumeSavedView(c *gin.Context, viewId int64, params DeleteDockerVolumeSavedViewParams)
+	// PutDockerVolumeSavedView Update a private Docker volume-list saved view
+	// (PUT /api/ops/docker/volumes/saved-views/{viewId})
+	PutDockerVolumeSavedView(c *gin.Context, viewId int64, params PutDockerVolumeSavedViewParams)
+	// GetDockerVolume Read Docker volume
+	// (GET /api/ops/docker/volumes/{id})
+	GetDockerVolume(c *gin.Context, id string, params GetDockerVolumeParams)
+	// PostDockerVolumeRemove Remove Docker volume
+	// (POST /api/ops/docker/volumes/{id}/remove)
+	PostDockerVolumeRemove(c *gin.Context, id string, params PostDockerVolumeRemoveParams)
+}
+
+// ServerInterfaceWrapper converts contexts to parameters.
+type ServerInterfaceWrapper struct {
+	Handler            ServerInterface
+	HandlerMiddlewares []MiddlewareFunc
+	ErrorHandler       func(*gin.Context, error, int)
+}
+
+type MiddlewareFunc func(c *gin.Context)
+
+// GetDockerImageSavedViews operation middleware
+func (siw *ServerInterfaceWrapper) GetDockerImageSavedViews(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetDockerImageSavedViewsParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetDockerImageSavedViews(c, params)
+}
+
+// PostDockerImageSavedView operation middleware
+func (siw *ServerInterfaceWrapper) PostDockerImageSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostDockerImageSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostDockerImageSavedView(c, params)
+}
+
+// DeleteDockerImageSavedView operation middleware
+func (siw *ServerInterfaceWrapper) DeleteDockerImageSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", c.Param("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter viewId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteDockerImageSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteDockerImageSavedView(c, viewId, params)
+}
+
+// PutDockerImageSavedView operation middleware
+func (siw *ServerInterfaceWrapper) PutDockerImageSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", c.Param("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter viewId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutDockerImageSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutDockerImageSavedView(c, viewId, params)
+}
+
+// GetContainers operation middleware
+func (siw *ServerInterfaceWrapper) GetContainers(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetContainersParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", c.Request.URL.Query(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter offset: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "keyword" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "keyword", c.Request.URL.Query(), &params.Keyword, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter keyword: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "state" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "state", c.Request.URL.Query(), &params.State, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter state: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "health" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "health", c.Request.URL.Query(), &params.Health, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter health: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "deployment_type" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "deployment_type", c.Request.URL.Query(), &params.DeploymentType, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter deployment_type: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "runtime_target_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "runtime_target_id", c.Request.URL.Query(), &params.RuntimeTargetId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter runtime_target_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "source_scope_kind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "source_scope_kind", c.Request.URL.Query(), &params.SourceScopeKind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter source_scope_kind: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "source_scope" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "source_scope", c.Request.URL.Query(), &params.SourceScope, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter source_scope: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetContainers(c, params)
+}
+
+// PostContainerBatchActions operation middleware
+func (siw *ServerInterfaceWrapper) PostContainerBatchActions(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostContainerBatchActionsParams
+
+	headers := c.Request.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Header parameter Idempotency-Key is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostContainerBatchActions(c, params)
+}
+
+// GetContainerDashboardSummary operation middleware
+func (siw *ServerInterfaceWrapper) GetContainerDashboardSummary(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetContainerDashboardSummaryParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetContainerDashboardSummary(c, params)
+}
+
+// GetContainerSavedViews operation middleware
+func (siw *ServerInterfaceWrapper) GetContainerSavedViews(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetContainerSavedViewsParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetContainerSavedViews(c, params)
+}
+
+// PostContainerSavedView operation middleware
+func (siw *ServerInterfaceWrapper) PostContainerSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostContainerSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostContainerSavedView(c, params)
+}
+
+// DeleteContainerSavedView operation middleware
+func (siw *ServerInterfaceWrapper) DeleteContainerSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", c.Param("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter viewId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteContainerSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteContainerSavedView(c, viewId, params)
+}
+
+// PutContainerSavedView operation middleware
+func (siw *ServerInterfaceWrapper) PutContainerSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", c.Param("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter viewId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutContainerSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutContainerSavedView(c, viewId, params)
+}
+
+// GetContainer operation middleware
+func (siw *ServerInterfaceWrapper) GetContainer(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetContainerParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetContainer(c, id, params)
+}
+
+// GetContainerEvents operation middleware
+func (siw *ServerInterfaceWrapper) GetContainerEvents(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetContainerEventsParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetContainerEvents(c, id, params)
+}
+
+// GetContainerLogs operation middleware
+func (siw *ServerInterfaceWrapper) GetContainerLogs(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetContainerLogsParams
+
+	// ------------- Optional query parameter "tail" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "tail", c.Request.URL.Query(), &params.Tail, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter tail: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "since" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "since", c.Request.URL.Query(), &params.Since, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter since: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "timestamps" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "timestamps", c.Request.URL.Query(), &params.Timestamps, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter timestamps: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "stdout" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "stdout", c.Request.URL.Query(), &params.Stdout, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter stdout: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "stderr" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "stderr", c.Request.URL.Query(), &params.Stderr, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter stderr: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetContainerLogs(c, id, params)
+}
+
+// GetContainerMountUsage operation middleware
+func (siw *ServerInterfaceWrapper) GetContainerMountUsage(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetContainerMountUsageParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetContainerMountUsage(c, id, params)
+}
+
+// PostContainerMountUsageRefresh operation middleware
+func (siw *ServerInterfaceWrapper) PostContainerMountUsageRefresh(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "mountId" -------------
+	var mountId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mountId", c.Param("mountId"), &mountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter mountId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostContainerMountUsageRefreshParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostContainerMountUsageRefresh(c, id, mountId, params)
+}
+
+// PostContainerRemove operation middleware
+func (siw *ServerInterfaceWrapper) PostContainerRemove(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostContainerRemoveParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Header parameter Idempotency-Key is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostContainerRemove(c, id, params)
+}
+
+// PostContainerRestart operation middleware
+func (siw *ServerInterfaceWrapper) PostContainerRestart(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostContainerRestartParams
+
+	headers := c.Request.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Header parameter Idempotency-Key is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostContainerRestart(c, id, params)
+}
+
+// PostContainerShellSession operation middleware
+func (siw *ServerInterfaceWrapper) PostContainerShellSession(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostContainerShellSessionParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostContainerShellSession(c, id, params)
+}
+
+// PostContainerStart operation middleware
+func (siw *ServerInterfaceWrapper) PostContainerStart(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostContainerStartParams
+
+	headers := c.Request.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Header parameter Idempotency-Key is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostContainerStart(c, id, params)
+}
+
+// PostContainerStop operation middleware
+func (siw *ServerInterfaceWrapper) PostContainerStop(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostContainerStopParams
+
+	headers := c.Request.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Header parameter Idempotency-Key is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostContainerStop(c, id, params)
+}
+
+// GetDockerImages operation middleware
+func (siw *ServerInterfaceWrapper) GetDockerImages(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetDockerImagesParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", c.Request.URL.Query(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter offset: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "keyword" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "keyword", c.Request.URL.Query(), &params.Keyword, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter keyword: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "unused" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "unused", c.Request.URL.Query(), &params.Unused, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter unused: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetDockerImages(c, params)
+}
+
+// PostDockerImageBatchRemove operation middleware
+func (siw *ServerInterfaceWrapper) PostDockerImageBatchRemove(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostDockerImageBatchRemoveParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Header parameter Idempotency-Key is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostDockerImageBatchRemove(c, params)
+}
+
+// PostDockerImagePull operation middleware
+func (siw *ServerInterfaceWrapper) PostDockerImagePull(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostDockerImagePullParams
+
+	headers := c.Request.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Header parameter Idempotency-Key is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostDockerImagePull(c, params)
+}
+
+// GetDockerImage operation middleware
+func (siw *ServerInterfaceWrapper) GetDockerImage(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetDockerImage(c, id)
+}
+
+// PostDockerImageRemove operation middleware
+func (siw *ServerInterfaceWrapper) PostDockerImageRemove(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostDockerImageRemoveParams
+
+	headers := c.Request.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Header parameter Idempotency-Key is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostDockerImageRemove(c, id, params)
+}
+
+// PostDockerImageTag operation middleware
+func (siw *ServerInterfaceWrapper) PostDockerImageTag(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostDockerImageTagParams
+
+	headers := c.Request.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Header parameter Idempotency-Key is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostDockerImageTag(c, id, params)
+}
+
+// PostDockerImageUntag operation middleware
+func (siw *ServerInterfaceWrapper) PostDockerImageUntag(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostDockerImageUntagParams
+
+	headers := c.Request.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Header parameter Idempotency-Key is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostDockerImageUntag(c, id, params)
+}
+
+// GetDockerNetworks operation middleware
+func (siw *ServerInterfaceWrapper) GetDockerNetworks(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetDockerNetworksParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", c.Request.URL.Query(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter offset: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "keyword" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "keyword", c.Request.URL.Query(), &params.Keyword, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter keyword: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "driver" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "driver", c.Request.URL.Query(), &params.Driver, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter driver: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "scope" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "scope", c.Request.URL.Query(), &params.Scope, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter scope: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "usage" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "usage", c.Request.URL.Query(), &params.Usage, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter usage: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "source" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "source", c.Request.URL.Query(), &params.Source, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter source: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "compose_project" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "compose_project", c.Request.URL.Query(), &params.ComposeProject, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter compose_project: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetDockerNetworks(c, params)
+}
+
+// PostDockerNetwork operation middleware
+func (siw *ServerInterfaceWrapper) PostDockerNetwork(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostDockerNetworkParams
+
+	headers := c.Request.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Header parameter Idempotency-Key is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostDockerNetwork(c, params)
+}
+
+// GetDockerNetworkSavedViews operation middleware
+func (siw *ServerInterfaceWrapper) GetDockerNetworkSavedViews(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetDockerNetworkSavedViewsParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetDockerNetworkSavedViews(c, params)
+}
+
+// PostDockerNetworkSavedView operation middleware
+func (siw *ServerInterfaceWrapper) PostDockerNetworkSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostDockerNetworkSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostDockerNetworkSavedView(c, params)
+}
+
+// DeleteDockerNetworkSavedView operation middleware
+func (siw *ServerInterfaceWrapper) DeleteDockerNetworkSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", c.Param("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter viewId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteDockerNetworkSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteDockerNetworkSavedView(c, viewId, params)
+}
+
+// PutDockerNetworkSavedView operation middleware
+func (siw *ServerInterfaceWrapper) PutDockerNetworkSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", c.Param("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter viewId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutDockerNetworkSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutDockerNetworkSavedView(c, viewId, params)
+}
+
+// DeleteDockerNetwork operation middleware
+func (siw *ServerInterfaceWrapper) DeleteDockerNetwork(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteDockerNetwork(c, id)
+}
+
+// GetDockerNetwork operation middleware
+func (siw *ServerInterfaceWrapper) GetDockerNetwork(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetDockerNetworkParams
+
+	headers := c.Request.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Header parameter Idempotency-Key is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetDockerNetwork(c, id, params)
+}
+
+// GetDockerSystem operation middleware
+func (siw *ServerInterfaceWrapper) GetDockerSystem(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetDockerSystem(c)
+}
+
+// GetDockerVolumes operation middleware
+func (siw *ServerInterfaceWrapper) GetDockerVolumes(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetDockerVolumesParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", c.Request.URL.Query(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter offset: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "keyword" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "keyword", c.Request.URL.Query(), &params.Keyword, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter keyword: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "driver" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "driver", c.Request.URL.Query(), &params.Driver, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter driver: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "scope" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "scope", c.Request.URL.Query(), &params.Scope, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter scope: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "usage" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "usage", c.Request.URL.Query(), &params.Usage, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter usage: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "source" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "source", c.Request.URL.Query(), &params.Source, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter source: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "compose_project" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "compose_project", c.Request.URL.Query(), &params.ComposeProject, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter compose_project: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "created_after" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "created_after", c.Request.URL.Query(), &params.CreatedAfter, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter created_after: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "created_before" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "created_before", c.Request.URL.Query(), &params.CreatedBefore, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter created_before: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "size_min_bytes" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size_min_bytes", c.Request.URL.Query(), &params.SizeMinBytes, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter size_min_bytes: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "size_max_bytes" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size_max_bytes", c.Request.URL.Query(), &params.SizeMaxBytes, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter size_max_bytes: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "anonymous" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "anonymous", c.Request.URL.Query(), &params.Anonymous, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter anonymous: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "orphaned" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "orphaned", c.Request.URL.Query(), &params.Orphaned, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter orphaned: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "sort_by" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "sort_by", c.Request.URL.Query(), &params.SortBy, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter sort_by: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "sort_order" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "sort_order", c.Request.URL.Query(), &params.SortOrder, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter sort_order: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetDockerVolumes(c, params)
+}
+
+// PostDockerVolumeBatchRemove operation middleware
+func (siw *ServerInterfaceWrapper) PostDockerVolumeBatchRemove(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostDockerVolumeBatchRemoveParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Header parameter Idempotency-Key is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostDockerVolumeBatchRemove(c, params)
+}
+
+// GetDockerVolumeSavedViews operation middleware
+func (siw *ServerInterfaceWrapper) GetDockerVolumeSavedViews(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetDockerVolumeSavedViewsParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetDockerVolumeSavedViews(c, params)
+}
+
+// PostDockerVolumeSavedView operation middleware
+func (siw *ServerInterfaceWrapper) PostDockerVolumeSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostDockerVolumeSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostDockerVolumeSavedView(c, params)
+}
+
+// DeleteDockerVolumeSavedView operation middleware
+func (siw *ServerInterfaceWrapper) DeleteDockerVolumeSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", c.Param("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter viewId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteDockerVolumeSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteDockerVolumeSavedView(c, viewId, params)
+}
+
+// PutDockerVolumeSavedView operation middleware
+func (siw *ServerInterfaceWrapper) PutDockerVolumeSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", c.Param("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter viewId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutDockerVolumeSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutDockerVolumeSavedView(c, viewId, params)
+}
+
+// GetDockerVolume operation middleware
+func (siw *ServerInterfaceWrapper) GetDockerVolume(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetDockerVolumeParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetDockerVolume(c, id, params)
+}
+
+// PostDockerVolumeRemove operation middleware
+func (siw *ServerInterfaceWrapper) PostDockerVolumeRemove(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostDockerVolumeRemoveParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Header parameter Idempotency-Key is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostDockerVolumeRemove(c, id, params)
+}
+
+// GinServerOptions provides options for the Gin server.
+type GinServerOptions struct {
+	BaseURL      string
+	Middlewares  []MiddlewareFunc
+	ErrorHandler func(*gin.Context, error, int)
+}
+
+// RegisterHandlers creates http.Handler with routing matching OpenAPI spec.
+func RegisterHandlers(router gin.IRouter, si ServerInterface) {
+	RegisterHandlersWithOptions(router, si, GinServerOptions{})
+}
+
+// RegisterHandlersWithOptions creates http.Handler with additional options
+func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options GinServerOptions) {
+	errorHandler := options.ErrorHandler
+	if errorHandler == nil {
+		errorHandler = func(c *gin.Context, err error, statusCode int) {
+			c.JSON(statusCode, gin.H{"msg": err.Error()})
+		}
+	}
+
+	wrapper := ServerInterfaceWrapper{
+		Handler:            si,
+		HandlerMiddlewares: options.Middlewares,
+		ErrorHandler:       errorHandler,
+	}
+
+	router.GET(options.BaseURL+"/api/docker/images/saved-views", wrapper.GetDockerImageSavedViews)
+	router.POST(options.BaseURL+"/api/docker/images/saved-views", wrapper.PostDockerImageSavedView)
+	router.DELETE(options.BaseURL+"/api/docker/images/saved-views/:viewId", wrapper.DeleteDockerImageSavedView)
+	router.PUT(options.BaseURL+"/api/docker/images/saved-views/:viewId", wrapper.PutDockerImageSavedView)
+	router.GET(options.BaseURL+"/api/ops/containers", wrapper.GetContainers)
+	router.POST(options.BaseURL+"/api/ops/containers/batch-actions", wrapper.PostContainerBatchActions)
+	router.GET(options.BaseURL+"/api/ops/containers/dashboard-summary", wrapper.GetContainerDashboardSummary)
+	router.GET(options.BaseURL+"/api/ops/containers/saved-views", wrapper.GetContainerSavedViews)
+	router.POST(options.BaseURL+"/api/ops/containers/saved-views", wrapper.PostContainerSavedView)
+	router.DELETE(options.BaseURL+"/api/ops/containers/saved-views/:viewId", wrapper.DeleteContainerSavedView)
+	router.PUT(options.BaseURL+"/api/ops/containers/saved-views/:viewId", wrapper.PutContainerSavedView)
+	router.GET(options.BaseURL+"/api/ops/containers/:id", wrapper.GetContainer)
+	router.GET(options.BaseURL+"/api/ops/containers/:id/events", wrapper.GetContainerEvents)
+	router.GET(options.BaseURL+"/api/ops/containers/:id/logs", wrapper.GetContainerLogs)
+	router.GET(options.BaseURL+"/api/ops/containers/:id/mounts/usage", wrapper.GetContainerMountUsage)
+	router.POST(options.BaseURL+"/api/ops/containers/:id/mounts/:mountId/usage/refresh", wrapper.PostContainerMountUsageRefresh)
+	router.POST(options.BaseURL+"/api/ops/containers/:id/remove", wrapper.PostContainerRemove)
+	router.POST(options.BaseURL+"/api/ops/containers/:id/restart", wrapper.PostContainerRestart)
+	router.POST(options.BaseURL+"/api/ops/containers/:id/shell/sessions", wrapper.PostContainerShellSession)
+	router.POST(options.BaseURL+"/api/ops/containers/:id/start", wrapper.PostContainerStart)
+	router.POST(options.BaseURL+"/api/ops/containers/:id/stop", wrapper.PostContainerStop)
+	router.GET(options.BaseURL+"/api/ops/docker/images", wrapper.GetDockerImages)
+	router.POST(options.BaseURL+"/api/ops/docker/images/batch-remove", wrapper.PostDockerImageBatchRemove)
+	router.POST(options.BaseURL+"/api/ops/docker/images/pull", wrapper.PostDockerImagePull)
+	router.GET(options.BaseURL+"/api/ops/docker/images/:id", wrapper.GetDockerImage)
+	router.POST(options.BaseURL+"/api/ops/docker/images/:id/remove", wrapper.PostDockerImageRemove)
+	router.POST(options.BaseURL+"/api/ops/docker/images/:id/tag", wrapper.PostDockerImageTag)
+	router.POST(options.BaseURL+"/api/ops/docker/images/:id/untag", wrapper.PostDockerImageUntag)
+	router.GET(options.BaseURL+"/api/ops/docker/networks", wrapper.GetDockerNetworks)
+	router.POST(options.BaseURL+"/api/ops/docker/networks", wrapper.PostDockerNetwork)
+	router.GET(options.BaseURL+"/api/ops/docker/networks/saved-views", wrapper.GetDockerNetworkSavedViews)
+	router.POST(options.BaseURL+"/api/ops/docker/networks/saved-views", wrapper.PostDockerNetworkSavedView)
+	router.DELETE(options.BaseURL+"/api/ops/docker/networks/saved-views/:viewId", wrapper.DeleteDockerNetworkSavedView)
+	router.PUT(options.BaseURL+"/api/ops/docker/networks/saved-views/:viewId", wrapper.PutDockerNetworkSavedView)
+	router.DELETE(options.BaseURL+"/api/ops/docker/networks/:id", wrapper.DeleteDockerNetwork)
+	router.GET(options.BaseURL+"/api/ops/docker/networks/:id", wrapper.GetDockerNetwork)
+	router.GET(options.BaseURL+"/api/ops/docker/system", wrapper.GetDockerSystem)
+	router.GET(options.BaseURL+"/api/ops/docker/volumes", wrapper.GetDockerVolumes)
+	router.POST(options.BaseURL+"/api/ops/docker/volumes/batch-remove", wrapper.PostDockerVolumeBatchRemove)
+	router.GET(options.BaseURL+"/api/ops/docker/volumes/saved-views", wrapper.GetDockerVolumeSavedViews)
+	router.POST(options.BaseURL+"/api/ops/docker/volumes/saved-views", wrapper.PostDockerVolumeSavedView)
+	router.DELETE(options.BaseURL+"/api/ops/docker/volumes/saved-views/:viewId", wrapper.DeleteDockerVolumeSavedView)
+	router.PUT(options.BaseURL+"/api/ops/docker/volumes/saved-views/:viewId", wrapper.PutDockerVolumeSavedView)
+	router.GET(options.BaseURL+"/api/ops/docker/volumes/:id", wrapper.GetDockerVolume)
+	router.POST(options.BaseURL+"/api/ops/docker/volumes/:id/remove", wrapper.PostDockerVolumeRemove)
+}
+
+type GetDockerImageSavedViewsRequestObject struct {
+	Params GetDockerImageSavedViewsParams
+}
+
+type GetDockerImageSavedViewsResponseObject interface {
+	VisitGetDockerImageSavedViewsResponse(w http.ResponseWriter) error
+}
+
+type GetDockerImageSavedViews200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		Items []struct {
+			CreatedAt time.Time `json:"created_at"`
+			Id        int64     `json:"id"`
+
+			// IsDefault Whether this user view is applied by default for its list surface.
+			IsDefault      bool                   `json:"is_default"`
+			Name           string                 `json:"name"`
+			PageSize       int                    `json:"page_size"`
+			QueryState     map[string]interface{} `json:"query_state"`
+			UpdatedAt      time.Time              `json:"updated_at"`
+			VisibleColumns []string               `json:"visible_columns"`
+		} `json:"items"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response GetDockerImageSavedViews200JSONResponse) VisitGetDockerImageSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerImageSavedViews401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerImageSavedViews401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    GetDockerImageSavedViews401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers GetDockerImageSavedViews401ResponseHeaders
+}
+
+func (response GetDockerImageSavedViews401JSONResponse) VisitGetDockerImageSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerImageSavedViews403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerImageSavedViews403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    GetDockerImageSavedViews403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers GetDockerImageSavedViews403ResponseHeaders
+}
+
+func (response GetDockerImageSavedViews403JSONResponse) VisitGetDockerImageSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageSavedViewRequestObject struct {
+	Params PostDockerImageSavedViewParams
+	Body   *PostDockerImageSavedViewJSONRequestBody
+}
+
+type PostDockerImageSavedViewResponseObject interface {
+	VisitPostDockerImageSavedViewResponse(w http.ResponseWriter) error
+}
+
+type PostDockerImageSavedView201JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		CreatedAt time.Time `json:"created_at"`
+		Id        int64     `json:"id"`
+
+		// IsDefault Whether this user view is applied by default for its list surface.
+		IsDefault      bool                   `json:"is_default"`
+		Name           string                 `json:"name"`
+		PageSize       int                    `json:"page_size"`
+		QueryState     map[string]interface{} `json:"query_state"`
+		UpdatedAt      time.Time              `json:"updated_at"`
+		VisibleColumns []string               `json:"visible_columns"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PostDockerImageSavedView201JSONResponse) VisitPostDockerImageSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageSavedView400Response struct {
+}
+
+func (response PostDockerImageSavedView400Response) VisitPostDockerImageSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PostDockerImageSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    PostDockerImageSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers PostDockerImageSavedView401ResponseHeaders
+}
+
+func (response PostDockerImageSavedView401JSONResponse) VisitPostDockerImageSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    PostDockerImageSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers PostDockerImageSavedView403ResponseHeaders
+}
+
+func (response PostDockerImageSavedView403JSONResponse) VisitPostDockerImageSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageSavedView409Response struct {
+}
+
+func (response PostDockerImageSavedView409Response) VisitPostDockerImageSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type DeleteDockerImageSavedViewRequestObject struct {
+	ViewId int64 `json:"viewId"`
+	Params DeleteDockerImageSavedViewParams
+}
+
+type DeleteDockerImageSavedViewResponseObject interface {
+	VisitDeleteDockerImageSavedViewResponse(w http.ResponseWriter) error
+}
+
+type DeleteDockerImageSavedView204Response struct {
+}
+
+func (response DeleteDockerImageSavedView204Response) VisitDeleteDockerImageSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteDockerImageSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteDockerImageSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    DeleteDockerImageSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers DeleteDockerImageSavedView401ResponseHeaders
+}
+
+func (response DeleteDockerImageSavedView401JSONResponse) VisitDeleteDockerImageSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDockerImageSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteDockerImageSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    DeleteDockerImageSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers DeleteDockerImageSavedView403ResponseHeaders
+}
+
+func (response DeleteDockerImageSavedView403JSONResponse) VisitDeleteDockerImageSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDockerImageSavedView404Response struct {
+}
+
+func (response DeleteDockerImageSavedView404Response) VisitDeleteDockerImageSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PutDockerImageSavedViewRequestObject struct {
+	ViewId int64 `json:"viewId"`
+	Params PutDockerImageSavedViewParams
+	Body   *PutDockerImageSavedViewJSONRequestBody
+}
+
+type PutDockerImageSavedViewResponseObject interface {
+	VisitPutDockerImageSavedViewResponse(w http.ResponseWriter) error
+}
+
+type PutDockerImageSavedView200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		CreatedAt time.Time `json:"created_at"`
+		Id        int64     `json:"id"`
+
+		// IsDefault Whether this user view is applied by default for its list surface.
+		IsDefault      bool                   `json:"is_default"`
+		Name           string                 `json:"name"`
+		PageSize       int                    `json:"page_size"`
+		QueryState     map[string]interface{} `json:"query_state"`
+		UpdatedAt      time.Time              `json:"updated_at"`
+		VisibleColumns []string               `json:"visible_columns"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PutDockerImageSavedView200JSONResponse) VisitPutDockerImageSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutDockerImageSavedView400Response struct {
+}
+
+func (response PutDockerImageSavedView400Response) VisitPutDockerImageSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PutDockerImageSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutDockerImageSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                           `json:"messageKey,omitempty"`
+		Success    PutDockerImageSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                            `json:"traceId"`
+	}
+	Headers PutDockerImageSavedView401ResponseHeaders
+}
+
+func (response PutDockerImageSavedView401JSONResponse) VisitPutDockerImageSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutDockerImageSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutDockerImageSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                           `json:"messageKey,omitempty"`
+		Success    PutDockerImageSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                            `json:"traceId"`
+	}
+	Headers PutDockerImageSavedView403ResponseHeaders
+}
+
+func (response PutDockerImageSavedView403JSONResponse) VisitPutDockerImageSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutDockerImageSavedView404Response struct {
+}
+
+func (response PutDockerImageSavedView404Response) VisitPutDockerImageSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PutDockerImageSavedView409Response struct {
+}
+
+func (response PutDockerImageSavedView409Response) VisitPutDockerImageSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type GetContainersRequestObject struct {
+	Params GetContainersParams
+}
+
+type GetContainersResponseObject interface {
+	VisitGetContainersResponse(w http.ResponseWriter) error
+}
+
+type GetContainers200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainers200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			Items []struct {
+				CanRemove  *bool     `json:"can_remove,omitempty"`
+				CanRestart *bool     `json:"can_restart,omitempty"`
+				CanStart   *bool     `json:"can_start,omitempty"`
+				CanStop    *bool     `json:"can_stop,omitempty"`
+				CreatedAt  time.Time `json:"created_at"`
+				Deployment *struct {
+					ActionLevel        GetContainers200JSONResponseBodyDataItemsDeploymentActionLevel `json:"action_level"`
+					BatchActionAllowed bool                                                           `json:"batch_action_allowed"`
+					Confidence         GetContainers200JSONResponseBodyDataItemsDeploymentConfidence  `json:"confidence"`
+					ConfigFiles        *[]string                                                      `json:"config_files,omitempty"`
+					Managed            bool                                                           `json:"managed"`
+					Project            *string                                                        `json:"project,omitempty"`
+					RecommendedAction  *string                                                        `json:"recommended_action,omitempty"`
+					Service            *string                                                        `json:"service,omitempty"`
+					Type               GetContainers200JSONResponseBodyDataItemsDeploymentType        `json:"type"`
+					Warnings           []string                                                       `json:"warnings"`
+					WorkingDir         *string                                                        `json:"working_dir,omitempty"`
+				} `json:"deployment,omitempty"`
+
+				// Health Nullable when the runtime cannot determine health on the list path without row-level inspect.
+				Health  *GetContainers200JSONResponseBodyDataItemsHealth `json:"health,omitempty"`
+				Id      string                                           `json:"id"`
+				Image   string                                           `json:"image"`
+				ImageId *string                                          `json:"image_id,omitempty"`
+				Labels  *map[string]string                               `json:"labels,omitempty"`
+
+				// Name Primary display name, falling back to id when the runtime returns no names.
+				Name           string   `json:"name"`
+				Names          []string `json:"names"`
+				NetworkSummary *string  `json:"network_summary,omitempty"`
+
+				// Networks Low-cost network attachment summary from the runtime list path.
+				Networks *[]struct {
+					// EndpointId Runtime endpoint identifier for this container attachment within the network.
+					EndpointId *string `json:"endpoint_id,omitempty"`
+
+					// Gateway Gateway address reported for this container network attachment.
+					Gateway *string `json:"gateway,omitempty"`
+
+					// IpAddress Container IP address assigned on this network.
+					IpAddress *string `json:"ip_address,omitempty"`
+
+					// MacAddress MAC address assigned to the container endpoint on this network.
+					MacAddress *string `json:"mac_address,omitempty"`
+
+					// Name Runtime network name attached to the container.
+					Name string `json:"name"`
+
+					// NetworkId Runtime network identifier, such as the Docker network ID.
+					NetworkId *string `json:"network_id,omitempty"`
+				} `json:"networks,omitempty"`
+				Ports []struct {
+					Ip          *string                                            `json:"ip,omitempty"`
+					PrivatePort int                                                `json:"private_port"`
+					PublicPort  *int                                               `json:"public_port,omitempty"`
+					Type        GetContainers200JSONResponseBodyDataItemsPortsType `json:"type"`
+				} `json:"ports"`
+
+				// PrimaryIp Primary IP address when the runtime list summary exposes one without raw inspect.
+				PrimaryIp *string `json:"primary_ip,omitempty"`
+
+				// Resource Latest-known backend resource stats projection attached to this metadata row. On HTTP responses it should be treated as a seed snapshot for container stats state rather than the final frontend authority.
+				Resource *struct {
+					// Available Compatibility mirror of stats_available for existing clients. New UI code should use stats_available.
+					Available bool `json:"available"`
+
+					// CollectedAt RFC3339 timestamp of the latest-known stats snapshot represented by this summary. Consumers should use it to compare HTTP seed snapshots with realtime updates and preserve newer stats authority.
+					CollectedAt *time.Time `json:"collected_at,omitempty"`
+
+					// CpuPercent Docker-compatible instantaneous CPU usage percentage derived from consecutive stats samples. The value may exceed 100 on multi-core hosts.
+					CpuPercent           *float64 `json:"cpu_percent,omitempty"`
+					CpuUsageInKernelmode *int64   `json:"cpu_usage_in_kernelmode,omitempty"`
+					CpuUsageInUsermode   *int64   `json:"cpu_usage_in_usermode,omitempty"`
+					MemoryActiveFile     *int64   `json:"memory_active_file,omitempty"`
+					MemoryCache          *int64   `json:"memory_cache,omitempty"`
+					MemoryInactiveFile   *int64   `json:"memory_inactive_file,omitempty"`
+					MemoryLimitBytes     *int64   `json:"memory_limit_bytes,omitempty"`
+					MemoryPercent        *float64 `json:"memory_percent,omitempty"`
+					MemoryPgfault        *int64   `json:"memory_pgfault,omitempty"`
+					MemoryPgmajfault     *int64   `json:"memory_pgmajfault,omitempty"`
+					MemoryRss            *int64   `json:"memory_rss,omitempty"`
+					MemoryUsageBytes     *int64   `json:"memory_usage_bytes,omitempty"`
+					OnlineCpus           *int64   `json:"online_cpus,omitempty"`
+					PidsCurrent          *int64   `json:"pids_current,omitempty"`
+					PidsLimit            *int64   `json:"pids_limit,omitempty"`
+					RxBytes              *int64   `json:"rx_bytes,omitempty"`
+					RxDropped            *int64   `json:"rx_dropped,omitempty"`
+					RxErrors             *int64   `json:"rx_errors,omitempty"`
+					RxPackets            *int64   `json:"rx_packets,omitempty"`
+
+					// StatsAvailable True when Docker runtime CPU or memory stats were collected for this row.
+					StatsAvailable bool `json:"stats_available"`
+
+					// StatsErrorKey Stable sanitized reason stats are absent, such as stats_timeout, stats_unavailable, or stats_incomplete.
+					StatsErrorKey *string `json:"stats_error_key,omitempty"`
+
+					// StatsErrorMessage Sanitized display-safe stats collection message; raw Docker daemon errors are not exposed.
+					StatsErrorMessage          *string `json:"stats_error_message,omitempty"`
+					SystemCpuUsage             *int64  `json:"system_cpu_usage,omitempty"`
+					ThrottlingPeriods          *int64  `json:"throttling_periods,omitempty"`
+					ThrottlingThrottledPeriods *int64  `json:"throttling_throttled_periods,omitempty"`
+					ThrottlingThrottledTime    *int64  `json:"throttling_throttled_time,omitempty"`
+					TotalCpuUsage              *int64  `json:"total_cpu_usage,omitempty"`
+					TxBytes                    *int64  `json:"tx_bytes,omitempty"`
+					TxDropped                  *int64  `json:"tx_dropped,omitempty"`
+					TxErrors                   *int64  `json:"tx_errors,omitempty"`
+					TxPackets                  *int64  `json:"tx_packets,omitempty"`
+
+					// UnavailableReason Compatibility mirror of stats_error_key for existing clients.
+					UnavailableReason *string `json:"unavailable_reason,omitempty"`
+				} `json:"resource,omitempty"`
+
+				// RestartCount Nullable when the runtime list path does not expose restart count without inspect.
+				RestartCount  *int    `json:"restart_count,omitempty"`
+				RestartPolicy *string `json:"restart_policy,omitempty"`
+
+				// Runtime Container runtime adapter key.
+				Runtime       string `json:"runtime"`
+				RuntimeTarget *struct {
+					DisplayName string                                                         `json:"display_name"`
+					Id          int64                                                          `json:"id"`
+					Provider    GetContainers200JSONResponseBodyDataItemsRuntimeTargetProvider `json:"provider"`
+				} `json:"runtime_target,omitempty"`
+
+				// ShortId Runtime id prefix suitable for list display.
+				ShortId   string                                         `json:"short_id"`
+				StartedAt *time.Time                                     `json:"started_at,omitempty"`
+				State     GetContainers200JSONResponseBodyDataItemsState `json:"state"`
+
+				// Status Runtime-provided human-readable status.
+				Status string `json:"status"`
+			} `json:"items"`
+			Limit   int `json:"limit"`
+			Offset  int `json:"offset"`
+			Runtime struct {
+				ApiVersion        *string `json:"api_version,omitempty"`
+				Architecture      *string `json:"architecture,omitempty"`
+				ContainersRunning *int    `json:"containers_running,omitempty"`
+				ContainersTotal   *int    `json:"containers_total,omitempty"`
+
+				// Endpoint Runtime endpoint label. Sensitive credentials must not be included.
+				Endpoint        string  `json:"endpoint"`
+				OperatingSystem *string `json:"operating_system,omitempty"`
+
+				// Runtime Container runtime adapter key.
+				Runtime       string                                            `json:"runtime"`
+				ServerVersion *string                                           `json:"server_version,omitempty"`
+				Status        GetContainers200JSONResponseBodyDataRuntimeStatus `json:"status"`
+			} `json:"runtime"`
+			Summary struct {
+				Error             int `json:"error"`
+				HealthUnavailable int `json:"health_unavailable"`
+				Healthy           int `json:"healthy"`
+				Running           int `json:"running"`
+				Stopped           int `json:"stopped"`
+				Total             int `json:"total"`
+				Unhealthy         int `json:"unhealthy"`
+			} `json:"summary"`
+			Total int `json:"total"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetContainers200ResponseHeaders
+}
+
+func (response GetContainers200JSONResponse) VisitGetContainersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainers400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainers400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                 `json:"messageKey,omitempty"`
+		Success    GetContainers400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                  `json:"traceId"`
+	}
+	Headers GetContainers400ResponseHeaders
+}
+
+func (response GetContainers400JSONResponse) VisitGetContainersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainers401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainers401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                 `json:"messageKey,omitempty"`
+		Success    GetContainers401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                  `json:"traceId"`
+	}
+	Headers GetContainers401ResponseHeaders
+}
+
+func (response GetContainers401JSONResponse) VisitGetContainersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainers403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainers403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                 `json:"messageKey,omitempty"`
+		Success    GetContainers403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                  `json:"traceId"`
+	}
+	Headers GetContainers403ResponseHeaders
+}
+
+func (response GetContainers403JSONResponse) VisitGetContainersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainers500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainers500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                 `json:"messageKey,omitempty"`
+		Success    GetContainers500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                  `json:"traceId"`
+	}
+	Headers GetContainers500ResponseHeaders
+}
+
+func (response GetContainers500JSONResponse) VisitGetContainersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerBatchActionsRequestObject struct {
+	Params PostContainerBatchActionsParams
+	Body   *PostContainerBatchActionsJSONRequestBody
+}
+
+type PostContainerBatchActionsResponseObject interface {
+	VisitPostContainerBatchActionsResponse(w http.ResponseWriter) error
+}
+
+type PostContainerBatchActions202ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerBatchActions202JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+
+		// Data Batch action result summary. The items array contains exactly one result item for each requested container id and preserves the request id order so callers can correlate each result by position as well as by id.
+		Data struct {
+			// AcceptedCount Number of items accepted as independent container lifecycle Tasks.
+			AcceptedCount int `json:"accepted_count"`
+			FailedCount   int `json:"failed_count"`
+
+			// Items Per-container action results in the same order as the requested container ids, with one response item per requested id. OpenAPI cannot express equality with the request array length, so clients should rely on this contract text plus each item's id for correlation.
+			Items []struct {
+				// Accepted Whether this item was accepted as an independent Container lifecycle Task.
+				Accepted   bool                                                        `json:"accepted"`
+				Action     PostContainerBatchActions202JSONResponseBodyDataItemsAction `json:"action"`
+				ErrorCode  *string                                                     `json:"error_code,omitempty"`
+				Id         string                                                      `json:"id"`
+				Message    *string                                                     `json:"message,omitempty"`
+				MessageKey *string                                                     `json:"message_key,omitempty"`
+				Name       *string                                                     `json:"name,omitempty"`
+
+				// Status Initial Task Runtime status when accepted is true.
+				Status *PostContainerBatchActions202JSONResponseBodyDataItemsStatus `json:"status,omitempty"`
+
+				// TaskId Independent lifecycle Task identifier when accepted is true.
+				TaskId *int64 `json:"task_id,omitempty"`
+			} `json:"items"`
+			RequestId *string `json:"request_id,omitempty"`
+			Total     int     `json:"total"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostContainerBatchActions202ResponseHeaders
+}
+
+func (response PostContainerBatchActions202JSONResponse) VisitPostContainerBatchActionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerBatchActions400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerBatchActions400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostContainerBatchActions400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostContainerBatchActions400ResponseHeaders
+}
+
+func (response PostContainerBatchActions400JSONResponse) VisitPostContainerBatchActionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerBatchActions401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerBatchActions401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostContainerBatchActions401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostContainerBatchActions401ResponseHeaders
+}
+
+func (response PostContainerBatchActions401JSONResponse) VisitPostContainerBatchActionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerBatchActions403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerBatchActions403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostContainerBatchActions403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostContainerBatchActions403ResponseHeaders
+}
+
+func (response PostContainerBatchActions403JSONResponse) VisitPostContainerBatchActionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerBatchActions409ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerBatchActions409JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostContainerBatchActions409JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostContainerBatchActions409ResponseHeaders
+}
+
+func (response PostContainerBatchActions409JSONResponse) VisitPostContainerBatchActionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerBatchActions500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerBatchActions500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostContainerBatchActions500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostContainerBatchActions500ResponseHeaders
+}
+
+func (response PostContainerBatchActions500JSONResponse) VisitPostContainerBatchActionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerBatchActions503ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerBatchActions503JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostContainerBatchActions503JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostContainerBatchActions503ResponseHeaders
+}
+
+func (response PostContainerBatchActions503JSONResponse) VisitPostContainerBatchActionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerDashboardSummaryRequestObject struct {
+	Params GetContainerDashboardSummaryParams
+}
+
+type GetContainerDashboardSummaryResponseObject interface {
+	VisitGetContainerDashboardSummaryResponse(w http.ResponseWriter) error
+}
+
+type GetContainerDashboardSummary200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerDashboardSummary200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			Anomalies []struct {
+				Health      *GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesHealth     `json:"health,omitempty"`
+				Id          string                                                                  `json:"id"`
+				Image       string                                                                  `json:"image"`
+				Name        string                                                                  `json:"name"`
+				ReasonCode  *GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesReasonCode `json:"reason_code,omitempty"`
+				ReasonLabel *string                                                                 `json:"reason_label,omitempty"`
+
+				// Resource Latest-known backend resource stats projection for one container. On HTTP list/detail responses this object is a seed snapshot for frontend stats state, not the final cross-page authority. Canonical stats authority remains the backend collector, cache, and `container.stats:{id}` topic chain.
+				Resource struct {
+					// Available Compatibility mirror of stats_available for existing clients. New UI code should use stats_available.
+					Available bool `json:"available"`
+
+					// CollectedAt RFC3339 timestamp of the latest-known stats snapshot represented by this summary. Consumers should use it to compare HTTP seed snapshots with realtime updates and preserve newer stats authority.
+					CollectedAt *time.Time `json:"collected_at,omitempty"`
+
+					// CpuPercent Docker-compatible instantaneous CPU usage percentage derived from consecutive stats samples. The value may exceed 100 on multi-core hosts.
+					CpuPercent           *float64 `json:"cpu_percent,omitempty"`
+					CpuUsageInKernelmode *int64   `json:"cpu_usage_in_kernelmode,omitempty"`
+					CpuUsageInUsermode   *int64   `json:"cpu_usage_in_usermode,omitempty"`
+					MemoryActiveFile     *int64   `json:"memory_active_file,omitempty"`
+					MemoryCache          *int64   `json:"memory_cache,omitempty"`
+					MemoryInactiveFile   *int64   `json:"memory_inactive_file,omitempty"`
+					MemoryLimitBytes     *int64   `json:"memory_limit_bytes,omitempty"`
+					MemoryPercent        *float64 `json:"memory_percent,omitempty"`
+					MemoryPgfault        *int64   `json:"memory_pgfault,omitempty"`
+					MemoryPgmajfault     *int64   `json:"memory_pgmajfault,omitempty"`
+					MemoryRss            *int64   `json:"memory_rss,omitempty"`
+					MemoryUsageBytes     *int64   `json:"memory_usage_bytes,omitempty"`
+					OnlineCpus           *int64   `json:"online_cpus,omitempty"`
+					PidsCurrent          *int64   `json:"pids_current,omitempty"`
+					PidsLimit            *int64   `json:"pids_limit,omitempty"`
+					RxBytes              *int64   `json:"rx_bytes,omitempty"`
+					RxDropped            *int64   `json:"rx_dropped,omitempty"`
+					RxErrors             *int64   `json:"rx_errors,omitempty"`
+					RxPackets            *int64   `json:"rx_packets,omitempty"`
+
+					// StatsAvailable True when Docker runtime CPU or memory stats were collected for this row.
+					StatsAvailable bool `json:"stats_available"`
+
+					// StatsErrorKey Stable sanitized reason stats are absent, such as stats_timeout, stats_unavailable, or stats_incomplete.
+					StatsErrorKey *string `json:"stats_error_key,omitempty"`
+
+					// StatsErrorMessage Sanitized display-safe stats collection message; raw Docker daemon errors are not exposed.
+					StatsErrorMessage          *string `json:"stats_error_message,omitempty"`
+					SystemCpuUsage             *int64  `json:"system_cpu_usage,omitempty"`
+					ThrottlingPeriods          *int64  `json:"throttling_periods,omitempty"`
+					ThrottlingThrottledPeriods *int64  `json:"throttling_throttled_periods,omitempty"`
+					ThrottlingThrottledTime    *int64  `json:"throttling_throttled_time,omitempty"`
+					TotalCpuUsage              *int64  `json:"total_cpu_usage,omitempty"`
+					TxBytes                    *int64  `json:"tx_bytes,omitempty"`
+					TxDropped                  *int64  `json:"tx_dropped,omitempty"`
+					TxErrors                   *int64  `json:"tx_errors,omitempty"`
+					TxPackets                  *int64  `json:"tx_packets,omitempty"`
+
+					// UnavailableReason Compatibility mirror of stats_error_key for existing clients.
+					UnavailableReason *string `json:"unavailable_reason,omitempty"`
+				} `json:"resource"`
+				RestartCount *int                                                              `json:"restart_count,omitempty"`
+				ShortId      string                                                            `json:"short_id"`
+				State        GetContainerDashboardSummary200JSONResponseBodyDataAnomaliesState `json:"state"`
+				Status       *string                                                           `json:"status,omitempty"`
+			} `json:"anomalies"`
+			CollectedAt time.Time `json:"collected_at"`
+			Hotspots    struct {
+				CpuTop []struct {
+					Health *GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopHealth `json:"health,omitempty"`
+					Id     string                                                                   `json:"id"`
+					Image  string                                                                   `json:"image"`
+					Name   string                                                                   `json:"name"`
+
+					// Resource Latest-known backend resource stats projection for one container. On HTTP list/detail responses this object is a seed snapshot for frontend stats state, not the final cross-page authority. Canonical stats authority remains the backend collector, cache, and `container.stats:{id}` topic chain.
+					Resource struct {
+						// Available Compatibility mirror of stats_available for existing clients. New UI code should use stats_available.
+						Available bool `json:"available"`
+
+						// CollectedAt RFC3339 timestamp of the latest-known stats snapshot represented by this summary. Consumers should use it to compare HTTP seed snapshots with realtime updates and preserve newer stats authority.
+						CollectedAt *time.Time `json:"collected_at,omitempty"`
+
+						// CpuPercent Docker-compatible instantaneous CPU usage percentage derived from consecutive stats samples. The value may exceed 100 on multi-core hosts.
+						CpuPercent           *float64 `json:"cpu_percent,omitempty"`
+						CpuUsageInKernelmode *int64   `json:"cpu_usage_in_kernelmode,omitempty"`
+						CpuUsageInUsermode   *int64   `json:"cpu_usage_in_usermode,omitempty"`
+						MemoryActiveFile     *int64   `json:"memory_active_file,omitempty"`
+						MemoryCache          *int64   `json:"memory_cache,omitempty"`
+						MemoryInactiveFile   *int64   `json:"memory_inactive_file,omitempty"`
+						MemoryLimitBytes     *int64   `json:"memory_limit_bytes,omitempty"`
+						MemoryPercent        *float64 `json:"memory_percent,omitempty"`
+						MemoryPgfault        *int64   `json:"memory_pgfault,omitempty"`
+						MemoryPgmajfault     *int64   `json:"memory_pgmajfault,omitempty"`
+						MemoryRss            *int64   `json:"memory_rss,omitempty"`
+						MemoryUsageBytes     *int64   `json:"memory_usage_bytes,omitempty"`
+						OnlineCpus           *int64   `json:"online_cpus,omitempty"`
+						PidsCurrent          *int64   `json:"pids_current,omitempty"`
+						PidsLimit            *int64   `json:"pids_limit,omitempty"`
+						RxBytes              *int64   `json:"rx_bytes,omitempty"`
+						RxDropped            *int64   `json:"rx_dropped,omitempty"`
+						RxErrors             *int64   `json:"rx_errors,omitempty"`
+						RxPackets            *int64   `json:"rx_packets,omitempty"`
+
+						// StatsAvailable True when Docker runtime CPU or memory stats were collected for this row.
+						StatsAvailable bool `json:"stats_available"`
+
+						// StatsErrorKey Stable sanitized reason stats are absent, such as stats_timeout, stats_unavailable, or stats_incomplete.
+						StatsErrorKey *string `json:"stats_error_key,omitempty"`
+
+						// StatsErrorMessage Sanitized display-safe stats collection message; raw Docker daemon errors are not exposed.
+						StatsErrorMessage          *string `json:"stats_error_message,omitempty"`
+						SystemCpuUsage             *int64  `json:"system_cpu_usage,omitempty"`
+						ThrottlingPeriods          *int64  `json:"throttling_periods,omitempty"`
+						ThrottlingThrottledPeriods *int64  `json:"throttling_throttled_periods,omitempty"`
+						ThrottlingThrottledTime    *int64  `json:"throttling_throttled_time,omitempty"`
+						TotalCpuUsage              *int64  `json:"total_cpu_usage,omitempty"`
+						TxBytes                    *int64  `json:"tx_bytes,omitempty"`
+						TxDropped                  *int64  `json:"tx_dropped,omitempty"`
+						TxErrors                   *int64  `json:"tx_errors,omitempty"`
+						TxPackets                  *int64  `json:"tx_packets,omitempty"`
+
+						// UnavailableReason Compatibility mirror of stats_error_key for existing clients.
+						UnavailableReason *string `json:"unavailable_reason,omitempty"`
+					} `json:"resource"`
+					RestartCount *int                                                                   `json:"restart_count,omitempty"`
+					ShortId      string                                                                 `json:"short_id"`
+					State        GetContainerDashboardSummary200JSONResponseBodyDataHotspotsCpuTopState `json:"state"`
+				} `json:"cpu_top"`
+				MemoryTop []struct {
+					Health *GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopHealth `json:"health,omitempty"`
+					Id     string                                                                      `json:"id"`
+					Image  string                                                                      `json:"image"`
+					Name   string                                                                      `json:"name"`
+
+					// Resource Latest-known backend resource stats projection for one container. On HTTP list/detail responses this object is a seed snapshot for frontend stats state, not the final cross-page authority. Canonical stats authority remains the backend collector, cache, and `container.stats:{id}` topic chain.
+					Resource struct {
+						// Available Compatibility mirror of stats_available for existing clients. New UI code should use stats_available.
+						Available bool `json:"available"`
+
+						// CollectedAt RFC3339 timestamp of the latest-known stats snapshot represented by this summary. Consumers should use it to compare HTTP seed snapshots with realtime updates and preserve newer stats authority.
+						CollectedAt *time.Time `json:"collected_at,omitempty"`
+
+						// CpuPercent Docker-compatible instantaneous CPU usage percentage derived from consecutive stats samples. The value may exceed 100 on multi-core hosts.
+						CpuPercent           *float64 `json:"cpu_percent,omitempty"`
+						CpuUsageInKernelmode *int64   `json:"cpu_usage_in_kernelmode,omitempty"`
+						CpuUsageInUsermode   *int64   `json:"cpu_usage_in_usermode,omitempty"`
+						MemoryActiveFile     *int64   `json:"memory_active_file,omitempty"`
+						MemoryCache          *int64   `json:"memory_cache,omitempty"`
+						MemoryInactiveFile   *int64   `json:"memory_inactive_file,omitempty"`
+						MemoryLimitBytes     *int64   `json:"memory_limit_bytes,omitempty"`
+						MemoryPercent        *float64 `json:"memory_percent,omitempty"`
+						MemoryPgfault        *int64   `json:"memory_pgfault,omitempty"`
+						MemoryPgmajfault     *int64   `json:"memory_pgmajfault,omitempty"`
+						MemoryRss            *int64   `json:"memory_rss,omitempty"`
+						MemoryUsageBytes     *int64   `json:"memory_usage_bytes,omitempty"`
+						OnlineCpus           *int64   `json:"online_cpus,omitempty"`
+						PidsCurrent          *int64   `json:"pids_current,omitempty"`
+						PidsLimit            *int64   `json:"pids_limit,omitempty"`
+						RxBytes              *int64   `json:"rx_bytes,omitempty"`
+						RxDropped            *int64   `json:"rx_dropped,omitempty"`
+						RxErrors             *int64   `json:"rx_errors,omitempty"`
+						RxPackets            *int64   `json:"rx_packets,omitempty"`
+
+						// StatsAvailable True when Docker runtime CPU or memory stats were collected for this row.
+						StatsAvailable bool `json:"stats_available"`
+
+						// StatsErrorKey Stable sanitized reason stats are absent, such as stats_timeout, stats_unavailable, or stats_incomplete.
+						StatsErrorKey *string `json:"stats_error_key,omitempty"`
+
+						// StatsErrorMessage Sanitized display-safe stats collection message; raw Docker daemon errors are not exposed.
+						StatsErrorMessage          *string `json:"stats_error_message,omitempty"`
+						SystemCpuUsage             *int64  `json:"system_cpu_usage,omitempty"`
+						ThrottlingPeriods          *int64  `json:"throttling_periods,omitempty"`
+						ThrottlingThrottledPeriods *int64  `json:"throttling_throttled_periods,omitempty"`
+						ThrottlingThrottledTime    *int64  `json:"throttling_throttled_time,omitempty"`
+						TotalCpuUsage              *int64  `json:"total_cpu_usage,omitempty"`
+						TxBytes                    *int64  `json:"tx_bytes,omitempty"`
+						TxDropped                  *int64  `json:"tx_dropped,omitempty"`
+						TxErrors                   *int64  `json:"tx_errors,omitempty"`
+						TxPackets                  *int64  `json:"tx_packets,omitempty"`
+
+						// UnavailableReason Compatibility mirror of stats_error_key for existing clients.
+						UnavailableReason *string `json:"unavailable_reason,omitempty"`
+					} `json:"resource"`
+					RestartCount *int                                                                      `json:"restart_count,omitempty"`
+					ShortId      string                                                                    `json:"short_id"`
+					State        GetContainerDashboardSummary200JSONResponseBodyDataHotspotsMemoryTopState `json:"state"`
+				} `json:"memory_top"`
+			} `json:"hotspots"`
+			Overview struct {
+				AbnormalContainers    int      `json:"abnormal_containers"`
+				CpuTotalPercent       float64  `json:"cpu_total_percent"`
+				MemoryTotalLimitBytes *int64   `json:"memory_total_limit_bytes,omitempty"`
+				MemoryTotalPercent    *float64 `json:"memory_total_percent,omitempty"`
+				MemoryTotalUsageBytes *int64   `json:"memory_total_usage_bytes,omitempty"`
+				RunningContainers     int      `json:"running_containers"`
+			} `json:"overview"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetContainerDashboardSummary200ResponseHeaders
+}
+
+func (response GetContainerDashboardSummary200JSONResponse) VisitGetContainerDashboardSummaryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerDashboardSummary401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerDashboardSummary401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                `json:"messageKey,omitempty"`
+		Success    GetContainerDashboardSummary401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                 `json:"traceId"`
+	}
+	Headers GetContainerDashboardSummary401ResponseHeaders
+}
+
+func (response GetContainerDashboardSummary401JSONResponse) VisitGetContainerDashboardSummaryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerDashboardSummary403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerDashboardSummary403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                `json:"messageKey,omitempty"`
+		Success    GetContainerDashboardSummary403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                 `json:"traceId"`
+	}
+	Headers GetContainerDashboardSummary403ResponseHeaders
+}
+
+func (response GetContainerDashboardSummary403JSONResponse) VisitGetContainerDashboardSummaryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerDashboardSummary500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerDashboardSummary500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                `json:"messageKey,omitempty"`
+		Success    GetContainerDashboardSummary500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                 `json:"traceId"`
+	}
+	Headers GetContainerDashboardSummary500ResponseHeaders
+}
+
+func (response GetContainerDashboardSummary500JSONResponse) VisitGetContainerDashboardSummaryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerSavedViewsRequestObject struct {
+	Params GetContainerSavedViewsParams
+}
+
+type GetContainerSavedViewsResponseObject interface {
+	VisitGetContainerSavedViewsResponse(w http.ResponseWriter) error
+}
+
+type GetContainerSavedViews200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		Items []struct {
+			CreatedAt time.Time `json:"created_at"`
+			Id        int64     `json:"id"`
+
+			// IsDefault Whether this user view is applied by default for its list surface.
+			IsDefault      bool                   `json:"is_default"`
+			Name           string                 `json:"name"`
+			PageSize       int                    `json:"page_size"`
+			QueryState     map[string]interface{} `json:"query_state"`
+			UpdatedAt      time.Time              `json:"updated_at"`
+			VisibleColumns []string               `json:"visible_columns"`
+		} `json:"items"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response GetContainerSavedViews200JSONResponse) VisitGetContainerSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerSavedViews401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerSavedViews401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    GetContainerSavedViews401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers GetContainerSavedViews401ResponseHeaders
+}
+
+func (response GetContainerSavedViews401JSONResponse) VisitGetContainerSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerSavedViews403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerSavedViews403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    GetContainerSavedViews403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers GetContainerSavedViews403ResponseHeaders
+}
+
+func (response GetContainerSavedViews403JSONResponse) VisitGetContainerSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerSavedViewRequestObject struct {
+	Params PostContainerSavedViewParams
+	Body   *PostContainerSavedViewJSONRequestBody
+}
+
+type PostContainerSavedViewResponseObject interface {
+	VisitPostContainerSavedViewResponse(w http.ResponseWriter) error
+}
+
+type PostContainerSavedView201JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		CreatedAt time.Time `json:"created_at"`
+		Id        int64     `json:"id"`
+
+		// IsDefault Whether this user view is applied by default for its list surface.
+		IsDefault      bool                   `json:"is_default"`
+		Name           string                 `json:"name"`
+		PageSize       int                    `json:"page_size"`
+		QueryState     map[string]interface{} `json:"query_state"`
+		UpdatedAt      time.Time              `json:"updated_at"`
+		VisibleColumns []string               `json:"visible_columns"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PostContainerSavedView201JSONResponse) VisitPostContainerSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerSavedView400Response struct {
+}
+
+func (response PostContainerSavedView400Response) VisitPostContainerSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PostContainerSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    PostContainerSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers PostContainerSavedView401ResponseHeaders
+}
+
+func (response PostContainerSavedView401JSONResponse) VisitPostContainerSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    PostContainerSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers PostContainerSavedView403ResponseHeaders
+}
+
+func (response PostContainerSavedView403JSONResponse) VisitPostContainerSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerSavedView409Response struct {
+}
+
+func (response PostContainerSavedView409Response) VisitPostContainerSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type DeleteContainerSavedViewRequestObject struct {
+	ViewId int64 `json:"viewId"`
+	Params DeleteContainerSavedViewParams
+}
+
+type DeleteContainerSavedViewResponseObject interface {
+	VisitDeleteContainerSavedViewResponse(w http.ResponseWriter) error
+}
+
+type DeleteContainerSavedView204Response struct {
+}
+
+func (response DeleteContainerSavedView204Response) VisitDeleteContainerSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteContainerSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteContainerSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    DeleteContainerSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers DeleteContainerSavedView401ResponseHeaders
+}
+
+func (response DeleteContainerSavedView401JSONResponse) VisitDeleteContainerSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteContainerSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteContainerSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    DeleteContainerSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers DeleteContainerSavedView403ResponseHeaders
+}
+
+func (response DeleteContainerSavedView403JSONResponse) VisitDeleteContainerSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteContainerSavedView404Response struct {
+}
+
+func (response DeleteContainerSavedView404Response) VisitDeleteContainerSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PutContainerSavedViewRequestObject struct {
+	ViewId int64 `json:"viewId"`
+	Params PutContainerSavedViewParams
+	Body   *PutContainerSavedViewJSONRequestBody
+}
+
+type PutContainerSavedViewResponseObject interface {
+	VisitPutContainerSavedViewResponse(w http.ResponseWriter) error
+}
+
+type PutContainerSavedView200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		CreatedAt time.Time `json:"created_at"`
+		Id        int64     `json:"id"`
+
+		// IsDefault Whether this user view is applied by default for its list surface.
+		IsDefault      bool                   `json:"is_default"`
+		Name           string                 `json:"name"`
+		PageSize       int                    `json:"page_size"`
+		QueryState     map[string]interface{} `json:"query_state"`
+		UpdatedAt      time.Time              `json:"updated_at"`
+		VisibleColumns []string               `json:"visible_columns"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PutContainerSavedView200JSONResponse) VisitPutContainerSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutContainerSavedView400Response struct {
+}
+
+func (response PutContainerSavedView400Response) VisitPutContainerSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PutContainerSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutContainerSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                         `json:"messageKey,omitempty"`
+		Success    PutContainerSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                          `json:"traceId"`
+	}
+	Headers PutContainerSavedView401ResponseHeaders
+}
+
+func (response PutContainerSavedView401JSONResponse) VisitPutContainerSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutContainerSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutContainerSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                         `json:"messageKey,omitempty"`
+		Success    PutContainerSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                          `json:"traceId"`
+	}
+	Headers PutContainerSavedView403ResponseHeaders
+}
+
+func (response PutContainerSavedView403JSONResponse) VisitPutContainerSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutContainerSavedView404Response struct {
+}
+
+func (response PutContainerSavedView404Response) VisitPutContainerSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PutContainerSavedView409Response struct {
+}
+
+func (response PutContainerSavedView409Response) VisitPutContainerSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type GetContainerRequestObject struct {
+	Id     string `json:"id"`
+	Params GetContainerParams
+}
+
+type GetContainerResponseObject interface {
+	VisitGetContainerResponse(w http.ResponseWriter) error
+}
+
+type GetContainer200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainer200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+
+		// Data Container detail returns environment variables according to the configured display policy and omits raw inspect payload fields that may contain secrets.
+		Data struct {
+			CanRemove  *bool     `json:"can_remove,omitempty"`
+			CanRestart *bool     `json:"can_restart,omitempty"`
+			CanStart   *bool     `json:"can_start,omitempty"`
+			CanStop    *bool     `json:"can_stop,omitempty"`
+			Command    *[]string `json:"command,omitempty"`
+			CreatedAt  time.Time `json:"created_at"`
+			Deployment *struct {
+				ActionLevel        GetContainer200JSONResponseBodyDataDeploymentActionLevel `json:"action_level"`
+				BatchActionAllowed bool                                                     `json:"batch_action_allowed"`
+				Confidence         GetContainer200JSONResponseBodyDataDeploymentConfidence  `json:"confidence"`
+				ConfigFiles        *[]string                                                `json:"config_files,omitempty"`
+				Managed            bool                                                     `json:"managed"`
+				Project            *string                                                  `json:"project,omitempty"`
+				RecommendedAction  *string                                                  `json:"recommended_action,omitempty"`
+				Service            *string                                                  `json:"service,omitempty"`
+				Type               GetContainer200JSONResponseBodyDataDeploymentType        `json:"type"`
+				Warnings           []string                                                 `json:"warnings"`
+				WorkingDir         *string                                                  `json:"working_dir,omitempty"`
+			} `json:"deployment,omitempty"`
+			Entrypoint  *[]string `json:"entrypoint,omitempty"`
+			Environment *[]struct {
+				// CopyValue Copy-only raw environment variable value. Present only when the effective policy keeps display masked but allows authorized real-value copy.
+				CopyValue *string `json:"copy_value,omitempty"`
+
+				// DisplayValue Stable display value rendered under the effective environment policy.
+				DisplayValue *string `json:"display_value,omitempty"`
+
+				// Key Environment variable name.
+				Key string `json:"key"`
+
+				// Masked Whether the original value is intentionally omitted by environment display policy.
+				Masked bool `json:"masked"`
+
+				// Sensitive Whether the key matched the container module sensitive-key heuristic.
+				Sensitive bool `json:"sensitive"`
+
+				// Source Runtime source of the environment variable entry.
+				Source GetContainer200JSONResponseBodyDataEnvironmentSource `json:"source"`
+
+				// Value Raw environment variable value. Present only when the effective policy allows plaintext display.
+				Value *string `json:"value,omitempty"`
+
+				// ValueHidden Whether the original value is intentionally hidden by the active policy.
+				ValueHidden *bool `json:"value_hidden,omitempty"`
+
+				// ValueMasked Whether display_value is a masked placeholder instead of the original value.
+				ValueMasked *bool `json:"value_masked,omitempty"`
+			} `json:"environment,omitempty"`
+
+			// EnvironmentMaskedCopyEnabled Whether the current system policy allows copying real sensitive environment values from masked environment entries, .env export, and raw JSON copy flows when access is authorized.
+			EnvironmentMaskedCopyEnabled bool `json:"environment_masked_copy_enabled"`
+
+			// EnvironmentPolicy Effective container environment variable display policy applied to this detail response.
+			EnvironmentPolicy GetContainer200JSONResponseBodyDataEnvironmentPolicy `json:"environment_policy"`
+
+			// Health Nullable when the runtime cannot determine health on the list path without row-level inspect.
+			Health *GetContainer200JSONResponseBodyDataHealth `json:"health,omitempty"`
+
+			// Healthcheck Docker Healthcheck diagnostics from container inspect. Omitted when no Healthcheck is configured.
+			Healthcheck *struct {
+				// CheckedAt Completion time of the most recent Docker Healthcheck result when available.
+				CheckedAt *time.Time `json:"checked_at,omitempty"`
+
+				// Command Docker Healthcheck test command as reported by inspect.
+				Command []string `json:"command"`
+
+				// Configured True when Docker inspect exposes an active Healthcheck command for the container.
+				Configured bool `json:"configured"`
+
+				// ExitCode Exit code from the most recent Docker Healthcheck result when available.
+				ExitCode *int `json:"exit_code,omitempty"`
+
+				// FailingStreak Docker reported consecutive Healthcheck failure count.
+				FailingStreak *int `json:"failing_streak,omitempty"`
+
+				// FailureMessage Recent failure output when the latest Healthcheck result failed.
+				FailureMessage *string `json:"failure_message,omitempty"`
+
+				// Output Output from the most recent Docker Healthcheck result, trimmed for display.
+				Output *string                                              `json:"output,omitempty"`
+				Status GetContainer200JSONResponseBodyDataHealthcheckStatus `json:"status"`
+			} `json:"healthcheck,omitempty"`
+			Id               string             `json:"id"`
+			Image            string             `json:"image"`
+			ImageId          *string            `json:"image_id,omitempty"`
+			InspectUpdatedAt *time.Time         `json:"inspect_updated_at,omitempty"`
+			Labels           *map[string]string `json:"labels,omitempty"`
+
+			// LastExitCode Last container process exit code from Docker inspect state when available.
+			LastExitCode *int `json:"last_exit_code,omitempty"`
+			Mounts       []struct {
+				Destination string `json:"destination"`
+				Mode        string `json:"mode"`
+
+				// MountId Stable id generated from destination, source, and type. Clients must use this value for usage refresh.
+				MountId  string  `json:"mount_id"`
+				Name     *string `json:"name,omitempty"`
+				ReadOnly bool    `json:"read_only"`
+				Source   *string `json:"source,omitempty"`
+
+				// Type Runtime mount type such as bind, volume, or tmpfs.
+				Type  string `json:"type"`
+				Usage *struct {
+					// ContainerId Container id or reference resolved by the runtime.
+					ContainerId string `json:"container_id"`
+
+					// Destination Container path where the mount is attached.
+					Destination string `json:"destination"`
+
+					// MeasuredAt UTC timestamp when the usage was measured.
+					MeasuredAt *time.Time `json:"measured_at,omitempty"`
+
+					// Message Optional weak explanatory text for unsupported or failed statistics.
+					Message *string `json:"message,omitempty"`
+
+					// MountId Stable id generated from the inspected mount destination, source, and type.
+					MountId string `json:"mount_id"`
+
+					// SharedHint Optional hint that the source path or named volume may be shared by multiple containers.
+					SharedHint *string `json:"shared_hint,omitempty"`
+
+					// SizeBytes Measured storage usage in bytes when status is measured.
+					SizeBytes *int64 `json:"size_bytes,omitempty"`
+
+					// SizeDisplay Human-readable storage usage such as 128.4 MiB.
+					SizeDisplay *string `json:"size_display,omitempty"`
+
+					// Source Runtime-reported source path or volume source. It is never accepted from clients for statistics.
+					Source string `json:"source"`
+
+					// Status Structured mount usage measurement state.
+					Status GetContainer200JSONResponseBodyDataMountsUsageStatus `json:"status"`
+
+					// Type Runtime mount type such as bind, volume, or tmpfs.
+					Type string `json:"type"`
+				} `json:"usage,omitempty"`
+			} `json:"mounts"`
+
+			// Name Primary display name, falling back to id when the runtime returns no names.
+			Name           string   `json:"name"`
+			Names          []string `json:"names"`
+			NetworkSummary *string  `json:"network_summary,omitempty"`
+			Networks       []struct {
+				// EndpointId Runtime endpoint identifier for this container attachment within the network.
+				EndpointId *string `json:"endpoint_id,omitempty"`
+
+				// Gateway Gateway address reported for this container network attachment.
+				Gateway *string `json:"gateway,omitempty"`
+
+				// IpAddress Container IP address assigned on this network.
+				IpAddress *string `json:"ip_address,omitempty"`
+
+				// MacAddress MAC address assigned to the container endpoint on this network.
+				MacAddress *string `json:"mac_address,omitempty"`
+
+				// Name Runtime network name attached to the container.
+				Name string `json:"name"`
+
+				// NetworkId Runtime network identifier, such as the Docker network ID.
+				NetworkId *string `json:"network_id,omitempty"`
+			} `json:"networks"`
+
+			// OomKilled Whether Docker inspect reports the container was killed by the OOM killer.
+			OomKilled *bool `json:"oom_killed,omitempty"`
+			Ports     []struct {
+				Ip          *string                                      `json:"ip,omitempty"`
+				PrivatePort int                                          `json:"private_port"`
+				PublicPort  *int                                         `json:"public_port,omitempty"`
+				Type        GetContainer200JSONResponseBodyDataPortsType `json:"type"`
+			} `json:"ports"`
+
+			// PrimaryIp Primary IP address when the runtime list summary exposes one without raw inspect.
+			PrimaryIp *string `json:"primary_ip,omitempty"`
+
+			// Resource Latest-known backend resource stats projection attached to this metadata row. On HTTP responses it should be treated as a seed snapshot for container stats state rather than the final frontend authority.
+			Resource *struct {
+				// Available Compatibility mirror of stats_available for existing clients. New UI code should use stats_available.
+				Available bool `json:"available"`
+
+				// CollectedAt RFC3339 timestamp of the latest-known stats snapshot represented by this summary. Consumers should use it to compare HTTP seed snapshots with realtime updates and preserve newer stats authority.
+				CollectedAt *time.Time `json:"collected_at,omitempty"`
+
+				// CpuPercent Docker-compatible instantaneous CPU usage percentage derived from consecutive stats samples. The value may exceed 100 on multi-core hosts.
+				CpuPercent           *float64 `json:"cpu_percent,omitempty"`
+				CpuUsageInKernelmode *int64   `json:"cpu_usage_in_kernelmode,omitempty"`
+				CpuUsageInUsermode   *int64   `json:"cpu_usage_in_usermode,omitempty"`
+				MemoryActiveFile     *int64   `json:"memory_active_file,omitempty"`
+				MemoryCache          *int64   `json:"memory_cache,omitempty"`
+				MemoryInactiveFile   *int64   `json:"memory_inactive_file,omitempty"`
+				MemoryLimitBytes     *int64   `json:"memory_limit_bytes,omitempty"`
+				MemoryPercent        *float64 `json:"memory_percent,omitempty"`
+				MemoryPgfault        *int64   `json:"memory_pgfault,omitempty"`
+				MemoryPgmajfault     *int64   `json:"memory_pgmajfault,omitempty"`
+				MemoryRss            *int64   `json:"memory_rss,omitempty"`
+				MemoryUsageBytes     *int64   `json:"memory_usage_bytes,omitempty"`
+				OnlineCpus           *int64   `json:"online_cpus,omitempty"`
+				PidsCurrent          *int64   `json:"pids_current,omitempty"`
+				PidsLimit            *int64   `json:"pids_limit,omitempty"`
+				RxBytes              *int64   `json:"rx_bytes,omitempty"`
+				RxDropped            *int64   `json:"rx_dropped,omitempty"`
+				RxErrors             *int64   `json:"rx_errors,omitempty"`
+				RxPackets            *int64   `json:"rx_packets,omitempty"`
+
+				// StatsAvailable True when Docker runtime CPU or memory stats were collected for this row.
+				StatsAvailable bool `json:"stats_available"`
+
+				// StatsErrorKey Stable sanitized reason stats are absent, such as stats_timeout, stats_unavailable, or stats_incomplete.
+				StatsErrorKey *string `json:"stats_error_key,omitempty"`
+
+				// StatsErrorMessage Sanitized display-safe stats collection message; raw Docker daemon errors are not exposed.
+				StatsErrorMessage          *string `json:"stats_error_message,omitempty"`
+				SystemCpuUsage             *int64  `json:"system_cpu_usage,omitempty"`
+				ThrottlingPeriods          *int64  `json:"throttling_periods,omitempty"`
+				ThrottlingThrottledPeriods *int64  `json:"throttling_throttled_periods,omitempty"`
+				ThrottlingThrottledTime    *int64  `json:"throttling_throttled_time,omitempty"`
+				TotalCpuUsage              *int64  `json:"total_cpu_usage,omitempty"`
+				TxBytes                    *int64  `json:"tx_bytes,omitempty"`
+				TxDropped                  *int64  `json:"tx_dropped,omitempty"`
+				TxErrors                   *int64  `json:"tx_errors,omitempty"`
+				TxPackets                  *int64  `json:"tx_packets,omitempty"`
+
+				// UnavailableReason Compatibility mirror of stats_error_key for existing clients.
+				UnavailableReason *string `json:"unavailable_reason,omitempty"`
+			} `json:"resource,omitempty"`
+
+			// RestartCount Nullable when the runtime list path does not expose restart count without inspect.
+			RestartCount  *int    `json:"restart_count,omitempty"`
+			RestartPolicy *string `json:"restart_policy,omitempty"`
+
+			// Runtime Container runtime adapter key.
+			Runtime     string `json:"runtime"`
+			RuntimeInfo struct {
+				ApiVersion        *string `json:"api_version,omitempty"`
+				Architecture      *string `json:"architecture,omitempty"`
+				ContainersRunning *int    `json:"containers_running,omitempty"`
+				ContainersTotal   *int    `json:"containers_total,omitempty"`
+
+				// Endpoint Runtime endpoint label. Sensitive credentials must not be included.
+				Endpoint        string  `json:"endpoint"`
+				OperatingSystem *string `json:"operating_system,omitempty"`
+
+				// Runtime Container runtime adapter key.
+				Runtime       string                                               `json:"runtime"`
+				ServerVersion *string                                              `json:"server_version,omitempty"`
+				Status        GetContainer200JSONResponseBodyDataRuntimeInfoStatus `json:"status"`
+			} `json:"runtime_info"`
+			RuntimeTarget *struct {
+				DisplayName string                                                   `json:"display_name"`
+				Id          int64                                                    `json:"id"`
+				Provider    GetContainer200JSONResponseBodyDataRuntimeTargetProvider `json:"provider"`
+			} `json:"runtime_target,omitempty"`
+
+			// ShortId Runtime id prefix suitable for list display.
+			ShortId   string                                   `json:"short_id"`
+			StartedAt *time.Time                               `json:"started_at,omitempty"`
+			State     GetContainer200JSONResponseBodyDataState `json:"state"`
+
+			// Status Runtime-provided human-readable status.
+			Status     string  `json:"status"`
+			WorkingDir *string `json:"working_dir,omitempty"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetContainer200ResponseHeaders
+}
+
+func (response GetContainer200JSONResponse) VisitGetContainerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainer400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainer400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                `json:"messageKey,omitempty"`
+		Success    GetContainer400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                 `json:"traceId"`
+	}
+	Headers GetContainer400ResponseHeaders
+}
+
+func (response GetContainer400JSONResponse) VisitGetContainerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainer401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainer401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                `json:"messageKey,omitempty"`
+		Success    GetContainer401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                 `json:"traceId"`
+	}
+	Headers GetContainer401ResponseHeaders
+}
+
+func (response GetContainer401JSONResponse) VisitGetContainerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainer403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainer403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                `json:"messageKey,omitempty"`
+		Success    GetContainer403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                 `json:"traceId"`
+	}
+	Headers GetContainer403ResponseHeaders
+}
+
+func (response GetContainer403JSONResponse) VisitGetContainerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainer404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainer404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                `json:"messageKey,omitempty"`
+		Success    GetContainer404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                 `json:"traceId"`
+	}
+	Headers GetContainer404ResponseHeaders
+}
+
+func (response GetContainer404JSONResponse) VisitGetContainerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainer500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainer500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                `json:"messageKey,omitempty"`
+		Success    GetContainer500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                 `json:"traceId"`
+	}
+	Headers GetContainer500ResponseHeaders
+}
+
+func (response GetContainer500JSONResponse) VisitGetContainerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerEventsRequestObject struct {
+	Id     string `json:"id"`
+	Params GetContainerEventsParams
+}
+
+type GetContainerEventsResponseObject interface {
+	VisitGetContainerEventsResponse(w http.ResponseWriter) error
+}
+
+type GetContainerEvents200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerEvents200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			Context struct {
+				// Runtime Stream context runtime identifier. This is not part of the canonical event fact.
+				Runtime string `json:"runtime"`
+			} `json:"context"`
+			Items []struct {
+				Event struct {
+					// Attributes Stable provider-normalized scalar metadata for rendering and local i18n.
+					Attributes *map[string]string `json:"attributes,omitempty"`
+
+					// EventType Canonical container runtime event type.
+					EventType GetContainerEvents200JSONResponseBodyDataItemsEventEventType `json:"event_type"`
+
+					// Id Opaque event identifier stable within the bounded replay window.
+					Id         string    `json:"id"`
+					OccurredAt time.Time `json:"occurred_at"`
+
+					// ResourceId Canonical container identifier.
+					ResourceId string `json:"resource_id"`
+
+					// ResourceType Canonical runtime event resource type.
+					ResourceType GetContainerEvents200JSONResponseBodyDataItemsEventResourceType `json:"resource_type"`
+
+					// Severity Canonical severity mapped by the container module rather than provider-authored values.
+					Severity GetContainerEvents200JSONResponseBodyDataItemsEventSeverity `json:"severity"`
+				} `json:"event"`
+
+				// Seq Monotonically increasing sequence within the container event stream.
+				Seq int64 `json:"seq"`
+			} `json:"items"`
+			ResourceId string `json:"resource_id"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetContainerEvents200ResponseHeaders
+}
+
+func (response GetContainerEvents200JSONResponse) VisitGetContainerEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerEvents400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerEvents400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    GetContainerEvents400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers GetContainerEvents400ResponseHeaders
+}
+
+func (response GetContainerEvents400JSONResponse) VisitGetContainerEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerEvents401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerEvents401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    GetContainerEvents401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers GetContainerEvents401ResponseHeaders
+}
+
+func (response GetContainerEvents401JSONResponse) VisitGetContainerEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerEvents403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerEvents403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    GetContainerEvents403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers GetContainerEvents403ResponseHeaders
+}
+
+func (response GetContainerEvents403JSONResponse) VisitGetContainerEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerEvents404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerEvents404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    GetContainerEvents404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers GetContainerEvents404ResponseHeaders
+}
+
+func (response GetContainerEvents404JSONResponse) VisitGetContainerEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerEvents500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerEvents500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    GetContainerEvents500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers GetContainerEvents500ResponseHeaders
+}
+
+func (response GetContainerEvents500JSONResponse) VisitGetContainerEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerLogsRequestObject struct {
+	Id     string `json:"id"`
+	Params GetContainerLogsParams
+}
+
+type GetContainerLogsResponseObject interface {
+	VisitGetContainerLogsResponse(w http.ResponseWriter) error
+}
+
+type GetContainerLogs200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerLogs200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			Entries []struct {
+				// Line Canonical container log line content after runtime framing is removed.
+				Line string `json:"line"`
+
+				// OccurredAt Canonical UTC occurrence time for the log entry, using the runtime timestamp when available and server receive time otherwise.
+				OccurredAt time.Time `json:"occurred_at"`
+
+				// Stream Canonical runtime stream that produced the log entry.
+				Stream GetContainerLogs200JSONResponseBodyDataEntriesStream `json:"stream"`
+			} `json:"entries"`
+			Id   string  `json:"id"`
+			Name *string `json:"name,omitempty"`
+
+			// Runtime Container runtime adapter key.
+			Runtime string `json:"runtime"`
+
+			// Since Echoes the accepted since query when provided.
+			Since      *string `json:"since,omitempty"`
+			Stderr     bool    `json:"stderr"`
+			Stdout     bool    `json:"stdout"`
+			Tail       int     `json:"tail"`
+			Timestamps bool    `json:"timestamps"`
+
+			// Truncated True when runtime output exceeded the bounded tail window.
+			Truncated bool `json:"truncated"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetContainerLogs200ResponseHeaders
+}
+
+func (response GetContainerLogs200JSONResponse) VisitGetContainerLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerLogs400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerLogs400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetContainerLogs400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetContainerLogs400ResponseHeaders
+}
+
+func (response GetContainerLogs400JSONResponse) VisitGetContainerLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerLogs401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerLogs401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetContainerLogs401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetContainerLogs401ResponseHeaders
+}
+
+func (response GetContainerLogs401JSONResponse) VisitGetContainerLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerLogs403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerLogs403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetContainerLogs403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetContainerLogs403ResponseHeaders
+}
+
+func (response GetContainerLogs403JSONResponse) VisitGetContainerLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerLogs404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerLogs404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetContainerLogs404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetContainerLogs404ResponseHeaders
+}
+
+func (response GetContainerLogs404JSONResponse) VisitGetContainerLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerLogs500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerLogs500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetContainerLogs500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetContainerLogs500ResponseHeaders
+}
+
+func (response GetContainerLogs500JSONResponse) VisitGetContainerLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerMountUsageRequestObject struct {
+	Id     string `json:"id"`
+	Params GetContainerMountUsageParams
+}
+
+type GetContainerMountUsageResponseObject interface {
+	VisitGetContainerMountUsageResponse(w http.ResponseWriter) error
+}
+
+type GetContainerMountUsage200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerMountUsage200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			Items []struct {
+				// ContainerId Container id or reference resolved by the runtime.
+				ContainerId string `json:"container_id"`
+
+				// Destination Container path where the mount is attached.
+				Destination string `json:"destination"`
+
+				// MeasuredAt UTC timestamp when the usage was measured.
+				MeasuredAt *time.Time `json:"measured_at,omitempty"`
+
+				// Message Optional weak explanatory text for unsupported or failed statistics.
+				Message *string `json:"message,omitempty"`
+
+				// MountId Stable id generated from the inspected mount destination, source, and type.
+				MountId string `json:"mount_id"`
+
+				// SharedHint Optional hint that the source path or named volume may be shared by multiple containers.
+				SharedHint *string `json:"shared_hint,omitempty"`
+
+				// SizeBytes Measured storage usage in bytes when status is measured.
+				SizeBytes *int64 `json:"size_bytes,omitempty"`
+
+				// SizeDisplay Human-readable storage usage such as 128.4 MiB.
+				SizeDisplay *string `json:"size_display,omitempty"`
+
+				// Source Runtime-reported source path or volume source. It is never accepted from clients for statistics.
+				Source string `json:"source"`
+
+				// Status Structured mount usage measurement state.
+				Status GetContainerMountUsage200JSONResponseBodyDataItemsStatus `json:"status"`
+
+				// Type Runtime mount type such as bind, volume, or tmpfs.
+				Type string `json:"type"`
+			} `json:"items"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetContainerMountUsage200ResponseHeaders
+}
+
+func (response GetContainerMountUsage200JSONResponse) VisitGetContainerMountUsageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerMountUsage400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerMountUsage400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    GetContainerMountUsage400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers GetContainerMountUsage400ResponseHeaders
+}
+
+func (response GetContainerMountUsage400JSONResponse) VisitGetContainerMountUsageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerMountUsage401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerMountUsage401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    GetContainerMountUsage401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers GetContainerMountUsage401ResponseHeaders
+}
+
+func (response GetContainerMountUsage401JSONResponse) VisitGetContainerMountUsageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerMountUsage403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerMountUsage403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    GetContainerMountUsage403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers GetContainerMountUsage403ResponseHeaders
+}
+
+func (response GetContainerMountUsage403JSONResponse) VisitGetContainerMountUsageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerMountUsage404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerMountUsage404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    GetContainerMountUsage404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers GetContainerMountUsage404ResponseHeaders
+}
+
+func (response GetContainerMountUsage404JSONResponse) VisitGetContainerMountUsageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetContainerMountUsage500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetContainerMountUsage500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    GetContainerMountUsage500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers GetContainerMountUsage500ResponseHeaders
+}
+
+func (response GetContainerMountUsage500JSONResponse) VisitGetContainerMountUsageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerMountUsageRefreshRequestObject struct {
+	Id      string `json:"id"`
+	MountId string `json:"mountId"`
+	Params  PostContainerMountUsageRefreshParams
+}
+
+type PostContainerMountUsageRefreshResponseObject interface {
+	VisitPostContainerMountUsageRefreshResponse(w http.ResponseWriter) error
+}
+
+type PostContainerMountUsageRefresh200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerMountUsageRefresh200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			// ContainerId Container id or reference resolved by the runtime.
+			ContainerId string `json:"container_id"`
+
+			// Destination Container path where the mount is attached.
+			Destination string `json:"destination"`
+
+			// MeasuredAt UTC timestamp when the usage was measured.
+			MeasuredAt *time.Time `json:"measured_at,omitempty"`
+
+			// Message Optional weak explanatory text for unsupported or failed statistics.
+			Message *string `json:"message,omitempty"`
+
+			// MountId Stable id generated from the inspected mount destination, source, and type.
+			MountId string `json:"mount_id"`
+
+			// SharedHint Optional hint that the source path or named volume may be shared by multiple containers.
+			SharedHint *string `json:"shared_hint,omitempty"`
+
+			// SizeBytes Measured storage usage in bytes when status is measured.
+			SizeBytes *int64 `json:"size_bytes,omitempty"`
+
+			// SizeDisplay Human-readable storage usage such as 128.4 MiB.
+			SizeDisplay *string `json:"size_display,omitempty"`
+
+			// Source Runtime-reported source path or volume source. It is never accepted from clients for statistics.
+			Source string `json:"source"`
+
+			// Status Structured mount usage measurement state.
+			Status PostContainerMountUsageRefresh200JSONResponseBodyDataStatus `json:"status"`
+
+			// Type Runtime mount type such as bind, volume, or tmpfs.
+			Type string `json:"type"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostContainerMountUsageRefresh200ResponseHeaders
+}
+
+func (response PostContainerMountUsageRefresh200JSONResponse) VisitPostContainerMountUsageRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerMountUsageRefresh400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerMountUsageRefresh400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                  `json:"messageKey,omitempty"`
+		Success    PostContainerMountUsageRefresh400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                   `json:"traceId"`
+	}
+	Headers PostContainerMountUsageRefresh400ResponseHeaders
+}
+
+func (response PostContainerMountUsageRefresh400JSONResponse) VisitPostContainerMountUsageRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerMountUsageRefresh401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerMountUsageRefresh401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                  `json:"messageKey,omitempty"`
+		Success    PostContainerMountUsageRefresh401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                   `json:"traceId"`
+	}
+	Headers PostContainerMountUsageRefresh401ResponseHeaders
+}
+
+func (response PostContainerMountUsageRefresh401JSONResponse) VisitPostContainerMountUsageRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerMountUsageRefresh403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerMountUsageRefresh403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                  `json:"messageKey,omitempty"`
+		Success    PostContainerMountUsageRefresh403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                   `json:"traceId"`
+	}
+	Headers PostContainerMountUsageRefresh403ResponseHeaders
+}
+
+func (response PostContainerMountUsageRefresh403JSONResponse) VisitPostContainerMountUsageRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerMountUsageRefresh404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerMountUsageRefresh404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                  `json:"messageKey,omitempty"`
+		Success    PostContainerMountUsageRefresh404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                   `json:"traceId"`
+	}
+	Headers PostContainerMountUsageRefresh404ResponseHeaders
+}
+
+func (response PostContainerMountUsageRefresh404JSONResponse) VisitPostContainerMountUsageRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerMountUsageRefresh500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerMountUsageRefresh500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                  `json:"messageKey,omitempty"`
+		Success    PostContainerMountUsageRefresh500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                   `json:"traceId"`
+	}
+	Headers PostContainerMountUsageRefresh500ResponseHeaders
+}
+
+func (response PostContainerMountUsageRefresh500JSONResponse) VisitPostContainerMountUsageRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerRemoveRequestObject struct {
+	Id     string `json:"id"`
+	Params PostContainerRemoveParams
+	Body   *PostContainerRemoveJSONRequestBody
+}
+
+type PostContainerRemoveResponseObject interface {
+	VisitPostContainerRemoveResponse(w http.ResponseWriter) error
+}
+
+type PostContainerRemove202ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerRemove202JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+
+		// Data Receipt returned when a business action accepts asynchronous Task submission.
+		Data struct {
+			// Status Canonical persisted Task state-machine state.
+			Status PostContainerRemove202JSONResponseBodyDataStatus `json:"status"`
+			TaskId int64                                            `json:"task_id"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostContainerRemove202ResponseHeaders
+}
+
+func (response PostContainerRemove202JSONResponse) VisitPostContainerRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerRemove400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerRemove400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                       `json:"messageKey,omitempty"`
+		Success    PostContainerRemove400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                        `json:"traceId"`
+	}
+	Headers PostContainerRemove400ResponseHeaders
+}
+
+func (response PostContainerRemove400JSONResponse) VisitPostContainerRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerRemove401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerRemove401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                       `json:"messageKey,omitempty"`
+		Success    PostContainerRemove401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                        `json:"traceId"`
+	}
+	Headers PostContainerRemove401ResponseHeaders
+}
+
+func (response PostContainerRemove401JSONResponse) VisitPostContainerRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerRemove403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerRemove403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                       `json:"messageKey,omitempty"`
+		Success    PostContainerRemove403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                        `json:"traceId"`
+	}
+	Headers PostContainerRemove403ResponseHeaders
+}
+
+func (response PostContainerRemove403JSONResponse) VisitPostContainerRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerRemove404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerRemove404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                       `json:"messageKey,omitempty"`
+		Success    PostContainerRemove404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                        `json:"traceId"`
+	}
+	Headers PostContainerRemove404ResponseHeaders
+}
+
+func (response PostContainerRemove404JSONResponse) VisitPostContainerRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerRemove409ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerRemove409JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                       `json:"messageKey,omitempty"`
+		Success    PostContainerRemove409JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                        `json:"traceId"`
+	}
+	Headers PostContainerRemove409ResponseHeaders
+}
+
+func (response PostContainerRemove409JSONResponse) VisitPostContainerRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerRemove500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerRemove500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                       `json:"messageKey,omitempty"`
+		Success    PostContainerRemove500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                        `json:"traceId"`
+	}
+	Headers PostContainerRemove500ResponseHeaders
+}
+
+func (response PostContainerRemove500JSONResponse) VisitPostContainerRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerRemove503ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerRemove503JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                       `json:"messageKey,omitempty"`
+		Success    PostContainerRemove503JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                        `json:"traceId"`
+	}
+	Headers PostContainerRemove503ResponseHeaders
+}
+
+func (response PostContainerRemove503JSONResponse) VisitPostContainerRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerRestartRequestObject struct {
+	Id     string `json:"id"`
+	Params PostContainerRestartParams
+}
+
+type PostContainerRestartResponseObject interface {
+	VisitPostContainerRestartResponse(w http.ResponseWriter) error
+}
+
+type PostContainerRestart202ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerRestart202JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+
+		// Data Receipt returned when a business action accepts asynchronous Task submission.
+		Data struct {
+			// Status Canonical persisted Task state-machine state.
+			Status PostContainerRestart202JSONResponseBodyDataStatus `json:"status"`
+			TaskId int64                                             `json:"task_id"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostContainerRestart202ResponseHeaders
+}
+
+func (response PostContainerRestart202JSONResponse) VisitPostContainerRestartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerRestart400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerRestart400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostContainerRestart400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostContainerRestart400ResponseHeaders
+}
+
+func (response PostContainerRestart400JSONResponse) VisitPostContainerRestartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerRestart401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerRestart401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostContainerRestart401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostContainerRestart401ResponseHeaders
+}
+
+func (response PostContainerRestart401JSONResponse) VisitPostContainerRestartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerRestart403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerRestart403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostContainerRestart403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostContainerRestart403ResponseHeaders
+}
+
+func (response PostContainerRestart403JSONResponse) VisitPostContainerRestartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerRestart404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerRestart404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostContainerRestart404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostContainerRestart404ResponseHeaders
+}
+
+func (response PostContainerRestart404JSONResponse) VisitPostContainerRestartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerRestart409ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerRestart409JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostContainerRestart409JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostContainerRestart409ResponseHeaders
+}
+
+func (response PostContainerRestart409JSONResponse) VisitPostContainerRestartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerRestart500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerRestart500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostContainerRestart500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostContainerRestart500ResponseHeaders
+}
+
+func (response PostContainerRestart500JSONResponse) VisitPostContainerRestartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerRestart503ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerRestart503JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostContainerRestart503JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostContainerRestart503ResponseHeaders
+}
+
+func (response PostContainerRestart503JSONResponse) VisitPostContainerRestartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerShellSessionRequestObject struct {
+	Id     string `json:"id"`
+	Params PostContainerShellSessionParams
+	Body   *PostContainerShellSessionJSONRequestBody
+}
+
+type PostContainerShellSessionResponseObject interface {
+	VisitPostContainerShellSessionResponse(w http.ResponseWriter) error
+}
+
+type PostContainerShellSession200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerShellSession200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			Cols    int                                                     `json:"cols"`
+			Command PostContainerShellSession200JSONResponseBodyDataCommand `json:"command"`
+
+			// ExpiresAt Absolute UTC expiration time for the one-time shell ticket.
+			ExpiresAt time.Time `json:"expires_at"`
+			Rows      int       `json:"rows"`
+
+			// SessionId Stable server-issued session identifier used for audit correlation.
+			SessionId string `json:"session_id"`
+
+			// WebsocketUrl Relative WebSocket URL containing the issued ticket for immediate upgrade.
+			WebsocketUrl string `json:"websocket_url"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostContainerShellSession200ResponseHeaders
+}
+
+func (response PostContainerShellSession200JSONResponse) VisitPostContainerShellSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerShellSession400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerShellSession400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostContainerShellSession400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostContainerShellSession400ResponseHeaders
+}
+
+func (response PostContainerShellSession400JSONResponse) VisitPostContainerShellSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerShellSession401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerShellSession401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostContainerShellSession401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostContainerShellSession401ResponseHeaders
+}
+
+func (response PostContainerShellSession401JSONResponse) VisitPostContainerShellSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerShellSession403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerShellSession403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostContainerShellSession403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostContainerShellSession403ResponseHeaders
+}
+
+func (response PostContainerShellSession403JSONResponse) VisitPostContainerShellSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerShellSession404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerShellSession404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostContainerShellSession404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostContainerShellSession404ResponseHeaders
+}
+
+func (response PostContainerShellSession404JSONResponse) VisitPostContainerShellSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerShellSession409ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerShellSession409JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostContainerShellSession409JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostContainerShellSession409ResponseHeaders
+}
+
+func (response PostContainerShellSession409JSONResponse) VisitPostContainerShellSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerShellSession500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerShellSession500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostContainerShellSession500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostContainerShellSession500ResponseHeaders
+}
+
+func (response PostContainerShellSession500JSONResponse) VisitPostContainerShellSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerStartRequestObject struct {
+	Id     string `json:"id"`
+	Params PostContainerStartParams
+}
+
+type PostContainerStartResponseObject interface {
+	VisitPostContainerStartResponse(w http.ResponseWriter) error
+}
+
+type PostContainerStart202ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerStart202JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+
+		// Data Receipt returned when a business action accepts asynchronous Task submission.
+		Data struct {
+			// Status Canonical persisted Task state-machine state.
+			Status PostContainerStart202JSONResponseBodyDataStatus `json:"status"`
+			TaskId int64                                           `json:"task_id"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostContainerStart202ResponseHeaders
+}
+
+func (response PostContainerStart202JSONResponse) VisitPostContainerStartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerStart400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerStart400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    PostContainerStart400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers PostContainerStart400ResponseHeaders
+}
+
+func (response PostContainerStart400JSONResponse) VisitPostContainerStartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerStart401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerStart401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    PostContainerStart401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers PostContainerStart401ResponseHeaders
+}
+
+func (response PostContainerStart401JSONResponse) VisitPostContainerStartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerStart403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerStart403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    PostContainerStart403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers PostContainerStart403ResponseHeaders
+}
+
+func (response PostContainerStart403JSONResponse) VisitPostContainerStartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerStart404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerStart404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    PostContainerStart404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers PostContainerStart404ResponseHeaders
+}
+
+func (response PostContainerStart404JSONResponse) VisitPostContainerStartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerStart409ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerStart409JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    PostContainerStart409JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers PostContainerStart409ResponseHeaders
+}
+
+func (response PostContainerStart409JSONResponse) VisitPostContainerStartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerStart500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerStart500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    PostContainerStart500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers PostContainerStart500ResponseHeaders
+}
+
+func (response PostContainerStart500JSONResponse) VisitPostContainerStartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerStart503ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerStart503JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    PostContainerStart503JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers PostContainerStart503ResponseHeaders
+}
+
+func (response PostContainerStart503JSONResponse) VisitPostContainerStartResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerStopRequestObject struct {
+	Id     string `json:"id"`
+	Params PostContainerStopParams
+}
+
+type PostContainerStopResponseObject interface {
+	VisitPostContainerStopResponse(w http.ResponseWriter) error
+}
+
+type PostContainerStop202ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerStop202JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+
+		// Data Receipt returned when a business action accepts asynchronous Task submission.
+		Data struct {
+			// Status Canonical persisted Task state-machine state.
+			Status PostContainerStop202JSONResponseBodyDataStatus `json:"status"`
+			TaskId int64                                          `json:"task_id"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostContainerStop202ResponseHeaders
+}
+
+func (response PostContainerStop202JSONResponse) VisitPostContainerStopResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerStop400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerStop400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    PostContainerStop400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers PostContainerStop400ResponseHeaders
+}
+
+func (response PostContainerStop400JSONResponse) VisitPostContainerStopResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerStop401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerStop401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    PostContainerStop401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers PostContainerStop401ResponseHeaders
+}
+
+func (response PostContainerStop401JSONResponse) VisitPostContainerStopResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerStop403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerStop403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    PostContainerStop403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers PostContainerStop403ResponseHeaders
+}
+
+func (response PostContainerStop403JSONResponse) VisitPostContainerStopResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerStop404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerStop404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    PostContainerStop404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers PostContainerStop404ResponseHeaders
+}
+
+func (response PostContainerStop404JSONResponse) VisitPostContainerStopResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerStop409ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerStop409JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    PostContainerStop409JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers PostContainerStop409ResponseHeaders
+}
+
+func (response PostContainerStop409JSONResponse) VisitPostContainerStopResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerStop500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerStop500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    PostContainerStop500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers PostContainerStop500ResponseHeaders
+}
+
+func (response PostContainerStop500JSONResponse) VisitPostContainerStopResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostContainerStop503ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostContainerStop503JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    PostContainerStop503JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers PostContainerStop503ResponseHeaders
+}
+
+func (response PostContainerStop503JSONResponse) VisitPostContainerStopResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerImagesRequestObject struct {
+	Params GetDockerImagesParams
+}
+
+type GetDockerImagesResponseObject interface {
+	VisitGetDockerImagesResponse(w http.ResponseWriter) error
+}
+
+type GetDockerImages200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		Items []struct {
+			Architecture *string `json:"architecture,omitempty"`
+
+			// ContainerReferences Containers currently referencing this image, represented as sanitized display references.
+			ContainerReferences []struct {
+				Id   string `json:"id"`
+				Name string `json:"name"`
+			} `json:"container_references"`
+			Containers int64  `json:"containers"`
+			CreatedAt  string `json:"created_at"`
+
+			// Dangling Whether the image has only an untagged placeholder reference.
+			Dangling          bool               `json:"dangling"`
+			Id                string             `json:"id"`
+			Labels            *map[string]string `json:"labels,omitempty"`
+			OperatingSystem   *string            `json:"operating_system,omitempty"`
+			RepositoryDigests []string           `json:"repository_digests"`
+			RepositoryTags    []string           `json:"repository_tags"`
+			SizeBytes         int64              `json:"size_bytes"`
+		} `json:"items"`
+		Limit   int `json:"limit"`
+		Offset  int `json:"offset"`
+		Summary struct {
+			Dangling  int   `json:"dangling"`
+			InUse     int   `json:"in_use"`
+			SizeBytes int64 `json:"size_bytes"`
+			Total     int   `json:"total"`
+		} `json:"summary"`
+		Total int `json:"total"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response GetDockerImages200JSONResponse) VisitGetDockerImagesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerImages401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerImages401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetDockerImages401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetDockerImages401ResponseHeaders
+}
+
+func (response GetDockerImages401JSONResponse) VisitGetDockerImagesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerImages403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerImages403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetDockerImages403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetDockerImages403ResponseHeaders
+}
+
+func (response GetDockerImages403JSONResponse) VisitGetDockerImagesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerImages500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerImages500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetDockerImages500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetDockerImages500ResponseHeaders
+}
+
+func (response GetDockerImages500JSONResponse) VisitGetDockerImagesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageBatchRemoveRequestObject struct {
+	Params PostDockerImageBatchRemoveParams
+	Body   *PostDockerImageBatchRemoveJSONRequestBody
+}
+
+type PostDockerImageBatchRemoveResponseObject interface {
+	VisitPostDockerImageBatchRemoveResponse(w http.ResponseWriter) error
+}
+
+type PostDockerImageBatchRemove202ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageBatchRemove202JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+
+		// Data Receipt returned when a business action accepts asynchronous Task submission.
+		Data struct {
+			// Status Canonical persisted Task state-machine state.
+			Status PostDockerImageBatchRemove202JSONResponseBodyDataStatus `json:"status"`
+			TaskId int64                                                   `json:"task_id"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostDockerImageBatchRemove202ResponseHeaders
+}
+
+func (response PostDockerImageBatchRemove202JSONResponse) VisitPostDockerImageBatchRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageBatchRemove400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageBatchRemove400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    PostDockerImageBatchRemove400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers PostDockerImageBatchRemove400ResponseHeaders
+}
+
+func (response PostDockerImageBatchRemove400JSONResponse) VisitPostDockerImageBatchRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageBatchRemove401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageBatchRemove401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    PostDockerImageBatchRemove401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers PostDockerImageBatchRemove401ResponseHeaders
+}
+
+func (response PostDockerImageBatchRemove401JSONResponse) VisitPostDockerImageBatchRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageBatchRemove403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageBatchRemove403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    PostDockerImageBatchRemove403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers PostDockerImageBatchRemove403ResponseHeaders
+}
+
+func (response PostDockerImageBatchRemove403JSONResponse) VisitPostDockerImageBatchRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageBatchRemove409Response struct {
+}
+
+func (response PostDockerImageBatchRemove409Response) VisitPostDockerImageBatchRemoveResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type PostDockerImageBatchRemove500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageBatchRemove500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    PostDockerImageBatchRemove500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers PostDockerImageBatchRemove500ResponseHeaders
+}
+
+func (response PostDockerImageBatchRemove500JSONResponse) VisitPostDockerImageBatchRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageBatchRemove503ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageBatchRemove503JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    PostDockerImageBatchRemove503JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers PostDockerImageBatchRemove503ResponseHeaders
+}
+
+func (response PostDockerImageBatchRemove503JSONResponse) VisitPostDockerImageBatchRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImagePullRequestObject struct {
+	Params PostDockerImagePullParams
+	Body   *PostDockerImagePullJSONRequestBody
+}
+
+type PostDockerImagePullResponseObject interface {
+	VisitPostDockerImagePullResponse(w http.ResponseWriter) error
+}
+
+type PostDockerImagePull202JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+
+	// Data Receipt returned when a business action accepts asynchronous Task submission.
+	Data struct {
+		// Status Canonical persisted Task state-machine state.
+		Status PostDockerImagePull202JSONResponseBodyDataStatus `json:"status"`
+		TaskId int64                                            `json:"task_id"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PostDockerImagePull202JSONResponse) VisitPostDockerImagePullResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImagePull400Response struct {
+}
+
+func (response PostDockerImagePull400Response) VisitPostDockerImagePullResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PostDockerImagePull401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImagePull401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                       `json:"messageKey,omitempty"`
+		Success    PostDockerImagePull401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                        `json:"traceId"`
+	}
+	Headers PostDockerImagePull401ResponseHeaders
+}
+
+func (response PostDockerImagePull401JSONResponse) VisitPostDockerImagePullResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImagePull403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImagePull403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                       `json:"messageKey,omitempty"`
+		Success    PostDockerImagePull403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                        `json:"traceId"`
+	}
+	Headers PostDockerImagePull403ResponseHeaders
+}
+
+func (response PostDockerImagePull403JSONResponse) VisitPostDockerImagePullResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImagePull409Response struct {
+}
+
+func (response PostDockerImagePull409Response) VisitPostDockerImagePullResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type PostDockerImagePull500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImagePull500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                       `json:"messageKey,omitempty"`
+		Success    PostDockerImagePull500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                        `json:"traceId"`
+	}
+	Headers PostDockerImagePull500ResponseHeaders
+}
+
+func (response PostDockerImagePull500JSONResponse) VisitPostDockerImagePullResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImagePull503ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImagePull503JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                       `json:"messageKey,omitempty"`
+		Success    PostDockerImagePull503JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                        `json:"traceId"`
+	}
+	Headers PostDockerImagePull503ResponseHeaders
+}
+
+func (response PostDockerImagePull503JSONResponse) VisitPostDockerImagePullResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerImageRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetDockerImageResponseObject interface {
+	VisitGetDockerImageResponse(w http.ResponseWriter) error
+}
+
+type GetDockerImage200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		Architecture *string `json:"architecture,omitempty"`
+
+		// ContainerReferences Containers currently referencing this image, represented as sanitized display references.
+		ContainerReferences []struct {
+			Id   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"container_references"`
+		Containers int64  `json:"containers"`
+		CreatedAt  string `json:"created_at"`
+
+		// Dangling Whether the image has only an untagged placeholder reference.
+		Dangling          bool               `json:"dangling"`
+		Id                string             `json:"id"`
+		Labels            *map[string]string `json:"labels,omitempty"`
+		OperatingSystem   *string            `json:"operating_system,omitempty"`
+		RepositoryDigests []string           `json:"repository_digests"`
+		RepositoryTags    []string           `json:"repository_tags"`
+		SizeBytes         int64              `json:"size_bytes"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response GetDockerImage200JSONResponse) VisitGetDockerImageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerImage401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerImage401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                  `json:"messageKey,omitempty"`
+		Success    GetDockerImage401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                   `json:"traceId"`
+	}
+	Headers GetDockerImage401ResponseHeaders
+}
+
+func (response GetDockerImage401JSONResponse) VisitGetDockerImageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerImage403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerImage403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                  `json:"messageKey,omitempty"`
+		Success    GetDockerImage403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                   `json:"traceId"`
+	}
+	Headers GetDockerImage403ResponseHeaders
+}
+
+func (response GetDockerImage403JSONResponse) VisitGetDockerImageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerImage404Response struct {
+}
+
+func (response GetDockerImage404Response) VisitGetDockerImageResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type GetDockerImage500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerImage500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                  `json:"messageKey,omitempty"`
+		Success    GetDockerImage500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                   `json:"traceId"`
+	}
+	Headers GetDockerImage500ResponseHeaders
+}
+
+func (response GetDockerImage500JSONResponse) VisitGetDockerImageResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageRemoveRequestObject struct {
+	Id     string `json:"id"`
+	Params PostDockerImageRemoveParams
+	Body   *PostDockerImageRemoveJSONRequestBody
+}
+
+type PostDockerImageRemoveResponseObject interface {
+	VisitPostDockerImageRemoveResponse(w http.ResponseWriter) error
+}
+
+type PostDockerImageRemove202JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+
+	// Data Receipt returned when a business action accepts asynchronous Task submission.
+	Data struct {
+		// Status Canonical persisted Task state-machine state.
+		Status PostDockerImageRemove202JSONResponseBodyDataStatus `json:"status"`
+		TaskId int64                                              `json:"task_id"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PostDockerImageRemove202JSONResponse) VisitPostDockerImageRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageRemove400Response struct {
+}
+
+func (response PostDockerImageRemove400Response) VisitPostDockerImageRemoveResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PostDockerImageRemove401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageRemove401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                         `json:"messageKey,omitempty"`
+		Success    PostDockerImageRemove401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                          `json:"traceId"`
+	}
+	Headers PostDockerImageRemove401ResponseHeaders
+}
+
+func (response PostDockerImageRemove401JSONResponse) VisitPostDockerImageRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageRemove403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageRemove403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                         `json:"messageKey,omitempty"`
+		Success    PostDockerImageRemove403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                          `json:"traceId"`
+	}
+	Headers PostDockerImageRemove403ResponseHeaders
+}
+
+func (response PostDockerImageRemove403JSONResponse) VisitPostDockerImageRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageRemove404Response struct {
+}
+
+func (response PostDockerImageRemove404Response) VisitPostDockerImageRemoveResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PostDockerImageRemove409Response struct {
+}
+
+func (response PostDockerImageRemove409Response) VisitPostDockerImageRemoveResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type PostDockerImageRemove500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageRemove500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                         `json:"messageKey,omitempty"`
+		Success    PostDockerImageRemove500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                          `json:"traceId"`
+	}
+	Headers PostDockerImageRemove500ResponseHeaders
+}
+
+func (response PostDockerImageRemove500JSONResponse) VisitPostDockerImageRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageRemove503ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageRemove503JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                         `json:"messageKey,omitempty"`
+		Success    PostDockerImageRemove503JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                          `json:"traceId"`
+	}
+	Headers PostDockerImageRemove503ResponseHeaders
+}
+
+func (response PostDockerImageRemove503JSONResponse) VisitPostDockerImageRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageTagRequestObject struct {
+	Id     string `json:"id"`
+	Params PostDockerImageTagParams
+	Body   *PostDockerImageTagJSONRequestBody
+}
+
+type PostDockerImageTagResponseObject interface {
+	VisitPostDockerImageTagResponse(w http.ResponseWriter) error
+}
+
+type PostDockerImageTag202JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+
+	// Data Receipt returned when a business action accepts asynchronous Task submission.
+	Data struct {
+		// Status Canonical persisted Task state-machine state.
+		Status PostDockerImageTag202JSONResponseBodyDataStatus `json:"status"`
+		TaskId int64                                           `json:"task_id"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PostDockerImageTag202JSONResponse) VisitPostDockerImageTagResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageTag400Response struct {
+}
+
+func (response PostDockerImageTag400Response) VisitPostDockerImageTagResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PostDockerImageTag401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageTag401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    PostDockerImageTag401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers PostDockerImageTag401ResponseHeaders
+}
+
+func (response PostDockerImageTag401JSONResponse) VisitPostDockerImageTagResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageTag403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageTag403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    PostDockerImageTag403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers PostDockerImageTag403ResponseHeaders
+}
+
+func (response PostDockerImageTag403JSONResponse) VisitPostDockerImageTagResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageTag404Response struct {
+}
+
+func (response PostDockerImageTag404Response) VisitPostDockerImageTagResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PostDockerImageTag409Response struct {
+}
+
+func (response PostDockerImageTag409Response) VisitPostDockerImageTagResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type PostDockerImageTag500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageTag500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    PostDockerImageTag500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers PostDockerImageTag500ResponseHeaders
+}
+
+func (response PostDockerImageTag500JSONResponse) VisitPostDockerImageTagResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageTag503ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageTag503JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                      `json:"messageKey,omitempty"`
+		Success    PostDockerImageTag503JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                       `json:"traceId"`
+	}
+	Headers PostDockerImageTag503ResponseHeaders
+}
+
+func (response PostDockerImageTag503JSONResponse) VisitPostDockerImageTagResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageUntagRequestObject struct {
+	Id     string `json:"id"`
+	Params PostDockerImageUntagParams
+	Body   *PostDockerImageUntagJSONRequestBody
+}
+
+type PostDockerImageUntagResponseObject interface {
+	VisitPostDockerImageUntagResponse(w http.ResponseWriter) error
+}
+
+type PostDockerImageUntag202JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+
+	// Data Receipt returned when a business action accepts asynchronous Task submission.
+	Data struct {
+		// Status Canonical persisted Task state-machine state.
+		Status PostDockerImageUntag202JSONResponseBodyDataStatus `json:"status"`
+		TaskId int64                                             `json:"task_id"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PostDockerImageUntag202JSONResponse) VisitPostDockerImageUntagResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageUntag400Response struct {
+}
+
+func (response PostDockerImageUntag400Response) VisitPostDockerImageUntagResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PostDockerImageUntag401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageUntag401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostDockerImageUntag401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostDockerImageUntag401ResponseHeaders
+}
+
+func (response PostDockerImageUntag401JSONResponse) VisitPostDockerImageUntagResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageUntag403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageUntag403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostDockerImageUntag403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostDockerImageUntag403ResponseHeaders
+}
+
+func (response PostDockerImageUntag403JSONResponse) VisitPostDockerImageUntagResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageUntag404Response struct {
+}
+
+func (response PostDockerImageUntag404Response) VisitPostDockerImageUntagResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PostDockerImageUntag409Response struct {
+}
+
+func (response PostDockerImageUntag409Response) VisitPostDockerImageUntagResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type PostDockerImageUntag500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageUntag500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostDockerImageUntag500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostDockerImageUntag500ResponseHeaders
+}
+
+func (response PostDockerImageUntag500JSONResponse) VisitPostDockerImageUntagResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerImageUntag503ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerImageUntag503JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostDockerImageUntag503JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostDockerImageUntag503ResponseHeaders
+}
+
+func (response PostDockerImageUntag503JSONResponse) VisitPostDockerImageUntagResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerNetworksRequestObject struct {
+	Params GetDockerNetworksParams
+}
+
+type GetDockerNetworksResponseObject interface {
+	VisitGetDockerNetworksResponse(w http.ResponseWriter) error
+}
+
+type GetDockerNetworks200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		Items []struct {
+			Attachable     bool `json:"attachable"`
+			ContainerCount int  `json:"container_count"`
+
+			// ContainerReferences Containers currently connected to this network, represented as sanitized display references.
+			ContainerReferences []struct {
+				Id   string `json:"id"`
+				Name string `json:"name"`
+			} `json:"container_references"`
+
+			// Context Normalized business context for a Docker resource. It is an explicit server-owned projection and never a raw labels or inspect payload.
+			Context struct {
+				// ComposeProject Compose project identity when the resource is Compose-owned.
+				ComposeProject *string `json:"compose_project,omitempty"`
+
+				// ComposeResource Compose network or volume name when supplied by trusted Compose runtime metadata.
+				ComposeResource *string `json:"compose_resource,omitempty"`
+
+				// ManagedBy Control-plane identity when a managed resource has a known owner.
+				ManagedBy *string `json:"managed_by,omitempty"`
+
+				// Runtime Stable runtime provider identifier, such as docker. Clients localize known values.
+				Runtime string `json:"runtime"`
+
+				// RuntimeTarget Stable runtime target identifier when the resource is scoped to a known target.
+				RuntimeTarget *string `json:"runtime_target,omitempty"`
+
+				// Source Normalized business origin for a Docker resource. The server derives this value from trusted runtime facts; clients must not infer it from labels.
+				Source GetDockerNetworks200JSONResponseBodyDataItemsContextSource `json:"source"`
+			} `json:"context"`
+			CreatedAt string             `json:"created_at"`
+			Driver    string             `json:"driver"`
+			Id        string             `json:"id"`
+			Ingress   bool               `json:"ingress"`
+			Internal  bool               `json:"internal"`
+			Labels    *map[string]string `json:"labels,omitempty"`
+			Name      string             `json:"name"`
+
+			// RelationshipStatus Server-owned confidence-aware status for the resource's business relationships. It must not be inferred from labels by clients.
+			RelationshipStatus GetDockerNetworks200JSONResponseBodyDataItemsRelationshipStatus `json:"relationship_status"`
+			Removable          *bool                                                           `json:"removable,omitempty"`
+			Scope              string                                                          `json:"scope"`
+		} `json:"items"`
+		Limit   int `json:"limit"`
+		Offset  int `json:"offset"`
+		Summary struct {
+			InUse  int `json:"in_use"`
+			Total  int `json:"total"`
+			Unused int `json:"unused"`
+		} `json:"summary"`
+		Total int `json:"total"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response GetDockerNetworks200JSONResponse) VisitGetDockerNetworksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerNetworks400JSONResponse struct {
+	// Code Existing canonical error response code.
+	Code string `json:"code"`
+
+	// Data Optional structured error details preserved from the current runtime.
+	Data *map[string]interface{} `json:"data,omitempty"`
+
+	// Locale Locale used to resolve the fallback message text in this response.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text paired with messageKey for compatibility.
+	Message string `json:"message"`
+
+	// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+	MessageKey *string                                     `json:"messageKey,omitempty"`
+	Success    GetDockerNetworks400JSONResponseBodySuccess `json:"success"`
+	TraceId    string                                      `json:"traceId"`
+}
+
+func (response GetDockerNetworks400JSONResponse) VisitGetDockerNetworksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerNetworks401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerNetworks401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    GetDockerNetworks401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers GetDockerNetworks401ResponseHeaders
+}
+
+func (response GetDockerNetworks401JSONResponse) VisitGetDockerNetworksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerNetworks403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerNetworks403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    GetDockerNetworks403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers GetDockerNetworks403ResponseHeaders
+}
+
+func (response GetDockerNetworks403JSONResponse) VisitGetDockerNetworksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerNetworks500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerNetworks500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    GetDockerNetworks500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers GetDockerNetworks500ResponseHeaders
+}
+
+func (response GetDockerNetworks500JSONResponse) VisitGetDockerNetworksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerNetworkRequestObject struct {
+	Params PostDockerNetworkParams
+	Body   *PostDockerNetworkJSONRequestBody
+}
+
+type PostDockerNetworkResponseObject interface {
+	VisitPostDockerNetworkResponse(w http.ResponseWriter) error
+}
+
+type PostDockerNetwork202JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+
+	// Data Receipt returned when a business action accepts asynchronous Task submission.
+	Data struct {
+		// Status Canonical persisted Task state-machine state.
+		Status PostDockerNetwork202JSONResponseBodyDataStatus `json:"status"`
+		TaskId int64                                          `json:"task_id"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PostDockerNetwork202JSONResponse) VisitPostDockerNetworkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerNetwork400Response struct {
+}
+
+func (response PostDockerNetwork400Response) VisitPostDockerNetworkResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PostDockerNetwork401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerNetwork401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    PostDockerNetwork401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers PostDockerNetwork401ResponseHeaders
+}
+
+func (response PostDockerNetwork401JSONResponse) VisitPostDockerNetworkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerNetwork403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerNetwork403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    PostDockerNetwork403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers PostDockerNetwork403ResponseHeaders
+}
+
+func (response PostDockerNetwork403JSONResponse) VisitPostDockerNetworkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerNetwork409Response struct {
+}
+
+func (response PostDockerNetwork409Response) VisitPostDockerNetworkResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type PostDockerNetwork500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerNetwork500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    PostDockerNetwork500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers PostDockerNetwork500ResponseHeaders
+}
+
+func (response PostDockerNetwork500JSONResponse) VisitPostDockerNetworkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerNetwork503ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerNetwork503JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    PostDockerNetwork503JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers PostDockerNetwork503ResponseHeaders
+}
+
+func (response PostDockerNetwork503JSONResponse) VisitPostDockerNetworkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerNetworkSavedViewsRequestObject struct {
+	Params GetDockerNetworkSavedViewsParams
+}
+
+type GetDockerNetworkSavedViewsResponseObject interface {
+	VisitGetDockerNetworkSavedViewsResponse(w http.ResponseWriter) error
+}
+
+type GetDockerNetworkSavedViews200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		Items []struct {
+			CreatedAt time.Time `json:"created_at"`
+			Id        int64     `json:"id"`
+
+			// IsDefault Whether this user view is applied by default for its list surface.
+			IsDefault      bool                   `json:"is_default"`
+			Name           string                 `json:"name"`
+			PageSize       int                    `json:"page_size"`
+			QueryState     map[string]interface{} `json:"query_state"`
+			UpdatedAt      time.Time              `json:"updated_at"`
+			VisibleColumns []string               `json:"visible_columns"`
+		} `json:"items"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response GetDockerNetworkSavedViews200JSONResponse) VisitGetDockerNetworkSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerNetworkSavedViews401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerNetworkSavedViews401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    GetDockerNetworkSavedViews401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers GetDockerNetworkSavedViews401ResponseHeaders
+}
+
+func (response GetDockerNetworkSavedViews401JSONResponse) VisitGetDockerNetworkSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerNetworkSavedViews403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerNetworkSavedViews403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    GetDockerNetworkSavedViews403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers GetDockerNetworkSavedViews403ResponseHeaders
+}
+
+func (response GetDockerNetworkSavedViews403JSONResponse) VisitGetDockerNetworkSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerNetworkSavedViewRequestObject struct {
+	Params PostDockerNetworkSavedViewParams
+	Body   *PostDockerNetworkSavedViewJSONRequestBody
+}
+
+type PostDockerNetworkSavedViewResponseObject interface {
+	VisitPostDockerNetworkSavedViewResponse(w http.ResponseWriter) error
+}
+
+type PostDockerNetworkSavedView201JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		CreatedAt time.Time `json:"created_at"`
+		Id        int64     `json:"id"`
+
+		// IsDefault Whether this user view is applied by default for its list surface.
+		IsDefault      bool                   `json:"is_default"`
+		Name           string                 `json:"name"`
+		PageSize       int                    `json:"page_size"`
+		QueryState     map[string]interface{} `json:"query_state"`
+		UpdatedAt      time.Time              `json:"updated_at"`
+		VisibleColumns []string               `json:"visible_columns"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PostDockerNetworkSavedView201JSONResponse) VisitPostDockerNetworkSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerNetworkSavedView400Response struct {
+}
+
+func (response PostDockerNetworkSavedView400Response) VisitPostDockerNetworkSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PostDockerNetworkSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerNetworkSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    PostDockerNetworkSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers PostDockerNetworkSavedView401ResponseHeaders
+}
+
+func (response PostDockerNetworkSavedView401JSONResponse) VisitPostDockerNetworkSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerNetworkSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerNetworkSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    PostDockerNetworkSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers PostDockerNetworkSavedView403ResponseHeaders
+}
+
+func (response PostDockerNetworkSavedView403JSONResponse) VisitPostDockerNetworkSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerNetworkSavedView409Response struct {
+}
+
+func (response PostDockerNetworkSavedView409Response) VisitPostDockerNetworkSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type DeleteDockerNetworkSavedViewRequestObject struct {
+	ViewId int64 `json:"viewId"`
+	Params DeleteDockerNetworkSavedViewParams
+}
+
+type DeleteDockerNetworkSavedViewResponseObject interface {
+	VisitDeleteDockerNetworkSavedViewResponse(w http.ResponseWriter) error
+}
+
+type DeleteDockerNetworkSavedView204Response struct {
+}
+
+func (response DeleteDockerNetworkSavedView204Response) VisitDeleteDockerNetworkSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteDockerNetworkSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteDockerNetworkSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                `json:"messageKey,omitempty"`
+		Success    DeleteDockerNetworkSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                 `json:"traceId"`
+	}
+	Headers DeleteDockerNetworkSavedView401ResponseHeaders
+}
+
+func (response DeleteDockerNetworkSavedView401JSONResponse) VisitDeleteDockerNetworkSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDockerNetworkSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteDockerNetworkSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                `json:"messageKey,omitempty"`
+		Success    DeleteDockerNetworkSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                 `json:"traceId"`
+	}
+	Headers DeleteDockerNetworkSavedView403ResponseHeaders
+}
+
+func (response DeleteDockerNetworkSavedView403JSONResponse) VisitDeleteDockerNetworkSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDockerNetworkSavedView404Response struct {
+}
+
+func (response DeleteDockerNetworkSavedView404Response) VisitDeleteDockerNetworkSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PutDockerNetworkSavedViewRequestObject struct {
+	ViewId int64 `json:"viewId"`
+	Params PutDockerNetworkSavedViewParams
+	Body   *PutDockerNetworkSavedViewJSONRequestBody
+}
+
+type PutDockerNetworkSavedViewResponseObject interface {
+	VisitPutDockerNetworkSavedViewResponse(w http.ResponseWriter) error
+}
+
+type PutDockerNetworkSavedView200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		CreatedAt time.Time `json:"created_at"`
+		Id        int64     `json:"id"`
+
+		// IsDefault Whether this user view is applied by default for its list surface.
+		IsDefault      bool                   `json:"is_default"`
+		Name           string                 `json:"name"`
+		PageSize       int                    `json:"page_size"`
+		QueryState     map[string]interface{} `json:"query_state"`
+		UpdatedAt      time.Time              `json:"updated_at"`
+		VisibleColumns []string               `json:"visible_columns"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PutDockerNetworkSavedView200JSONResponse) VisitPutDockerNetworkSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutDockerNetworkSavedView400Response struct {
+}
+
+func (response PutDockerNetworkSavedView400Response) VisitPutDockerNetworkSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PutDockerNetworkSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutDockerNetworkSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PutDockerNetworkSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PutDockerNetworkSavedView401ResponseHeaders
+}
+
+func (response PutDockerNetworkSavedView401JSONResponse) VisitPutDockerNetworkSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutDockerNetworkSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutDockerNetworkSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PutDockerNetworkSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PutDockerNetworkSavedView403ResponseHeaders
+}
+
+func (response PutDockerNetworkSavedView403JSONResponse) VisitPutDockerNetworkSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutDockerNetworkSavedView404Response struct {
+}
+
+func (response PutDockerNetworkSavedView404Response) VisitPutDockerNetworkSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PutDockerNetworkSavedView409Response struct {
+}
+
+func (response PutDockerNetworkSavedView409Response) VisitPutDockerNetworkSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type DeleteDockerNetworkRequestObject struct {
+	Id   string `json:"id"`
+	Body *DeleteDockerNetworkJSONRequestBody
+}
+
+type DeleteDockerNetworkResponseObject interface {
+	VisitDeleteDockerNetworkResponse(w http.ResponseWriter) error
+}
+
+type DeleteDockerNetwork202JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+
+	// Data Receipt returned when a business action accepts asynchronous Task submission.
+	Data struct {
+		// Status Canonical persisted Task state-machine state.
+		Status DeleteDockerNetwork202JSONResponseBodyDataStatus `json:"status"`
+		TaskId int64                                            `json:"task_id"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response DeleteDockerNetwork202JSONResponse) VisitDeleteDockerNetworkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDockerNetwork400Response struct {
+}
+
+func (response DeleteDockerNetwork400Response) VisitDeleteDockerNetworkResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type DeleteDockerNetwork401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteDockerNetwork401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                       `json:"messageKey,omitempty"`
+		Success    DeleteDockerNetwork401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                        `json:"traceId"`
+	}
+	Headers DeleteDockerNetwork401ResponseHeaders
+}
+
+func (response DeleteDockerNetwork401JSONResponse) VisitDeleteDockerNetworkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDockerNetwork403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteDockerNetwork403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                       `json:"messageKey,omitempty"`
+		Success    DeleteDockerNetwork403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                        `json:"traceId"`
+	}
+	Headers DeleteDockerNetwork403ResponseHeaders
+}
+
+func (response DeleteDockerNetwork403JSONResponse) VisitDeleteDockerNetworkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDockerNetwork404Response struct {
+}
+
+func (response DeleteDockerNetwork404Response) VisitDeleteDockerNetworkResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type DeleteDockerNetwork409Response struct {
+}
+
+func (response DeleteDockerNetwork409Response) VisitDeleteDockerNetworkResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type DeleteDockerNetwork500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteDockerNetwork500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                       `json:"messageKey,omitempty"`
+		Success    DeleteDockerNetwork500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                        `json:"traceId"`
+	}
+	Headers DeleteDockerNetwork500ResponseHeaders
+}
+
+func (response DeleteDockerNetwork500JSONResponse) VisitDeleteDockerNetworkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDockerNetwork503ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteDockerNetwork503JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                       `json:"messageKey,omitempty"`
+		Success    DeleteDockerNetwork503JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                        `json:"traceId"`
+	}
+	Headers DeleteDockerNetwork503ResponseHeaders
+}
+
+func (response DeleteDockerNetwork503JSONResponse) VisitDeleteDockerNetworkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerNetworkRequestObject struct {
+	Id     string `json:"id"`
+	Params GetDockerNetworkParams
+}
+
+type GetDockerNetworkResponseObject interface {
+	VisitGetDockerNetworkResponse(w http.ResponseWriter) error
+}
+
+type GetDockerNetwork200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		Attachable     bool `json:"attachable"`
+		ContainerCount int  `json:"container_count"`
+
+		// ContainerReferences Containers currently connected to this network, represented as sanitized display references.
+		ContainerReferences []struct {
+			Id   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"container_references"`
+
+		// Context Normalized business context for a Docker resource. It is an explicit server-owned projection and never a raw labels or inspect payload.
+		Context struct {
+			// ComposeProject Compose project identity when the resource is Compose-owned.
+			ComposeProject *string `json:"compose_project,omitempty"`
+
+			// ComposeResource Compose network or volume name when supplied by trusted Compose runtime metadata.
+			ComposeResource *string `json:"compose_resource,omitempty"`
+
+			// ManagedBy Control-plane identity when a managed resource has a known owner.
+			ManagedBy *string `json:"managed_by,omitempty"`
+
+			// Runtime Stable runtime provider identifier, such as docker. Clients localize known values.
+			Runtime string `json:"runtime"`
+
+			// RuntimeTarget Stable runtime target identifier when the resource is scoped to a known target.
+			RuntimeTarget *string `json:"runtime_target,omitempty"`
+
+			// Source Normalized business origin for a Docker resource. The server derives this value from trusted runtime facts; clients must not infer it from labels.
+			Source GetDockerNetwork200JSONResponseBodyDataContextSource `json:"source"`
+		} `json:"context"`
+		CreatedAt string `json:"created_at"`
+		Driver    string `json:"driver"`
+		Id        string `json:"id"`
+		Ingress   bool   `json:"ingress"`
+		Internal  bool   `json:"internal"`
+		Ipam      *struct {
+			Config *[]struct {
+				Gateway *string `json:"gateway,omitempty"`
+				Subnet  *string `json:"subnet,omitempty"`
+			} `json:"config,omitempty"`
+			Driver *string `json:"driver,omitempty"`
+		} `json:"ipam,omitempty"`
+		Labels *map[string]string `json:"labels,omitempty"`
+		Name   string             `json:"name"`
+
+		// RelationshipStatus Server-owned confidence-aware status for the resource's business relationships. It must not be inferred from labels by clients.
+		RelationshipStatus GetDockerNetwork200JSONResponseBodyDataRelationshipStatus `json:"relationship_status"`
+		Removable          *bool                                                     `json:"removable,omitempty"`
+		Scope              string                                                    `json:"scope"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response GetDockerNetwork200JSONResponse) VisitGetDockerNetworkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerNetwork401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerNetwork401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetDockerNetwork401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetDockerNetwork401ResponseHeaders
+}
+
+func (response GetDockerNetwork401JSONResponse) VisitGetDockerNetworkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerNetwork403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerNetwork403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetDockerNetwork403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetDockerNetwork403ResponseHeaders
+}
+
+func (response GetDockerNetwork403JSONResponse) VisitGetDockerNetworkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerNetwork404Response struct {
+}
+
+func (response GetDockerNetwork404Response) VisitGetDockerNetworkResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type GetDockerNetwork500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerNetwork500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetDockerNetwork500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetDockerNetwork500ResponseHeaders
+}
+
+func (response GetDockerNetwork500JSONResponse) VisitGetDockerNetworkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerSystemRequestObject struct {
+}
+
+type GetDockerSystemResponseObject interface {
+	VisitGetDockerSystemResponse(w http.ResponseWriter) error
+}
+
+type GetDockerSystem200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		ApiVersion        *string `json:"api_version,omitempty"`
+		Architecture      *string `json:"architecture,omitempty"`
+		ContainersRunning *int    `json:"containers_running,omitempty"`
+		ContainersTotal   *int    `json:"containers_total,omitempty"`
+
+		// Endpoint Runtime endpoint label. Sensitive credentials must not be included.
+		Endpoint        string  `json:"endpoint"`
+		OperatingSystem *string `json:"operating_system,omitempty"`
+
+		// Runtime Container runtime adapter key.
+		Runtime       string                                       `json:"runtime"`
+		ServerVersion *string                                      `json:"server_version,omitempty"`
+		Status        GetDockerSystem200JSONResponseBodyDataStatus `json:"status"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response GetDockerSystem200JSONResponse) VisitGetDockerSystemResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerSystem401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerSystem401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetDockerSystem401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetDockerSystem401ResponseHeaders
+}
+
+func (response GetDockerSystem401JSONResponse) VisitGetDockerSystemResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerSystem403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerSystem403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetDockerSystem403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetDockerSystem403ResponseHeaders
+}
+
+func (response GetDockerSystem403JSONResponse) VisitGetDockerSystemResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerSystem500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerSystem500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetDockerSystem500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetDockerSystem500ResponseHeaders
+}
+
+func (response GetDockerSystem500JSONResponse) VisitGetDockerSystemResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerVolumesRequestObject struct {
+	Params GetDockerVolumesParams
+}
+
+type GetDockerVolumesResponseObject interface {
+	VisitGetDockerVolumesResponse(w http.ResponseWriter) error
+}
+
+type GetDockerVolumes200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerVolumes200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			Items []struct {
+				// Anonymous Server-owned classification of Docker-generated anonymous volume names.
+				Anonymous bool `json:"anonymous"`
+
+				// ContainerReferences Containers currently referencing this volume, represented as sanitized display references.
+				ContainerReferences []struct {
+					Id   string `json:"id"`
+					Name string `json:"name"`
+				} `json:"container_references"`
+
+				// Context Normalized business context for a Docker resource. It is an explicit server-owned projection and never a raw labels or inspect payload.
+				Context struct {
+					// ComposeProject Compose project identity when the resource is Compose-owned.
+					ComposeProject *string `json:"compose_project,omitempty"`
+
+					// ComposeResource Compose network or volume name when supplied by trusted Compose runtime metadata.
+					ComposeResource *string `json:"compose_resource,omitempty"`
+
+					// ManagedBy Control-plane identity when a managed resource has a known owner.
+					ManagedBy *string `json:"managed_by,omitempty"`
+
+					// Runtime Stable runtime provider identifier, such as docker. Clients localize known values.
+					Runtime string `json:"runtime"`
+
+					// RuntimeTarget Stable runtime target identifier when the resource is scoped to a known target.
+					RuntimeTarget *string `json:"runtime_target,omitempty"`
+
+					// Source Normalized business origin for a Docker resource. The server derives this value from trusted runtime facts; clients must not infer it from labels.
+					Source GetDockerVolumes200JSONResponseBodyDataItemsContextSource `json:"source"`
+				} `json:"context"`
+				CreatedAt      string             `json:"created_at"`
+				Driver         string             `json:"driver"`
+				Labels         *map[string]string `json:"labels,omitempty"`
+				Name           string             `json:"name"`
+				ReferenceCount *int64             `json:"reference_count,omitempty"`
+
+				// RelationshipStatus Server-owned confidence-aware status for the resource's business relationships. It must not be inferred from labels by clients.
+				RelationshipStatus GetDockerVolumes200JSONResponseBodyDataItemsRelationshipStatus `json:"relationship_status"`
+				Scope              string                                                         `json:"scope"`
+				SizeBytes          *int64                                                         `json:"size_bytes,omitempty"`
+			} `json:"items"`
+			Limit   int `json:"limit"`
+			Offset  int `json:"offset"`
+			Summary struct {
+				InUse int `json:"in_use"`
+
+				// Orphaned Resolved unused volumes with no container references; safe-cleanup candidates, not Docker errors.
+				Orphaned         int    `json:"orphaned"`
+				ReferenceUnknown int    `json:"reference_unknown"`
+				SizeBytes        *int64 `json:"size_bytes,omitempty"`
+				Total            int    `json:"total"`
+				Unused           int    `json:"unused"`
+			} `json:"summary"`
+			Total int `json:"total"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetDockerVolumes200ResponseHeaders
+}
+
+func (response GetDockerVolumes200JSONResponse) VisitGetDockerVolumesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerVolumes400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerVolumes400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetDockerVolumes400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetDockerVolumes400ResponseHeaders
+}
+
+func (response GetDockerVolumes400JSONResponse) VisitGetDockerVolumesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerVolumes401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerVolumes401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetDockerVolumes401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetDockerVolumes401ResponseHeaders
+}
+
+func (response GetDockerVolumes401JSONResponse) VisitGetDockerVolumesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerVolumes403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerVolumes403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetDockerVolumes403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetDockerVolumes403ResponseHeaders
+}
+
+func (response GetDockerVolumes403JSONResponse) VisitGetDockerVolumesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerVolumes500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerVolumes500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetDockerVolumes500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetDockerVolumes500ResponseHeaders
+}
+
+func (response GetDockerVolumes500JSONResponse) VisitGetDockerVolumesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeBatchRemoveRequestObject struct {
+	Params PostDockerVolumeBatchRemoveParams
+	Body   *PostDockerVolumeBatchRemoveJSONRequestBody
+}
+
+type PostDockerVolumeBatchRemoveResponseObject interface {
+	VisitPostDockerVolumeBatchRemoveResponse(w http.ResponseWriter) error
+}
+
+type PostDockerVolumeBatchRemove202JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+
+	// Data Receipt returned when a business action accepts asynchronous Task submission.
+	Data struct {
+		// Status Canonical persisted Task state-machine state.
+		Status PostDockerVolumeBatchRemove202JSONResponseBodyDataStatus `json:"status"`
+		TaskId int64                                                    `json:"task_id"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PostDockerVolumeBatchRemove202JSONResponse) VisitPostDockerVolumeBatchRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeBatchRemove400JSONResponse struct {
+	// Code Existing canonical error response code.
+	Code string `json:"code"`
+
+	// Data Optional structured error details preserved from the current runtime.
+	Data *map[string]interface{} `json:"data,omitempty"`
+
+	// Locale Locale used to resolve the fallback message text in this response.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text paired with messageKey for compatibility.
+	Message string `json:"message"`
+
+	// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+	MessageKey *string                                               `json:"messageKey,omitempty"`
+	Success    PostDockerVolumeBatchRemove400JSONResponseBodySuccess `json:"success"`
+	TraceId    string                                                `json:"traceId"`
+}
+
+func (response PostDockerVolumeBatchRemove400JSONResponse) VisitPostDockerVolumeBatchRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeBatchRemove401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerVolumeBatchRemove401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                               `json:"messageKey,omitempty"`
+		Success    PostDockerVolumeBatchRemove401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                `json:"traceId"`
+	}
+	Headers PostDockerVolumeBatchRemove401ResponseHeaders
+}
+
+func (response PostDockerVolumeBatchRemove401JSONResponse) VisitPostDockerVolumeBatchRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeBatchRemove403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerVolumeBatchRemove403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                               `json:"messageKey,omitempty"`
+		Success    PostDockerVolumeBatchRemove403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                `json:"traceId"`
+	}
+	Headers PostDockerVolumeBatchRemove403ResponseHeaders
+}
+
+func (response PostDockerVolumeBatchRemove403JSONResponse) VisitPostDockerVolumeBatchRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeBatchRemove409Response struct {
+}
+
+func (response PostDockerVolumeBatchRemove409Response) VisitPostDockerVolumeBatchRemoveResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type PostDockerVolumeBatchRemove500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerVolumeBatchRemove500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                               `json:"messageKey,omitempty"`
+		Success    PostDockerVolumeBatchRemove500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                `json:"traceId"`
+	}
+	Headers PostDockerVolumeBatchRemove500ResponseHeaders
+}
+
+func (response PostDockerVolumeBatchRemove500JSONResponse) VisitPostDockerVolumeBatchRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeBatchRemove503ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerVolumeBatchRemove503JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                               `json:"messageKey,omitempty"`
+		Success    PostDockerVolumeBatchRemove503JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                `json:"traceId"`
+	}
+	Headers PostDockerVolumeBatchRemove503ResponseHeaders
+}
+
+func (response PostDockerVolumeBatchRemove503JSONResponse) VisitPostDockerVolumeBatchRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerVolumeSavedViewsRequestObject struct {
+	Params GetDockerVolumeSavedViewsParams
+}
+
+type GetDockerVolumeSavedViewsResponseObject interface {
+	VisitGetDockerVolumeSavedViewsResponse(w http.ResponseWriter) error
+}
+
+type GetDockerVolumeSavedViews200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		Items []struct {
+			CreatedAt time.Time `json:"created_at"`
+			Id        int64     `json:"id"`
+
+			// IsDefault Whether this user view is applied by default for its list surface.
+			IsDefault      bool                   `json:"is_default"`
+			Name           string                 `json:"name"`
+			PageSize       int                    `json:"page_size"`
+			QueryState     map[string]interface{} `json:"query_state"`
+			UpdatedAt      time.Time              `json:"updated_at"`
+			VisibleColumns []string               `json:"visible_columns"`
+		} `json:"items"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response GetDockerVolumeSavedViews200JSONResponse) VisitGetDockerVolumeSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerVolumeSavedViews401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerVolumeSavedViews401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    GetDockerVolumeSavedViews401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers GetDockerVolumeSavedViews401ResponseHeaders
+}
+
+func (response GetDockerVolumeSavedViews401JSONResponse) VisitGetDockerVolumeSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerVolumeSavedViews403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerVolumeSavedViews403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    GetDockerVolumeSavedViews403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers GetDockerVolumeSavedViews403ResponseHeaders
+}
+
+func (response GetDockerVolumeSavedViews403JSONResponse) VisitGetDockerVolumeSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeSavedViewRequestObject struct {
+	Params PostDockerVolumeSavedViewParams
+	Body   *PostDockerVolumeSavedViewJSONRequestBody
+}
+
+type PostDockerVolumeSavedViewResponseObject interface {
+	VisitPostDockerVolumeSavedViewResponse(w http.ResponseWriter) error
+}
+
+type PostDockerVolumeSavedView201JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		CreatedAt time.Time `json:"created_at"`
+		Id        int64     `json:"id"`
+
+		// IsDefault Whether this user view is applied by default for its list surface.
+		IsDefault      bool                   `json:"is_default"`
+		Name           string                 `json:"name"`
+		PageSize       int                    `json:"page_size"`
+		QueryState     map[string]interface{} `json:"query_state"`
+		UpdatedAt      time.Time              `json:"updated_at"`
+		VisibleColumns []string               `json:"visible_columns"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PostDockerVolumeSavedView201JSONResponse) VisitPostDockerVolumeSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeSavedView400Response struct {
+}
+
+func (response PostDockerVolumeSavedView400Response) VisitPostDockerVolumeSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PostDockerVolumeSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerVolumeSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostDockerVolumeSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostDockerVolumeSavedView401ResponseHeaders
+}
+
+func (response PostDockerVolumeSavedView401JSONResponse) VisitPostDockerVolumeSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerVolumeSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostDockerVolumeSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostDockerVolumeSavedView403ResponseHeaders
+}
+
+func (response PostDockerVolumeSavedView403JSONResponse) VisitPostDockerVolumeSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeSavedView409Response struct {
+}
+
+func (response PostDockerVolumeSavedView409Response) VisitPostDockerVolumeSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type DeleteDockerVolumeSavedViewRequestObject struct {
+	ViewId int64 `json:"viewId"`
+	Params DeleteDockerVolumeSavedViewParams
+}
+
+type DeleteDockerVolumeSavedViewResponseObject interface {
+	VisitDeleteDockerVolumeSavedViewResponse(w http.ResponseWriter) error
+}
+
+type DeleteDockerVolumeSavedView204Response struct {
+}
+
+func (response DeleteDockerVolumeSavedView204Response) VisitDeleteDockerVolumeSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteDockerVolumeSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteDockerVolumeSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                               `json:"messageKey,omitempty"`
+		Success    DeleteDockerVolumeSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                `json:"traceId"`
+	}
+	Headers DeleteDockerVolumeSavedView401ResponseHeaders
+}
+
+func (response DeleteDockerVolumeSavedView401JSONResponse) VisitDeleteDockerVolumeSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDockerVolumeSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteDockerVolumeSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                               `json:"messageKey,omitempty"`
+		Success    DeleteDockerVolumeSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                `json:"traceId"`
+	}
+	Headers DeleteDockerVolumeSavedView403ResponseHeaders
+}
+
+func (response DeleteDockerVolumeSavedView403JSONResponse) VisitDeleteDockerVolumeSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDockerVolumeSavedView404Response struct {
+}
+
+func (response DeleteDockerVolumeSavedView404Response) VisitDeleteDockerVolumeSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PutDockerVolumeSavedViewRequestObject struct {
+	ViewId int64 `json:"viewId"`
+	Params PutDockerVolumeSavedViewParams
+	Body   *PutDockerVolumeSavedViewJSONRequestBody
+}
+
+type PutDockerVolumeSavedViewResponseObject interface {
+	VisitPutDockerVolumeSavedViewResponse(w http.ResponseWriter) error
+}
+
+type PutDockerVolumeSavedView200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		CreatedAt time.Time `json:"created_at"`
+		Id        int64     `json:"id"`
+
+		// IsDefault Whether this user view is applied by default for its list surface.
+		IsDefault      bool                   `json:"is_default"`
+		Name           string                 `json:"name"`
+		PageSize       int                    `json:"page_size"`
+		QueryState     map[string]interface{} `json:"query_state"`
+		UpdatedAt      time.Time              `json:"updated_at"`
+		VisibleColumns []string               `json:"visible_columns"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PutDockerVolumeSavedView200JSONResponse) VisitPutDockerVolumeSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutDockerVolumeSavedView400Response struct {
+}
+
+func (response PutDockerVolumeSavedView400Response) VisitPutDockerVolumeSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PutDockerVolumeSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutDockerVolumeSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    PutDockerVolumeSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers PutDockerVolumeSavedView401ResponseHeaders
+}
+
+func (response PutDockerVolumeSavedView401JSONResponse) VisitPutDockerVolumeSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutDockerVolumeSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutDockerVolumeSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    PutDockerVolumeSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers PutDockerVolumeSavedView403ResponseHeaders
+}
+
+func (response PutDockerVolumeSavedView403JSONResponse) VisitPutDockerVolumeSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutDockerVolumeSavedView404Response struct {
+}
+
+func (response PutDockerVolumeSavedView404Response) VisitPutDockerVolumeSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PutDockerVolumeSavedView409Response struct {
+}
+
+func (response PutDockerVolumeSavedView409Response) VisitPutDockerVolumeSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type GetDockerVolumeRequestObject struct {
+	Id     string `json:"id"`
+	Params GetDockerVolumeParams
+}
+
+type GetDockerVolumeResponseObject interface {
+	VisitGetDockerVolumeResponse(w http.ResponseWriter) error
+}
+
+type GetDockerVolume200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerVolume200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			// Anonymous Server-owned classification of Docker-generated anonymous volume names.
+			Anonymous bool `json:"anonymous"`
+
+			// ContainerReferences Containers currently referencing this volume, represented as sanitized display references.
+			ContainerReferences []struct {
+				Id   string `json:"id"`
+				Name string `json:"name"`
+			} `json:"container_references"`
+
+			// Context Normalized business context for a Docker resource. It is an explicit server-owned projection and never a raw labels or inspect payload.
+			Context struct {
+				// ComposeProject Compose project identity when the resource is Compose-owned.
+				ComposeProject *string `json:"compose_project,omitempty"`
+
+				// ComposeResource Compose network or volume name when supplied by trusted Compose runtime metadata.
+				ComposeResource *string `json:"compose_resource,omitempty"`
+
+				// ManagedBy Control-plane identity when a managed resource has a known owner.
+				ManagedBy *string `json:"managed_by,omitempty"`
+
+				// Runtime Stable runtime provider identifier, such as docker. Clients localize known values.
+				Runtime string `json:"runtime"`
+
+				// RuntimeTarget Stable runtime target identifier when the resource is scoped to a known target.
+				RuntimeTarget *string `json:"runtime_target,omitempty"`
+
+				// Source Normalized business origin for a Docker resource. The server derives this value from trusted runtime facts; clients must not infer it from labels.
+				Source GetDockerVolume200JSONResponseBodyDataContextSource `json:"source"`
+			} `json:"context"`
+			CreatedAt      string             `json:"created_at"`
+			Driver         string             `json:"driver"`
+			Labels         *map[string]string `json:"labels,omitempty"`
+			Name           string             `json:"name"`
+			ReferenceCount *int64             `json:"reference_count,omitempty"`
+
+			// RelationshipStatus Server-owned confidence-aware status for the resource's business relationships. It must not be inferred from labels by clients.
+			RelationshipStatus GetDockerVolume200JSONResponseBodyDataRelationshipStatus `json:"relationship_status"`
+			Scope              string                                                   `json:"scope"`
+			SizeBytes          *int64                                                   `json:"size_bytes,omitempty"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetDockerVolume200ResponseHeaders
+}
+
+func (response GetDockerVolume200JSONResponse) VisitGetDockerVolumeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerVolume400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerVolume400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetDockerVolume400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetDockerVolume400ResponseHeaders
+}
+
+func (response GetDockerVolume400JSONResponse) VisitGetDockerVolumeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerVolume401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerVolume401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetDockerVolume401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetDockerVolume401ResponseHeaders
+}
+
+func (response GetDockerVolume401JSONResponse) VisitGetDockerVolumeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerVolume403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerVolume403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetDockerVolume403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetDockerVolume403ResponseHeaders
+}
+
+func (response GetDockerVolume403JSONResponse) VisitGetDockerVolumeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerVolume404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerVolume404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetDockerVolume404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetDockerVolume404ResponseHeaders
+}
+
+func (response GetDockerVolume404JSONResponse) VisitGetDockerVolumeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDockerVolume500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetDockerVolume500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetDockerVolume500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetDockerVolume500ResponseHeaders
+}
+
+func (response GetDockerVolume500JSONResponse) VisitGetDockerVolumeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeRemoveRequestObject struct {
+	Id     string `json:"id"`
+	Params PostDockerVolumeRemoveParams
+	Body   *PostDockerVolumeRemoveJSONRequestBody
+}
+
+type PostDockerVolumeRemoveResponseObject interface {
+	VisitPostDockerVolumeRemoveResponse(w http.ResponseWriter) error
+}
+
+type PostDockerVolumeRemove202ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerVolumeRemove202JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+
+		// Data Receipt returned when a business action accepts asynchronous Task submission.
+		Data struct {
+			// Status Canonical persisted Task state-machine state.
+			Status PostDockerVolumeRemove202JSONResponseBodyDataStatus `json:"status"`
+			TaskId int64                                               `json:"task_id"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostDockerVolumeRemove202ResponseHeaders
+}
+
+func (response PostDockerVolumeRemove202JSONResponse) VisitPostDockerVolumeRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeRemove400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerVolumeRemove400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    PostDockerVolumeRemove400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers PostDockerVolumeRemove400ResponseHeaders
+}
+
+func (response PostDockerVolumeRemove400JSONResponse) VisitPostDockerVolumeRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeRemove401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerVolumeRemove401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    PostDockerVolumeRemove401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers PostDockerVolumeRemove401ResponseHeaders
+}
+
+func (response PostDockerVolumeRemove401JSONResponse) VisitPostDockerVolumeRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeRemove403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerVolumeRemove403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    PostDockerVolumeRemove403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers PostDockerVolumeRemove403ResponseHeaders
+}
+
+func (response PostDockerVolumeRemove403JSONResponse) VisitPostDockerVolumeRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeRemove404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerVolumeRemove404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    PostDockerVolumeRemove404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers PostDockerVolumeRemove404ResponseHeaders
+}
+
+func (response PostDockerVolumeRemove404JSONResponse) VisitPostDockerVolumeRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeRemove409ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerVolumeRemove409JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    PostDockerVolumeRemove409JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers PostDockerVolumeRemove409ResponseHeaders
+}
+
+func (response PostDockerVolumeRemove409JSONResponse) VisitPostDockerVolumeRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeRemove500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerVolumeRemove500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    PostDockerVolumeRemove500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers PostDockerVolumeRemove500ResponseHeaders
+}
+
+func (response PostDockerVolumeRemove500JSONResponse) VisitPostDockerVolumeRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostDockerVolumeRemove503ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostDockerVolumeRemove503JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    PostDockerVolumeRemove503JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers PostDockerVolumeRemove503ResponseHeaders
+}
+
+func (response PostDockerVolumeRemove503JSONResponse) VisitPostDockerVolumeRemoveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(503)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+// StrictServerInterface represents all server handlers.
+type StrictServerInterface interface {
+	// GetDockerImageSavedViews List private Docker image-list saved views
+	// (GET /api/docker/images/saved-views)
+	GetDockerImageSavedViews(ctx context.Context, request GetDockerImageSavedViewsRequestObject) (GetDockerImageSavedViewsResponseObject, error)
+	// PostDockerImageSavedView Create a private Docker image-list saved view
+	// (POST /api/docker/images/saved-views)
+	PostDockerImageSavedView(ctx context.Context, request PostDockerImageSavedViewRequestObject) (PostDockerImageSavedViewResponseObject, error)
+	// DeleteDockerImageSavedView Delete a private Docker image-list saved view
+	// (DELETE /api/docker/images/saved-views/{viewId})
+	DeleteDockerImageSavedView(ctx context.Context, request DeleteDockerImageSavedViewRequestObject) (DeleteDockerImageSavedViewResponseObject, error)
+	// PutDockerImageSavedView Update a private Docker image-list saved view
+	// (PUT /api/docker/images/saved-views/{viewId})
+	PutDockerImageSavedView(ctx context.Context, request PutDockerImageSavedViewRequestObject) (PutDockerImageSavedViewResponseObject, error)
+	// GetContainers List containers
+	// (GET /api/ops/containers)
+	GetContainers(ctx context.Context, request GetContainersRequestObject) (GetContainersResponseObject, error)
+	// PostContainerBatchActions Execute container actions in batch
+	// (POST /api/ops/containers/batch-actions)
+	PostContainerBatchActions(ctx context.Context, request PostContainerBatchActionsRequestObject) (PostContainerBatchActionsResponseObject, error)
+	// GetContainerDashboardSummary Read container dashboard summary
+	// (GET /api/ops/containers/dashboard-summary)
+	GetContainerDashboardSummary(ctx context.Context, request GetContainerDashboardSummaryRequestObject) (GetContainerDashboardSummaryResponseObject, error)
+	// GetContainerSavedViews List private container-list saved views
+	// (GET /api/ops/containers/saved-views)
+	GetContainerSavedViews(ctx context.Context, request GetContainerSavedViewsRequestObject) (GetContainerSavedViewsResponseObject, error)
+	// PostContainerSavedView Create a private container-list saved view
+	// (POST /api/ops/containers/saved-views)
+	PostContainerSavedView(ctx context.Context, request PostContainerSavedViewRequestObject) (PostContainerSavedViewResponseObject, error)
+	// DeleteContainerSavedView Delete a private container-list saved view
+	// (DELETE /api/ops/containers/saved-views/{viewId})
+	DeleteContainerSavedView(ctx context.Context, request DeleteContainerSavedViewRequestObject) (DeleteContainerSavedViewResponseObject, error)
+	// PutContainerSavedView Update a private container-list saved view
+	// (PUT /api/ops/containers/saved-views/{viewId})
+	PutContainerSavedView(ctx context.Context, request PutContainerSavedViewRequestObject) (PutContainerSavedViewResponseObject, error)
+	// GetContainer Read container detail
+	// (GET /api/ops/containers/{id})
+	GetContainer(ctx context.Context, request GetContainerRequestObject) (GetContainerResponseObject, error)
+	// GetContainerEvents Read container runtime events
+	// (GET /api/ops/containers/{id}/events)
+	GetContainerEvents(ctx context.Context, request GetContainerEventsRequestObject) (GetContainerEventsResponseObject, error)
+	// GetContainerLogs Read container logs
+	// (GET /api/ops/containers/{id}/logs)
+	GetContainerLogs(ctx context.Context, request GetContainerLogsRequestObject) (GetContainerLogsResponseObject, error)
+	// GetContainerMountUsage List container mount usage
+	// (GET /api/ops/containers/{id}/mounts/usage)
+	GetContainerMountUsage(ctx context.Context, request GetContainerMountUsageRequestObject) (GetContainerMountUsageResponseObject, error)
+	// PostContainerMountUsageRefresh Refresh one container mount usage statistic
+	// (POST /api/ops/containers/{id}/mounts/{mountId}/usage/refresh)
+	PostContainerMountUsageRefresh(ctx context.Context, request PostContainerMountUsageRefreshRequestObject) (PostContainerMountUsageRefreshResponseObject, error)
+	// PostContainerRemove Remove container
+	// (POST /api/ops/containers/{id}/remove)
+	PostContainerRemove(ctx context.Context, request PostContainerRemoveRequestObject) (PostContainerRemoveResponseObject, error)
+	// PostContainerRestart Submit a container restart Task
+	// (POST /api/ops/containers/{id}/restart)
+	PostContainerRestart(ctx context.Context, request PostContainerRestartRequestObject) (PostContainerRestartResponseObject, error)
+	// PostContainerShellSession Issue container shell session ticket
+	// (POST /api/ops/containers/{id}/shell/sessions)
+	PostContainerShellSession(ctx context.Context, request PostContainerShellSessionRequestObject) (PostContainerShellSessionResponseObject, error)
+	// PostContainerStart Submit a container start Task
+	// (POST /api/ops/containers/{id}/start)
+	PostContainerStart(ctx context.Context, request PostContainerStartRequestObject) (PostContainerStartResponseObject, error)
+	// PostContainerStop Submit a container stop Task
+	// (POST /api/ops/containers/{id}/stop)
+	PostContainerStop(ctx context.Context, request PostContainerStopRequestObject) (PostContainerStopResponseObject, error)
+	// GetDockerImages List Docker images
+	// (GET /api/ops/docker/images)
+	GetDockerImages(ctx context.Context, request GetDockerImagesRequestObject) (GetDockerImagesResponseObject, error)
+	// PostDockerImageBatchRemove Remove Docker images in batch
+	// (POST /api/ops/docker/images/batch-remove)
+	PostDockerImageBatchRemove(ctx context.Context, request PostDockerImageBatchRemoveRequestObject) (PostDockerImageBatchRemoveResponseObject, error)
+	// PostDockerImagePull Submit a Docker image pull Task
+	// (POST /api/ops/docker/images/pull)
+	PostDockerImagePull(ctx context.Context, request PostDockerImagePullRequestObject) (PostDockerImagePullResponseObject, error)
+	// GetDockerImage Read Docker image
+	// (GET /api/ops/docker/images/{id})
+	GetDockerImage(ctx context.Context, request GetDockerImageRequestObject) (GetDockerImageResponseObject, error)
+	// PostDockerImageRemove Remove a Docker image
+	// (POST /api/ops/docker/images/{id}/remove)
+	PostDockerImageRemove(ctx context.Context, request PostDockerImageRemoveRequestObject) (PostDockerImageRemoveResponseObject, error)
+	// PostDockerImageTag Tag a Docker image
+	// (POST /api/ops/docker/images/{id}/tag)
+	PostDockerImageTag(ctx context.Context, request PostDockerImageTagRequestObject) (PostDockerImageTagResponseObject, error)
+	// PostDockerImageUntag Remove a Docker image tag
+	// (POST /api/ops/docker/images/{id}/untag)
+	PostDockerImageUntag(ctx context.Context, request PostDockerImageUntagRequestObject) (PostDockerImageUntagResponseObject, error)
+	// GetDockerNetworks List Docker networks
+	// (GET /api/ops/docker/networks)
+	GetDockerNetworks(ctx context.Context, request GetDockerNetworksRequestObject) (GetDockerNetworksResponseObject, error)
+	// PostDockerNetwork Create Docker network
+	// (POST /api/ops/docker/networks)
+	PostDockerNetwork(ctx context.Context, request PostDockerNetworkRequestObject) (PostDockerNetworkResponseObject, error)
+	// GetDockerNetworkSavedViews List private Docker network-list saved views
+	// (GET /api/ops/docker/networks/saved-views)
+	GetDockerNetworkSavedViews(ctx context.Context, request GetDockerNetworkSavedViewsRequestObject) (GetDockerNetworkSavedViewsResponseObject, error)
+	// PostDockerNetworkSavedView Create a private Docker network-list saved view
+	// (POST /api/ops/docker/networks/saved-views)
+	PostDockerNetworkSavedView(ctx context.Context, request PostDockerNetworkSavedViewRequestObject) (PostDockerNetworkSavedViewResponseObject, error)
+	// DeleteDockerNetworkSavedView Delete a private Docker network-list saved view
+	// (DELETE /api/ops/docker/networks/saved-views/{viewId})
+	DeleteDockerNetworkSavedView(ctx context.Context, request DeleteDockerNetworkSavedViewRequestObject) (DeleteDockerNetworkSavedViewResponseObject, error)
+	// PutDockerNetworkSavedView Update a private Docker network-list saved view
+	// (PUT /api/ops/docker/networks/saved-views/{viewId})
+	PutDockerNetworkSavedView(ctx context.Context, request PutDockerNetworkSavedViewRequestObject) (PutDockerNetworkSavedViewResponseObject, error)
+	// DeleteDockerNetwork Remove Docker network
+	// (DELETE /api/ops/docker/networks/{id})
+	DeleteDockerNetwork(ctx context.Context, request DeleteDockerNetworkRequestObject) (DeleteDockerNetworkResponseObject, error)
+	// GetDockerNetwork Read Docker network
+	// (GET /api/ops/docker/networks/{id})
+	GetDockerNetwork(ctx context.Context, request GetDockerNetworkRequestObject) (GetDockerNetworkResponseObject, error)
+	// GetDockerSystem Read Docker system information
+	// (GET /api/ops/docker/system)
+	GetDockerSystem(ctx context.Context, request GetDockerSystemRequestObject) (GetDockerSystemResponseObject, error)
+	// GetDockerVolumes List Docker volumes
+	// (GET /api/ops/docker/volumes)
+	GetDockerVolumes(ctx context.Context, request GetDockerVolumesRequestObject) (GetDockerVolumesResponseObject, error)
+	// PostDockerVolumeBatchRemove Remove Docker volumes in batch
+	// (POST /api/ops/docker/volumes/batch-remove)
+	PostDockerVolumeBatchRemove(ctx context.Context, request PostDockerVolumeBatchRemoveRequestObject) (PostDockerVolumeBatchRemoveResponseObject, error)
+	// GetDockerVolumeSavedViews List private Docker volume-list saved views
+	// (GET /api/ops/docker/volumes/saved-views)
+	GetDockerVolumeSavedViews(ctx context.Context, request GetDockerVolumeSavedViewsRequestObject) (GetDockerVolumeSavedViewsResponseObject, error)
+	// PostDockerVolumeSavedView Create a private Docker volume-list saved view
+	// (POST /api/ops/docker/volumes/saved-views)
+	PostDockerVolumeSavedView(ctx context.Context, request PostDockerVolumeSavedViewRequestObject) (PostDockerVolumeSavedViewResponseObject, error)
+	// DeleteDockerVolumeSavedView Delete a private Docker volume-list saved view
+	// (DELETE /api/ops/docker/volumes/saved-views/{viewId})
+	DeleteDockerVolumeSavedView(ctx context.Context, request DeleteDockerVolumeSavedViewRequestObject) (DeleteDockerVolumeSavedViewResponseObject, error)
+	// PutDockerVolumeSavedView Update a private Docker volume-list saved view
+	// (PUT /api/ops/docker/volumes/saved-views/{viewId})
+	PutDockerVolumeSavedView(ctx context.Context, request PutDockerVolumeSavedViewRequestObject) (PutDockerVolumeSavedViewResponseObject, error)
+	// GetDockerVolume Read Docker volume
+	// (GET /api/ops/docker/volumes/{id})
+	GetDockerVolume(ctx context.Context, request GetDockerVolumeRequestObject) (GetDockerVolumeResponseObject, error)
+	// PostDockerVolumeRemove Remove Docker volume
+	// (POST /api/ops/docker/volumes/{id}/remove)
+	PostDockerVolumeRemove(ctx context.Context, request PostDockerVolumeRemoveRequestObject) (PostDockerVolumeRemoveResponseObject, error)
+}
+
+type StrictHandlerFunc func(ctx *gin.Context, request any) (any, error)
+type StrictMiddlewareFunc func(f StrictHandlerFunc, operationID string) StrictHandlerFunc
+
+type StrictGinServerOptions struct {
+	// RequestErrorHandlerFunc is called when a request cannot be parsed or
+	// decoded. It is invoked for JSON bind failures, form parse/bind errors,
+	// multipart reader errors, media type parse errors, missing multipart
+	// boundaries, and request body read errors. The default returns 400.
+	RequestErrorHandlerFunc func(ctx *gin.Context, err error)
+	// HandlerErrorFunc is called when the application handler (or any
+	// middleware wrapping it) returns a non-nil error. The default returns 500.
+	HandlerErrorFunc func(ctx *gin.Context, err error)
+	// ResponseErrorHandlerFunc is called when the response object fails to
+	// serialize (Visit*Response returns an error) or when the handler returns
+	// an unexpected response type. The default returns 500.
+	ResponseErrorHandlerFunc func(ctx *gin.Context, err error)
+}
+
+func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc) ServerInterface {
+	return &strictHandler{ssi: ssi, middlewares: middlewares, options: StrictGinServerOptions{
+		RequestErrorHandlerFunc: func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
+		},
+		HandlerErrorFunc: func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		},
+		ResponseErrorHandlerFunc: func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		},
+	}}
+}
+
+func NewStrictHandlerWithOptions(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc, options StrictGinServerOptions) ServerInterface {
+	if options.RequestErrorHandlerFunc == nil {
+		options.RequestErrorHandlerFunc = func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
+		}
+	}
+	if options.HandlerErrorFunc == nil {
+		options.HandlerErrorFunc = func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		}
+	}
+	if options.ResponseErrorHandlerFunc == nil {
+		options.ResponseErrorHandlerFunc = func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		}
+	}
+	return &strictHandler{ssi: ssi, middlewares: middlewares, options: options}
+}
+
+type strictHandler struct {
+	ssi         StrictServerInterface
+	middlewares []StrictMiddlewareFunc
+	options     StrictGinServerOptions
+}
+
+// GetDockerImageSavedViews operation middleware
+func (sh *strictHandler) GetDockerImageSavedViews(ctx *gin.Context, params GetDockerImageSavedViewsParams) {
+	var request GetDockerImageSavedViewsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDockerImageSavedViews(ctx, request.(GetDockerImageSavedViewsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDockerImageSavedViews")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetDockerImageSavedViewsResponseObject); ok {
+		if err := validResponse.VisitGetDockerImageSavedViewsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostDockerImageSavedView operation middleware
+func (sh *strictHandler) PostDockerImageSavedView(ctx *gin.Context, params PostDockerImageSavedViewParams) {
+	var request PostDockerImageSavedViewRequestObject
+
+	request.Params = params
+
+	var body PostDockerImageSavedViewJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostDockerImageSavedView(ctx, request.(PostDockerImageSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostDockerImageSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostDockerImageSavedViewResponseObject); ok {
+		if err := validResponse.VisitPostDockerImageSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteDockerImageSavedView operation middleware
+func (sh *strictHandler) DeleteDockerImageSavedView(ctx *gin.Context, viewId int64, params DeleteDockerImageSavedViewParams) {
+	var request DeleteDockerImageSavedViewRequestObject
+
+	request.ViewId = viewId
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteDockerImageSavedView(ctx, request.(DeleteDockerImageSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteDockerImageSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(DeleteDockerImageSavedViewResponseObject); ok {
+		if err := validResponse.VisitDeleteDockerImageSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutDockerImageSavedView operation middleware
+func (sh *strictHandler) PutDockerImageSavedView(ctx *gin.Context, viewId int64, params PutDockerImageSavedViewParams) {
+	var request PutDockerImageSavedViewRequestObject
+
+	request.ViewId = viewId
+	request.Params = params
+
+	var body PutDockerImageSavedViewJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PutDockerImageSavedView(ctx, request.(PutDockerImageSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutDockerImageSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PutDockerImageSavedViewResponseObject); ok {
+		if err := validResponse.VisitPutDockerImageSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetContainers operation middleware
+func (sh *strictHandler) GetContainers(ctx *gin.Context, params GetContainersParams) {
+	var request GetContainersRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetContainers(ctx, request.(GetContainersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetContainers")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetContainersResponseObject); ok {
+		if err := validResponse.VisitGetContainersResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostContainerBatchActions operation middleware
+func (sh *strictHandler) PostContainerBatchActions(ctx *gin.Context, params PostContainerBatchActionsParams) {
+	var request PostContainerBatchActionsRequestObject
+
+	request.Params = params
+
+	var body PostContainerBatchActionsJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostContainerBatchActions(ctx, request.(PostContainerBatchActionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostContainerBatchActions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostContainerBatchActionsResponseObject); ok {
+		if err := validResponse.VisitPostContainerBatchActionsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetContainerDashboardSummary operation middleware
+func (sh *strictHandler) GetContainerDashboardSummary(ctx *gin.Context, params GetContainerDashboardSummaryParams) {
+	var request GetContainerDashboardSummaryRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetContainerDashboardSummary(ctx, request.(GetContainerDashboardSummaryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetContainerDashboardSummary")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetContainerDashboardSummaryResponseObject); ok {
+		if err := validResponse.VisitGetContainerDashboardSummaryResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetContainerSavedViews operation middleware
+func (sh *strictHandler) GetContainerSavedViews(ctx *gin.Context, params GetContainerSavedViewsParams) {
+	var request GetContainerSavedViewsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetContainerSavedViews(ctx, request.(GetContainerSavedViewsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetContainerSavedViews")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetContainerSavedViewsResponseObject); ok {
+		if err := validResponse.VisitGetContainerSavedViewsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostContainerSavedView operation middleware
+func (sh *strictHandler) PostContainerSavedView(ctx *gin.Context, params PostContainerSavedViewParams) {
+	var request PostContainerSavedViewRequestObject
+
+	request.Params = params
+
+	var body PostContainerSavedViewJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostContainerSavedView(ctx, request.(PostContainerSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostContainerSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostContainerSavedViewResponseObject); ok {
+		if err := validResponse.VisitPostContainerSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteContainerSavedView operation middleware
+func (sh *strictHandler) DeleteContainerSavedView(ctx *gin.Context, viewId int64, params DeleteContainerSavedViewParams) {
+	var request DeleteContainerSavedViewRequestObject
+
+	request.ViewId = viewId
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteContainerSavedView(ctx, request.(DeleteContainerSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteContainerSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(DeleteContainerSavedViewResponseObject); ok {
+		if err := validResponse.VisitDeleteContainerSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutContainerSavedView operation middleware
+func (sh *strictHandler) PutContainerSavedView(ctx *gin.Context, viewId int64, params PutContainerSavedViewParams) {
+	var request PutContainerSavedViewRequestObject
+
+	request.ViewId = viewId
+	request.Params = params
+
+	var body PutContainerSavedViewJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PutContainerSavedView(ctx, request.(PutContainerSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutContainerSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PutContainerSavedViewResponseObject); ok {
+		if err := validResponse.VisitPutContainerSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetContainer operation middleware
+func (sh *strictHandler) GetContainer(ctx *gin.Context, id string, params GetContainerParams) {
+	var request GetContainerRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetContainer(ctx, request.(GetContainerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetContainer")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetContainerResponseObject); ok {
+		if err := validResponse.VisitGetContainerResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetContainerEvents operation middleware
+func (sh *strictHandler) GetContainerEvents(ctx *gin.Context, id string, params GetContainerEventsParams) {
+	var request GetContainerEventsRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetContainerEvents(ctx, request.(GetContainerEventsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetContainerEvents")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetContainerEventsResponseObject); ok {
+		if err := validResponse.VisitGetContainerEventsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetContainerLogs operation middleware
+func (sh *strictHandler) GetContainerLogs(ctx *gin.Context, id string, params GetContainerLogsParams) {
+	var request GetContainerLogsRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetContainerLogs(ctx, request.(GetContainerLogsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetContainerLogs")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetContainerLogsResponseObject); ok {
+		if err := validResponse.VisitGetContainerLogsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetContainerMountUsage operation middleware
+func (sh *strictHandler) GetContainerMountUsage(ctx *gin.Context, id string, params GetContainerMountUsageParams) {
+	var request GetContainerMountUsageRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetContainerMountUsage(ctx, request.(GetContainerMountUsageRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetContainerMountUsage")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetContainerMountUsageResponseObject); ok {
+		if err := validResponse.VisitGetContainerMountUsageResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostContainerMountUsageRefresh operation middleware
+func (sh *strictHandler) PostContainerMountUsageRefresh(ctx *gin.Context, id string, mountId string, params PostContainerMountUsageRefreshParams) {
+	var request PostContainerMountUsageRefreshRequestObject
+
+	request.Id = id
+	request.MountId = mountId
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostContainerMountUsageRefresh(ctx, request.(PostContainerMountUsageRefreshRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostContainerMountUsageRefresh")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostContainerMountUsageRefreshResponseObject); ok {
+		if err := validResponse.VisitPostContainerMountUsageRefreshResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostContainerRemove operation middleware
+func (sh *strictHandler) PostContainerRemove(ctx *gin.Context, id string, params PostContainerRemoveParams) {
+	var request PostContainerRemoveRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	var body PostContainerRemoveJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(ctx, err)
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostContainerRemove(ctx, request.(PostContainerRemoveRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostContainerRemove")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostContainerRemoveResponseObject); ok {
+		if err := validResponse.VisitPostContainerRemoveResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostContainerRestart operation middleware
+func (sh *strictHandler) PostContainerRestart(ctx *gin.Context, id string, params PostContainerRestartParams) {
+	var request PostContainerRestartRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostContainerRestart(ctx, request.(PostContainerRestartRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostContainerRestart")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostContainerRestartResponseObject); ok {
+		if err := validResponse.VisitPostContainerRestartResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostContainerShellSession operation middleware
+func (sh *strictHandler) PostContainerShellSession(ctx *gin.Context, id string, params PostContainerShellSessionParams) {
+	var request PostContainerShellSessionRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	var body PostContainerShellSessionJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostContainerShellSession(ctx, request.(PostContainerShellSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostContainerShellSession")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostContainerShellSessionResponseObject); ok {
+		if err := validResponse.VisitPostContainerShellSessionResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostContainerStart operation middleware
+func (sh *strictHandler) PostContainerStart(ctx *gin.Context, id string, params PostContainerStartParams) {
+	var request PostContainerStartRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostContainerStart(ctx, request.(PostContainerStartRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostContainerStart")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostContainerStartResponseObject); ok {
+		if err := validResponse.VisitPostContainerStartResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostContainerStop operation middleware
+func (sh *strictHandler) PostContainerStop(ctx *gin.Context, id string, params PostContainerStopParams) {
+	var request PostContainerStopRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostContainerStop(ctx, request.(PostContainerStopRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostContainerStop")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostContainerStopResponseObject); ok {
+		if err := validResponse.VisitPostContainerStopResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetDockerImages operation middleware
+func (sh *strictHandler) GetDockerImages(ctx *gin.Context, params GetDockerImagesParams) {
+	var request GetDockerImagesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDockerImages(ctx, request.(GetDockerImagesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDockerImages")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetDockerImagesResponseObject); ok {
+		if err := validResponse.VisitGetDockerImagesResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostDockerImageBatchRemove operation middleware
+func (sh *strictHandler) PostDockerImageBatchRemove(ctx *gin.Context, params PostDockerImageBatchRemoveParams) {
+	var request PostDockerImageBatchRemoveRequestObject
+
+	request.Params = params
+
+	var body PostDockerImageBatchRemoveJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostDockerImageBatchRemove(ctx, request.(PostDockerImageBatchRemoveRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostDockerImageBatchRemove")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostDockerImageBatchRemoveResponseObject); ok {
+		if err := validResponse.VisitPostDockerImageBatchRemoveResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostDockerImagePull operation middleware
+func (sh *strictHandler) PostDockerImagePull(ctx *gin.Context, params PostDockerImagePullParams) {
+	var request PostDockerImagePullRequestObject
+
+	request.Params = params
+
+	var body PostDockerImagePullJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostDockerImagePull(ctx, request.(PostDockerImagePullRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostDockerImagePull")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostDockerImagePullResponseObject); ok {
+		if err := validResponse.VisitPostDockerImagePullResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetDockerImage operation middleware
+func (sh *strictHandler) GetDockerImage(ctx *gin.Context, id string) {
+	var request GetDockerImageRequestObject
+
+	request.Id = id
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDockerImage(ctx, request.(GetDockerImageRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDockerImage")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetDockerImageResponseObject); ok {
+		if err := validResponse.VisitGetDockerImageResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostDockerImageRemove operation middleware
+func (sh *strictHandler) PostDockerImageRemove(ctx *gin.Context, id string, params PostDockerImageRemoveParams) {
+	var request PostDockerImageRemoveRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	var body PostDockerImageRemoveJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(ctx, err)
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostDockerImageRemove(ctx, request.(PostDockerImageRemoveRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostDockerImageRemove")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostDockerImageRemoveResponseObject); ok {
+		if err := validResponse.VisitPostDockerImageRemoveResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostDockerImageTag operation middleware
+func (sh *strictHandler) PostDockerImageTag(ctx *gin.Context, id string, params PostDockerImageTagParams) {
+	var request PostDockerImageTagRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	var body PostDockerImageTagJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostDockerImageTag(ctx, request.(PostDockerImageTagRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostDockerImageTag")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostDockerImageTagResponseObject); ok {
+		if err := validResponse.VisitPostDockerImageTagResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostDockerImageUntag operation middleware
+func (sh *strictHandler) PostDockerImageUntag(ctx *gin.Context, id string, params PostDockerImageUntagParams) {
+	var request PostDockerImageUntagRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	var body PostDockerImageUntagJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostDockerImageUntag(ctx, request.(PostDockerImageUntagRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostDockerImageUntag")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostDockerImageUntagResponseObject); ok {
+		if err := validResponse.VisitPostDockerImageUntagResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetDockerNetworks operation middleware
+func (sh *strictHandler) GetDockerNetworks(ctx *gin.Context, params GetDockerNetworksParams) {
+	var request GetDockerNetworksRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDockerNetworks(ctx, request.(GetDockerNetworksRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDockerNetworks")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetDockerNetworksResponseObject); ok {
+		if err := validResponse.VisitGetDockerNetworksResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostDockerNetwork operation middleware
+func (sh *strictHandler) PostDockerNetwork(ctx *gin.Context, params PostDockerNetworkParams) {
+	var request PostDockerNetworkRequestObject
+
+	request.Params = params
+
+	var body PostDockerNetworkJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostDockerNetwork(ctx, request.(PostDockerNetworkRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostDockerNetwork")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostDockerNetworkResponseObject); ok {
+		if err := validResponse.VisitPostDockerNetworkResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetDockerNetworkSavedViews operation middleware
+func (sh *strictHandler) GetDockerNetworkSavedViews(ctx *gin.Context, params GetDockerNetworkSavedViewsParams) {
+	var request GetDockerNetworkSavedViewsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDockerNetworkSavedViews(ctx, request.(GetDockerNetworkSavedViewsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDockerNetworkSavedViews")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetDockerNetworkSavedViewsResponseObject); ok {
+		if err := validResponse.VisitGetDockerNetworkSavedViewsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostDockerNetworkSavedView operation middleware
+func (sh *strictHandler) PostDockerNetworkSavedView(ctx *gin.Context, params PostDockerNetworkSavedViewParams) {
+	var request PostDockerNetworkSavedViewRequestObject
+
+	request.Params = params
+
+	var body PostDockerNetworkSavedViewJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostDockerNetworkSavedView(ctx, request.(PostDockerNetworkSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostDockerNetworkSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostDockerNetworkSavedViewResponseObject); ok {
+		if err := validResponse.VisitPostDockerNetworkSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteDockerNetworkSavedView operation middleware
+func (sh *strictHandler) DeleteDockerNetworkSavedView(ctx *gin.Context, viewId int64, params DeleteDockerNetworkSavedViewParams) {
+	var request DeleteDockerNetworkSavedViewRequestObject
+
+	request.ViewId = viewId
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteDockerNetworkSavedView(ctx, request.(DeleteDockerNetworkSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteDockerNetworkSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(DeleteDockerNetworkSavedViewResponseObject); ok {
+		if err := validResponse.VisitDeleteDockerNetworkSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutDockerNetworkSavedView operation middleware
+func (sh *strictHandler) PutDockerNetworkSavedView(ctx *gin.Context, viewId int64, params PutDockerNetworkSavedViewParams) {
+	var request PutDockerNetworkSavedViewRequestObject
+
+	request.ViewId = viewId
+	request.Params = params
+
+	var body PutDockerNetworkSavedViewJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PutDockerNetworkSavedView(ctx, request.(PutDockerNetworkSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutDockerNetworkSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PutDockerNetworkSavedViewResponseObject); ok {
+		if err := validResponse.VisitPutDockerNetworkSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteDockerNetwork operation middleware
+func (sh *strictHandler) DeleteDockerNetwork(ctx *gin.Context, id string) {
+	var request DeleteDockerNetworkRequestObject
+
+	request.Id = id
+
+	var body DeleteDockerNetworkJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteDockerNetwork(ctx, request.(DeleteDockerNetworkRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteDockerNetwork")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(DeleteDockerNetworkResponseObject); ok {
+		if err := validResponse.VisitDeleteDockerNetworkResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetDockerNetwork operation middleware
+func (sh *strictHandler) GetDockerNetwork(ctx *gin.Context, id string, params GetDockerNetworkParams) {
+	var request GetDockerNetworkRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDockerNetwork(ctx, request.(GetDockerNetworkRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDockerNetwork")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetDockerNetworkResponseObject); ok {
+		if err := validResponse.VisitGetDockerNetworkResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetDockerSystem operation middleware
+func (sh *strictHandler) GetDockerSystem(ctx *gin.Context) {
+	var request GetDockerSystemRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDockerSystem(ctx, request.(GetDockerSystemRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDockerSystem")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetDockerSystemResponseObject); ok {
+		if err := validResponse.VisitGetDockerSystemResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetDockerVolumes operation middleware
+func (sh *strictHandler) GetDockerVolumes(ctx *gin.Context, params GetDockerVolumesParams) {
+	var request GetDockerVolumesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDockerVolumes(ctx, request.(GetDockerVolumesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDockerVolumes")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetDockerVolumesResponseObject); ok {
+		if err := validResponse.VisitGetDockerVolumesResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostDockerVolumeBatchRemove operation middleware
+func (sh *strictHandler) PostDockerVolumeBatchRemove(ctx *gin.Context, params PostDockerVolumeBatchRemoveParams) {
+	var request PostDockerVolumeBatchRemoveRequestObject
+
+	request.Params = params
+
+	var body PostDockerVolumeBatchRemoveJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostDockerVolumeBatchRemove(ctx, request.(PostDockerVolumeBatchRemoveRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostDockerVolumeBatchRemove")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostDockerVolumeBatchRemoveResponseObject); ok {
+		if err := validResponse.VisitPostDockerVolumeBatchRemoveResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetDockerVolumeSavedViews operation middleware
+func (sh *strictHandler) GetDockerVolumeSavedViews(ctx *gin.Context, params GetDockerVolumeSavedViewsParams) {
+	var request GetDockerVolumeSavedViewsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDockerVolumeSavedViews(ctx, request.(GetDockerVolumeSavedViewsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDockerVolumeSavedViews")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetDockerVolumeSavedViewsResponseObject); ok {
+		if err := validResponse.VisitGetDockerVolumeSavedViewsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostDockerVolumeSavedView operation middleware
+func (sh *strictHandler) PostDockerVolumeSavedView(ctx *gin.Context, params PostDockerVolumeSavedViewParams) {
+	var request PostDockerVolumeSavedViewRequestObject
+
+	request.Params = params
+
+	var body PostDockerVolumeSavedViewJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostDockerVolumeSavedView(ctx, request.(PostDockerVolumeSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostDockerVolumeSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostDockerVolumeSavedViewResponseObject); ok {
+		if err := validResponse.VisitPostDockerVolumeSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteDockerVolumeSavedView operation middleware
+func (sh *strictHandler) DeleteDockerVolumeSavedView(ctx *gin.Context, viewId int64, params DeleteDockerVolumeSavedViewParams) {
+	var request DeleteDockerVolumeSavedViewRequestObject
+
+	request.ViewId = viewId
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteDockerVolumeSavedView(ctx, request.(DeleteDockerVolumeSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteDockerVolumeSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(DeleteDockerVolumeSavedViewResponseObject); ok {
+		if err := validResponse.VisitDeleteDockerVolumeSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutDockerVolumeSavedView operation middleware
+func (sh *strictHandler) PutDockerVolumeSavedView(ctx *gin.Context, viewId int64, params PutDockerVolumeSavedViewParams) {
+	var request PutDockerVolumeSavedViewRequestObject
+
+	request.ViewId = viewId
+	request.Params = params
+
+	var body PutDockerVolumeSavedViewJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PutDockerVolumeSavedView(ctx, request.(PutDockerVolumeSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutDockerVolumeSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PutDockerVolumeSavedViewResponseObject); ok {
+		if err := validResponse.VisitPutDockerVolumeSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetDockerVolume operation middleware
+func (sh *strictHandler) GetDockerVolume(ctx *gin.Context, id string, params GetDockerVolumeParams) {
+	var request GetDockerVolumeRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDockerVolume(ctx, request.(GetDockerVolumeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDockerVolume")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetDockerVolumeResponseObject); ok {
+		if err := validResponse.VisitGetDockerVolumeResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostDockerVolumeRemove operation middleware
+func (sh *strictHandler) PostDockerVolumeRemove(ctx *gin.Context, id string, params PostDockerVolumeRemoveParams) {
+	var request PostDockerVolumeRemoveRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	var body PostDockerVolumeRemoveJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostDockerVolumeRemove(ctx, request.(PostDockerVolumeRemoveRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostDockerVolumeRemove")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostDockerVolumeRemoveResponseObject); ok {
+		if err := validResponse.VisitPostDockerVolumeRemoveResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}

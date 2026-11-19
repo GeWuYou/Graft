@@ -1,0 +1,25 @@
+package: registryopenapi
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  include-operation-ids:
+    - deleteRegistry
+    - deleteRegistryArtifactRepository
+    - deleteRegistryArtifactRepositoryAssignment
+    - getRegistries
+    - getRegistry
+    - getRegistryArtifactRepositories
+    - getRegistryArtifactRepositoryAssignments
+    - getRegistryAvailableDestinations
+    - getRegistryRepositoryAssignmentCandidates
+    - postRegistry
+    - postRegistryArtifactRepository
+    - postRegistryArtifactRepositoryAssignment
+    - postRegistryArtifactRepositoryAssignmentsBatchAdd
+    - postRegistryArtifactRepositoryAssignmentsBatchRevoke
+    - postRegistryVerify
+    - putRegistry
+    - putRegistryArtifactRepository
+    - putRegistryArtifactRepositoryAssignments

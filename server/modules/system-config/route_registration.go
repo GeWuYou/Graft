@@ -83,22 +83,22 @@ func registerSystemConfigRoutes(ctx *module.Context, moduleName string, service 
 	group.GET(
 		systemconfigcontract.SystemConfigCollectionRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, systemconfigcontract.SystemConfigReadPermission.String(), publisher),
-		wrapper.GetSystemConfigs,
+		strictsupport.Route(wrapper.GetSystemConfigs, nil),
 	)
 	group.GET(
 		systemconfigcontract.SystemConfigDetailRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, systemconfigcontract.SystemConfigReadPermission.String(), publisher),
-		wrapper.GetSystemConfig,
+		strictsupport.Route(wrapper.GetSystemConfig, nil),
 	)
 	group.PUT(
 		systemconfigcontract.SystemConfigDetailRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, systemconfigcontract.SystemConfigWritePermission.String(), publisher),
-		wrapper.PutSystemConfig,
+		strictsupport.Route(wrapper.PutSystemConfig, nil),
 	)
 	group.POST(
 		systemconfigcontract.SystemConfigResetRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, systemconfigcontract.SystemConfigWritePermission.String(), publisher),
-		wrapper.PostSystemConfigReset,
+		strictsupport.Route(wrapper.PostSystemConfigReset, nil),
 	)
 	return nil
 }

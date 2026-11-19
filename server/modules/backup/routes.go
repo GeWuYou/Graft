@@ -50,15 +50,15 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 			backupStrictServer{handlers: handlers},
 			nil,
 			backupopenapi.StrictGinServerOptions{
-				RequestErrorHandlerFunc: strictsupport.RequestErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String(), nil),
+				RequestErrorHandlerFunc: func(c *gin.Context, err error) { handlers.writeError(c, http.StatusBadRequest, err) },
 				HandlerErrorFunc:        strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
 			},
 		),
 		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
 	}
-	group.GET("", httpx.RequirePermission(ctx.I18n, auth, authorizer, backupcontract.BackupReadPermission, publisher), wrapper.ListPlatformBackups)
-	group.GET(backupcontract.BackupDetailRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, backupcontract.BackupReadPermission, publisher), wrapper.GetPlatformBackup)
-	group.POST("", httpx.RequirePermission(ctx.I18n, auth, authorizer, backupcontract.BackupCreatePermission, publisher), wrapper.PostPlatformBackup)
+	group.GET("", httpx.RequirePermission(ctx.I18n, auth, authorizer, backupcontract.BackupReadPermission, publisher), strictsupport.Route(wrapper.ListPlatformBackups, handlers.list))
+	group.GET(backupcontract.BackupDetailRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, backupcontract.BackupReadPermission, publisher), strictsupport.Route(wrapper.GetPlatformBackup, handlers.detail))
+	group.POST("", httpx.RequirePermission(ctx.I18n, auth, authorizer, backupcontract.BackupCreatePermission, publisher), strictsupport.Route(wrapper.PostPlatformBackup, handlers.create))
 	return nil
 }
 
@@ -78,8 +78,15 @@ func (s backupStrictServer) GetPlatformBackup(ctx context.Context, _ backupopena
 	return nil, strictsupport.Dispatch(ctx, s.handlers.detail)
 }
 
-func (s backupStrictServer) PostPlatformBackup(ctx context.Context, _ backupopenapi.PostPlatformBackupRequestObject) (backupopenapi.PostPlatformBackupResponseObject, error) {
-	return nil, strictsupport.Dispatch(ctx, s.handlers.create)
+// PostPlatformBackup 接收生成绑定的请求体，保留备份保留期默认值。
+func (s backupStrictServer) PostPlatformBackup(ctx context.Context, req backupopenapi.PostPlatformBackupRequestObject) (backupopenapi.PostPlatformBackupResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, func(c *gin.Context) {
+		retention := ""
+		if req.Body != nil && req.Body.Retention != nil {
+			retention = string(*req.Body.Retention)
+		}
+		s.handlers.submit(c, retention)
+	})
 }
 
 type backupRouteHandlers struct {
@@ -97,7 +104,11 @@ func (h backupRouteHandlers) create(c *gin.Context) {
 		h.writeError(c, http.StatusBadRequest, err)
 		return
 	}
-	retention := ManualRetention(strings.TrimSpace(request.Retention))
+	h.submit(c, request.Retention)
+}
+
+func (h backupRouteHandlers) submit(c *gin.Context, requestedRetention string) {
+	retention := ManualRetention(strings.TrimSpace(requestedRetention))
 	if retention == "" {
 		retention = ManualRetentionThirtyDays
 	}

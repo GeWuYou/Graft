@@ -421,12 +421,12 @@ func registerMonitorRoutes(
 	group.GET(
 		monitorcontract.ServerStatusRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, monitorcontract.ServerStatusReadPermission.String()),
-		wrapper.GetMonitorServerStatus,
+		strictsupport.Route(wrapper.GetMonitorServerStatus, nil),
 	)
 	group.GET(
 		monitorcontract.RequestPerformanceRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, monitorcontract.ServerStatusReadPermission.String()),
-		wrapper.GetMonitorRequestPerformance,
+		strictsupport.Route(wrapper.GetMonitorRequestPerformance, nil),
 	)
 }
 

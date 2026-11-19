@@ -1,6 +1,7 @@
 package container
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +17,7 @@ import (
 	messagecontract "graft/server/internal/contract/message"
 	containeropenapi "graft/server/internal/contract/openapi/container"
 	openapigen "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"graft/server/internal/httpx"
 	"graft/server/internal/logger"
 	"graft/server/internal/module"
@@ -30,6 +32,16 @@ type routeRuntime struct {
 }
 
 // RegisterRoutes registers HTTP API endpoints for container operations with permission-based access control.
+func newContainerStrictWrapper(ctx *module.Context, server containerStrictServer) containeropenapi.ServerInterfaceWrapper {
+	return containeropenapi.ServerInterfaceWrapper{
+		Handler: containeropenapi.NewStrictHandlerWithOptions(server, nil, containeropenapi.StrictGinServerOptions{
+			RequestErrorHandlerFunc: strictsupport.RequestErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String(), nil),
+			HandlerErrorFunc:        strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
+		}),
+		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
+	}
+}
+
 // registerRoutes 注册容器及 Docker 相关 HTTP 路由，并配置请求标识与权限中间件。
 // 当上下文或路由器为空时跳过注册并返回 nil；服务为空或依赖解析失败时返回错误。
 func registerRoutes(ctx *module.Context, moduleName string, service *service) error {
@@ -54,42 +66,52 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 
 	routes := routeRuntime{ctx: ctx, service: service, userService: userService}
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleName)
+	savedViews, err := module.ResolveService[moduleapi.SavedViewService](ctx.Services, (*moduleapi.SavedViewService)(nil))
+	if err != nil {
+		return fmt.Errorf("resolve saved-view service: %w", err)
+	}
+	saved := newContainerSavedViewHandlers(ctx, savedViews)
+	wrapper := newContainerStrictWrapper(ctx, containerStrictServer{routes: routes, saved: saved})
+	registerContainerOperationRoutes(authService, authorizer, publisher, routes, saved, wrapper)
+	registerDockerRoutes(ctx, authService, authorizer, publisher, routes, wrapper)
+	return nil
+}
+
+func registerContainerOperationRoutes(authService moduleapi.AuthService, authorizer moduleapi.Authorizer, publisher httpx.SecurityAuditPublisher, routes routeRuntime, saved containerSavedViewHandlers, wrapper containeropenapi.ServerInterfaceWrapper) {
+	ctx := routes.ctx
 	group := ctx.Router.Group(containercontract.ContainerAPIGroup)
 	group.Use(httpx.RequestIDMiddleware())
 	group.GET(
 		containercontract.ContainerCollectionRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher),
-		routes.handleList,
+		strictsupport.Route(wrapper.GetContainers, routes.handleList),
 	)
-	savedViews, err := module.ResolveService[moduleapi.SavedViewService](ctx.Services, (*moduleapi.SavedViewService)(nil))
-	if err != nil {
-		return fmt.Errorf("resolve saved-view service: %w", err)
-	}
-	registerContainerSavedViewRoutes(ctx, savedViews, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher))
+	registerContainerSavedViewRoutes(ctx, saved, wrapper, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher))
 	group.GET(
 		containercontract.ContainerDashboardSummaryRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher),
-		routes.handleDashboardSummary,
+		strictsupport.Route(wrapper.GetContainerDashboardSummary, nil),
 	)
 	group.GET(
 		containercontract.ContainerDetailRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerDetailPermission.String(), publisher),
-		routes.handleDetail,
+		strictsupport.Route(wrapper.GetContainer, routes.handleDetail),
 	)
 	group.GET(
 		containercontract.ContainerEventsRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerEventsPermission.String(), publisher),
-		routes.handleEvents,
+		strictsupport.Route(wrapper.GetContainerEvents, routes.handleEvents),
 	)
 	group.GET(
 		containercontract.ContainerLogsRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerLogsPermission.String(), publisher),
-		routes.handleLogs,
+		strictsupport.Route(wrapper.GetContainerLogs, routes.handleLogs),
 	)
 	group.POST(
 		containercontract.ContainerShellSessionsRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerShellPermission.String(), publisher),
-		routes.handleShellSessionCreate,
+		strictsupport.CacheRequestBody(),
+		strictsupport.Route(wrapper.PostContainerShellSession, func(c *gin.Context) { routes.handleShellSessionCreate(c, nil) }),
 	)
 	group.GET(
 		containercontract.ContainerShellWebSocketRoute,
@@ -98,64 +120,64 @@ func registerRoutes(ctx *module.Context, moduleName string, service *service) er
 	group.GET(
 		containercontract.ContainerMountUsageRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerDetailPermission.String(), publisher),
-		routes.handleMountUsageList,
+		strictsupport.Route(wrapper.GetContainerMountUsage, routes.handleMountUsageList),
 	)
 	group.POST(
 		containercontract.ContainerMountUsageRefreshRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerDetailPermission.String(), publisher),
-		routes.handleMountUsageRefresh,
+		strictsupport.Route(wrapper.PostContainerMountUsageRefresh, routes.handleMountUsageRefresh),
 	)
 	group.POST(
 		containercontract.ContainerStartRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerStartPermission.String(), publisher),
-		routes.handleStart,
+		strictsupport.Route(wrapper.PostContainerStart, routes.handleStart),
 	)
 	group.POST(
 		containercontract.ContainerStopRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerStopPermission.String(), publisher),
-		routes.handleStop,
+		strictsupport.Route(wrapper.PostContainerStop, routes.handleStop),
 	)
 	group.POST(
 		containercontract.ContainerRestartRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerRestartPermission.String(), publisher),
-		routes.handleRestart,
+		strictsupport.Route(wrapper.PostContainerRestart, routes.handleRestart),
 	)
 	group.POST(
 		containercontract.ContainerRemoveRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerRemovePermission.String(), publisher),
-		routes.handleRemove,
+		strictsupport.CacheRequestBody(),
+		strictsupport.Route(wrapper.PostContainerRemove, func(c *gin.Context) { routes.handleRemove(c, nil) }),
 	)
 	group.POST(
 		containercontract.ContainerBatchActionsRoute,
 		// 批量操作路由先通过认证中间件建立请求身份，再由 handler 按 action 分派精确权限。
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher),
-		routes.handleBatchAction,
+		strictsupport.CacheRequestBody(),
+		strictsupport.Route(wrapper.PostContainerBatchActions, func(c *gin.Context) { routes.handleBatchAction(c, nil) }),
 	)
-	registerDockerRoutes(ctx, authService, authorizer, publisher, routes)
-	return nil
 }
 
 // registerDockerRoutes 注册 Docker 相关路由，并为其应用容器查看权限校验。
-func registerDockerRoutes(ctx *module.Context, authService moduleapi.AuthService, authorizer moduleapi.Authorizer, publisher httpx.SecurityAuditPublisher, routes routeRuntime) {
+func registerDockerRoutes(ctx *module.Context, authService moduleapi.AuthService, authorizer moduleapi.Authorizer, publisher httpx.SecurityAuditPublisher, routes routeRuntime, wrapper containeropenapi.ServerInterfaceWrapper) {
 	docker := ctx.Router.Group(containercontract.DockerAPIGroup)
 	docker.Use(httpx.RequestIDMiddleware())
 	requireView := httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerViewPermission.String(), publisher)
-	docker.GET(containercontract.DockerImagesRoute, requireView, routes.handleDockerImages)
-	docker.POST(containercontract.DockerImagePullRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerImagePullPermission.String(), publisher), routes.handleDockerImagePull)
-	docker.GET(containercontract.DockerImageRoute, requireView, routes.handleDockerImage)
-	docker.POST(containercontract.DockerImageTagRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerImageTagPermission.String(), publisher), routes.handleDockerImageTag)
-	docker.POST(containercontract.DockerImageUntagRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerImageUntagPermission.String(), publisher), routes.handleDockerImageUntag)
-	docker.POST(containercontract.DockerImageRemoveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerImageRemovePermission.String(), publisher), routes.handleDockerImageRemove)
-	docker.POST(containercontract.DockerImageBatchRemoveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerImageRemovePermission.String(), publisher), routes.handleDockerImageBatchRemove)
-	docker.GET(containercontract.DockerNetworksRoute, requireView, routes.handleDockerNetworks)
-	docker.POST(containercontract.DockerNetworksRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerNetworkCreatePermission.String(), publisher), routes.handleDockerNetworkCreate)
-	docker.GET(containercontract.DockerNetworkRoute, requireView, routes.handleDockerNetwork)
-	docker.DELETE(containercontract.DockerNetworkRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerNetworkRemovePermission.String(), publisher), routes.handleDockerNetworkRemove)
-	docker.GET(containercontract.DockerVolumesRoute, requireView, routes.handleDockerVolumes)
-	docker.GET(containercontract.DockerVolumeRoute, requireView, routes.handleDockerVolume)
-	docker.POST(containercontract.DockerVolumeRemoveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerVolumeRemovePermission.String(), publisher), routes.handleDockerVolumeRemove)
-	docker.POST(containercontract.DockerVolumeBatchRemoveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerVolumeRemovePermission.String(), publisher), routes.handleDockerVolumeBatchRemove)
-	docker.GET(containercontract.DockerSystemRoute, requireView, routes.handleDockerSystem)
+	docker.GET(containercontract.DockerImagesRoute, requireView, strictsupport.Route(wrapper.GetDockerImages, routes.handleDockerImages))
+	docker.POST(containercontract.DockerImagePullRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerImagePullPermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostDockerImagePull, func(c *gin.Context) { routes.handleDockerImagePull(c, nil) }))
+	docker.GET(containercontract.DockerImageRoute, requireView, strictsupport.Route(wrapper.GetDockerImage, routes.handleDockerImage))
+	docker.POST(containercontract.DockerImageTagRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerImageTagPermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostDockerImageTag, func(c *gin.Context) { routes.handleDockerImageTag(c, nil) }))
+	docker.POST(containercontract.DockerImageUntagRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerImageUntagPermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostDockerImageUntag, func(c *gin.Context) { routes.handleDockerImageUntag(c, nil) }))
+	docker.POST(containercontract.DockerImageRemoveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerImageRemovePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostDockerImageRemove, func(c *gin.Context) { routes.handleDockerImageRemove(c, nil) }))
+	docker.POST(containercontract.DockerImageBatchRemoveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerImageRemovePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostDockerImageBatchRemove, func(c *gin.Context) { routes.handleDockerImageBatchRemove(c, nil) }))
+	docker.GET(containercontract.DockerNetworksRoute, requireView, strictsupport.Route(wrapper.GetDockerNetworks, routes.handleDockerNetworks))
+	docker.POST(containercontract.DockerNetworksRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerNetworkCreatePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostDockerNetwork, func(c *gin.Context) { routes.handleDockerNetworkCreate(c, nil) }))
+	docker.GET(containercontract.DockerNetworkRoute, requireView, strictsupport.Route(wrapper.GetDockerNetwork, routes.handleDockerNetwork))
+	docker.DELETE(containercontract.DockerNetworkRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.DockerNetworkRemovePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.DeleteDockerNetwork, func(c *gin.Context) { routes.handleDockerNetworkRemove(c, nil) }))
+	docker.GET(containercontract.DockerVolumesRoute, requireView, strictsupport.Route(wrapper.GetDockerVolumes, routes.handleDockerVolumes))
+	docker.GET(containercontract.DockerVolumeRoute, requireView, strictsupport.Route(wrapper.GetDockerVolume, routes.handleDockerVolume))
+	docker.POST(containercontract.DockerVolumeRemoveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerVolumeRemovePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostDockerVolumeRemove, func(c *gin.Context) { routes.handleDockerVolumeRemove(c, nil) }))
+	docker.POST(containercontract.DockerVolumeBatchRemoveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, containercontract.ContainerVolumeRemovePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostDockerVolumeBatchRemove, func(c *gin.Context) { routes.handleDockerVolumeBatchRemove(c, nil) }))
+	docker.GET(containercontract.DockerSystemRoute, requireView, strictsupport.Route(wrapper.GetDockerSystem, nil))
 }
 
 func (r routeRuntime) handleDockerImages(c *gin.Context) {
@@ -190,9 +212,9 @@ func (r routeRuntime) handleDockerImage(c *gin.Context) {
 	httpx.WriteSuccess(c, http.StatusOK, toDockerImage(item))
 }
 
-func (r routeRuntime) handleDockerImagePull(c *gin.Context) {
-	var request containeropenapi.PostDockerImagePullJSONRequestBody
-	if !bindRequiredJSON(c, r, &request) {
+func (r routeRuntime) handleDockerImagePull(c *gin.Context, bound *containeropenapi.PostDockerImagePullJSONRequestBody) {
+	request, ok := bindContainerJSONBody(c, r, bound, false)
+	if !ok {
 		return
 	}
 	if err := validateDockerImageReference(request.Reference); err != nil {
@@ -217,9 +239,9 @@ func (r routeRuntime) handleDockerImagePull(c *gin.Context) {
 	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
-func (r routeRuntime) handleDockerImageTag(c *gin.Context) {
-	var request containeropenapi.PostDockerImageTagJSONRequestBody
-	if !bindRequiredJSON(c, r, &request) {
+func (r routeRuntime) handleDockerImageTag(c *gin.Context, bound *containeropenapi.PostDockerImageTagJSONRequestBody) {
+	request, ok := bindContainerJSONBody(c, r, bound, false)
+	if !ok {
 		return
 	}
 	ref, ok := readDockerImageRef(c, r)
@@ -239,9 +261,9 @@ func (r routeRuntime) handleDockerImageTag(c *gin.Context) {
 	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
-func (r routeRuntime) handleDockerImageUntag(c *gin.Context) {
-	var request containeropenapi.PostDockerImageUntagJSONRequestBody
-	if !bindRequiredJSON(c, r, &request) {
+func (r routeRuntime) handleDockerImageUntag(c *gin.Context, bound *containeropenapi.PostDockerImageUntagJSONRequestBody) {
+	request, ok := bindContainerJSONBody(c, r, bound, false)
+	if !ok {
 		return
 	}
 	ref, ok := readDockerImageRef(c, r)
@@ -265,9 +287,9 @@ func (r routeRuntime) handleDockerImageUntag(c *gin.Context) {
 	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
-func (r routeRuntime) handleDockerImageRemove(c *gin.Context) {
-	var request containeropenapi.PostDockerImageRemoveJSONRequestBody
-	if !bindOptionalJSON(c, r, &request) {
+func (r routeRuntime) handleDockerImageRemove(c *gin.Context, bound *containeropenapi.PostDockerImageRemoveJSONRequestBody) {
+	request, ok := bindContainerJSONBody(c, r, bound, true)
+	if !ok {
 		return
 	}
 	ref, ok := readDockerImageRef(c, r)
@@ -288,21 +310,12 @@ func (r routeRuntime) handleDockerImageRemove(c *gin.Context) {
 	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
-func (r routeRuntime) handleDockerImageBatchRemove(c *gin.Context) {
-	var request containeropenapi.PostDockerImageBatchRemoveJSONRequestBody
-	if !bindRequiredJSON(c, r, &request) {
-		return
-	}
-	requestedBy, idempotencyKey, ok := taskSubmissionRequest(c, r.ctx)
+func (r routeRuntime) handleDockerImageBatchRemove(c *gin.Context, bound *containeropenapi.PostDockerImageBatchRemoveJSONRequestBody) {
+	request, ok := bindContainerJSONBody(c, r, bound, false)
 	if !ok {
 		return
 	}
-	receipt, err := r.service.SubmitDockerImageBatchRemove(c.Request.Context(), request.Ids, boolPtrValue(request.Force), requestedBy, idempotencyKey)
-	if err != nil {
-		r.writeRouteError(c, err)
-		return
-	}
-	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
+	r.submitDockerBatchRemoval(c, request.Ids, boolPtrValue(request.Force), r.service.SubmitDockerImageBatchRemove)
 }
 
 func readDockerImageRef(c *gin.Context, r routeRuntime) (string, bool) {
@@ -340,9 +353,9 @@ func (r routeRuntime) handleDockerNetwork(c *gin.Context) {
 	httpx.WriteSuccess(c, http.StatusOK, toDockerNetworkDetail(item))
 }
 
-func (r routeRuntime) handleDockerNetworkCreate(c *gin.Context) {
-	var request openapigen.PostDockerNetworkJSONRequestBody
-	if !bindRequiredJSON(c, r, &request) {
+func (r routeRuntime) handleDockerNetworkCreate(c *gin.Context, body *containeropenapi.PostDockerNetworkJSONRequestBody) {
+	request, ok := bindContainerJSONBody(c, r, body, false)
+	if !ok {
 		return
 	}
 	if !request.Driver.Valid() {
@@ -365,9 +378,9 @@ func (r routeRuntime) handleDockerNetworkCreate(c *gin.Context) {
 	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
-func (r routeRuntime) handleDockerNetworkRemove(c *gin.Context) {
-	var request openapigen.DeleteDockerNetworkJSONRequestBody
-	if !bindRequiredJSON(c, r, &request) {
+func (r routeRuntime) handleDockerNetworkRemove(c *gin.Context, bound *openapigen.DeleteDockerNetworkJSONRequestBody) {
+	request, ok := bindContainerJSONBody(c, r, bound, false)
+	if !ok {
 		return
 	}
 	ref, ok := readRef(c, r)
@@ -400,14 +413,14 @@ func (r routeRuntime) handleDockerVolumes(c *gin.Context) {
 	httpx.WriteSuccess(c, http.StatusOK, toDockerVolumeList(result))
 }
 
-func (r routeRuntime) handleDockerVolumeRemove(c *gin.Context) {
+func (r routeRuntime) handleDockerVolumeRemove(c *gin.Context, bound *containeropenapi.PostDockerVolumeRemoveJSONRequestBody) {
 	_ = bindPostDockerVolumeRemoveParams(c)
 	ref, ok := readRef(c, r)
 	if !ok {
 		return
 	}
-	var request containeropenapi.PostDockerVolumeRemoveJSONRequestBody
-	if !bindRequiredJSON(c, r, &request) {
+	request, ok := bindContainerJSONBody(c, r, bound, false)
+	if !ok {
 		return
 	}
 	requestedBy, idempotencyKey, ok := taskSubmissionRequest(c, r.ctx)
@@ -422,21 +435,12 @@ func (r routeRuntime) handleDockerVolumeRemove(c *gin.Context) {
 	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
-func (r routeRuntime) handleDockerVolumeBatchRemove(c *gin.Context) {
-	var request containeropenapi.PostDockerVolumeBatchRemoveJSONRequestBody
-	if !bindRequiredJSON(c, r, &request) {
-		return
-	}
-	requestedBy, idempotencyKey, ok := taskSubmissionRequest(c, r.ctx)
+func (r routeRuntime) handleDockerVolumeBatchRemove(c *gin.Context, bound *containeropenapi.PostDockerVolumeBatchRemoveJSONRequestBody) {
+	request, ok := bindContainerJSONBody(c, r, bound, false)
 	if !ok {
 		return
 	}
-	receipt, err := r.service.SubmitDockerVolumeBatchRemove(c.Request.Context(), request.Names, boolPtrValue(request.Force), requestedBy, idempotencyKey)
-	if err != nil {
-		r.writeRouteError(c, err)
-		return
-	}
-	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
+	r.submitDockerBatchRemoval(c, request.Names, boolPtrValue(request.Force), r.service.SubmitDockerVolumeBatchRemove)
 }
 
 func (r routeRuntime) handleDockerVolume(c *gin.Context) {
@@ -451,6 +455,24 @@ func (r routeRuntime) handleDockerVolume(c *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(c, http.StatusOK, toDockerVolume(item))
+}
+
+func (r routeRuntime) submitDockerBatchRemoval(
+	c *gin.Context,
+	refs []string,
+	force bool,
+	submit func(context.Context, []string, bool, uint64, string) (moduleapi.TaskReceipt, error),
+) {
+	requestedBy, idempotencyKey, ok := taskSubmissionRequest(c, r.ctx)
+	if !ok {
+		return
+	}
+	receipt, err := submit(c.Request.Context(), refs, force, requestedBy, idempotencyKey)
+	if err != nil {
+		r.writeRouteError(c, err)
+		return
+	}
+	httpx.WriteSuccess(c, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
 func (r routeRuntime) handleDockerSystem(c *gin.Context) {
@@ -538,10 +560,10 @@ func (r routeRuntime) handleEvents(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toRuntimeEventsHistoryResponse(history))
 }
 
-func (r routeRuntime) handleShellSessionCreate(ginCtx *gin.Context) {
+func (r routeRuntime) handleShellSessionCreate(ginCtx *gin.Context, bound *containeropenapi.PostContainerShellSessionJSONRequestBody) {
 	_ = bindPostContainerShellSessionParams(ginCtx)
-	var request containeropenapi.PostContainerShellSessionJSONRequestBody
-	if !bindRequiredJSON(ginCtx, r, &request) {
+	request, ok := bindContainerJSONBody(ginCtx, r, bound, false)
+	if !ok {
 		return
 	}
 	ref, ok := readRef(ginCtx, r)
@@ -599,10 +621,10 @@ func (r routeRuntime) handleRestart(ginCtx *gin.Context) {
 	r.handleLifecycleTaskAction(ginCtx, containerActionRestart)
 }
 
-func (r routeRuntime) handleRemove(ginCtx *gin.Context) {
+func (r routeRuntime) handleRemove(ginCtx *gin.Context, bound *containeropenapi.PostContainerRemoveJSONRequestBody) {
 	_ = bindPostContainerRemoveParams(ginCtx)
-	var request containeropenapi.PostContainerRemoveJSONRequestBody
-	if !bindOptionalJSON(ginCtx, r, &request) {
+	request, ok := bindContainerJSONBody(ginCtx, r, bound, true)
+	if !ok {
 		return
 	}
 	ref, ok := readRef(ginCtx, r)
@@ -621,10 +643,10 @@ func (r routeRuntime) handleRemove(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusAccepted, taskReceiptResponse(receipt))
 }
 
-func (r routeRuntime) handleBatchAction(ginCtx *gin.Context) {
+func (r routeRuntime) handleBatchAction(ginCtx *gin.Context, bound *containeropenapi.PostContainerBatchActionsJSONRequestBody) {
 	_ = bindPostContainerBatchActionsParams(ginCtx)
-	var request containeropenapi.PostContainerBatchActionsJSONRequestBody
-	if !bindRequiredJSON(ginCtx, r, &request) {
+	request, ok := bindContainerJSONBody(ginCtx, r, bound, false)
+	if !ok {
 		return
 	}
 	if !request.Action.Valid() {
@@ -1173,33 +1195,20 @@ func bindPostContainerShellSessionParams(ginCtx *gin.Context) containeropenapi.P
 	return containeropenapi.PostContainerShellSessionParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
-// BindGetContainerShellWebSocketParams extracts the WebSocket ticket from the query string and request ID from headers for shell endpoint access.
-func bindGetContainerShellWebSocketParams(ginCtx *gin.Context) containeropenapi.GetContainerShellWebSocketParams {
-	requestID := optionalHeader(ginCtx, httpx.RequestIDHeader)
-	return containeropenapi.GetContainerShellWebSocketParams{
-		Ticket:     strings.TrimSpace(ginCtx.Query("ticket")),
-		XRequestId: requestID,
+// bindContainerJSONBody 使用生成的请求体，或在兼容路径保留容器模块的空请求与错误语义。
+func bindContainerJSONBody[T any](c *gin.Context, routes routeRuntime, bound *T, optional bool) (T, bool) {
+	if bound != nil {
+		return *bound, true
 	}
-}
-
-// BindRequiredJSON binds JSON from the request body to target. It returns true on success and false on binding failure, in which case it writes a localized error response.
-func bindRequiredJSON(ginCtx *gin.Context, r routeRuntime, target any) bool {
-	if err := ginCtx.ShouldBindJSON(target); err != nil {
-		r.writeRouteError(ginCtx, errInvalidListQuery)
-		return false
+	var request T
+	if optional && (c.Request == nil || c.Request.Body == nil) {
+		return request, true
 	}
-	return true
-}
-
-func bindOptionalJSON(ginCtx *gin.Context, r routeRuntime, target any) bool {
-	if ginCtx.Request == nil || ginCtx.Request.Body == nil {
-		return true
+	if err := c.ShouldBindJSON(&request); err != nil && (!optional || !errors.Is(err, io.EOF)) {
+		routes.writeRouteError(c, errInvalidListQuery)
+		return request, false
 	}
-	if err := ginCtx.ShouldBindJSON(target); err != nil && !errors.Is(err, io.EOF) {
-		r.writeRouteError(ginCtx, errInvalidListQuery)
-		return false
-	}
-	return true
+	return request, true
 }
 
 func commonHeaders(ginCtx *gin.Context) (*string, *string) {

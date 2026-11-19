@@ -2,6 +2,8 @@ package rbac
 
 import (
 	"encoding/json"
+	rbacopenapi "graft/server/internal/contract/openapi/rbac"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"net/http"
 	"strings"
 
@@ -9,7 +11,6 @@ import (
 
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
-	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	rbaccontract "graft/server/modules/rbac/contract"
 )
@@ -39,14 +40,45 @@ type rbacSavedViewListResponse struct {
 	Items []httpx.SavedViewResponse `json:"items"`
 }
 
-func registerRBACSavedViewRoutes(group *gin.RouterGroup, moduleCtx *module.Context, service moduleapi.SavedViewService, guard gin.HandlerFunc, definition rbacSavedViewDefinition) {
-	if group == nil || moduleCtx == nil || service == nil {
+type rbacSavedViewHandlers struct {
+	list   gin.HandlerFunc
+	create gin.HandlerFunc
+	update gin.HandlerFunc
+	remove gin.HandlerFunc
+}
+
+func newRBACSavedViewHandlers(localizer *i18n.Service, service moduleapi.SavedViewService, definition rbacSavedViewDefinition) rbacSavedViewHandlers {
+	if service == nil {
+		return rbacSavedViewHandlers{}
+	}
+	return rbacSavedViewHandlers{
+		list:   handleRBACSavedViewList(localizer, service, definition),
+		create: handleRBACSavedViewCreate(localizer, service, definition),
+		update: handleRBACSavedViewUpdate(localizer, service, definition),
+		remove: handleRBACSavedViewDelete(localizer, service, definition),
+	}
+}
+
+//nolint:dupl // 两个资源的生成方法和路径独立声明，保持注册与契约可逐项核对。
+func registerRoleSavedViewRoutes(group *gin.RouterGroup, handlers rbacSavedViewHandlers, wrapper rbacopenapi.ServerInterfaceWrapper, guard gin.HandlerFunc) {
+	if handlers.list == nil {
 		return
 	}
-	group.GET(definition.collectionRoute, guard, handleRBACSavedViewList(moduleCtx.I18n, service, definition))
-	group.POST(definition.collectionRoute, guard, handleRBACSavedViewCreate(moduleCtx.I18n, service, definition))
-	group.PUT(definition.itemRoute, guard, handleRBACSavedViewUpdate(moduleCtx.I18n, service, definition))
-	group.DELETE(definition.itemRoute, guard, handleRBACSavedViewDelete(moduleCtx.I18n, service, definition))
+	group.GET(rbaccontract.RoleSavedViewsRoute, guard, strictsupport.Route(wrapper.GetRoleSavedViews, nil))
+	group.POST(rbaccontract.RoleSavedViewsRoute, guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostRoleSavedView, handlers.create))
+	group.PUT(rbaccontract.RoleSavedViewRoute, guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutRoleSavedView, handlers.update))
+	group.DELETE(rbaccontract.RoleSavedViewRoute, guard, strictsupport.Route(wrapper.DeleteRoleSavedView, handlers.remove))
+}
+
+//nolint:dupl // 两个资源的生成方法和路径独立声明，保持注册与契约可逐项核对。
+func registerPermissionSavedViewRoutes(group *gin.RouterGroup, handlers rbacSavedViewHandlers, wrapper rbacopenapi.ServerInterfaceWrapper, guard gin.HandlerFunc) {
+	if handlers.list == nil {
+		return
+	}
+	group.GET(rbaccontract.PermissionSavedViewsRoute, guard, strictsupport.Route(wrapper.GetPermissionSavedViews, nil))
+	group.POST(rbaccontract.PermissionSavedViewsRoute, guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostPermissionSavedView, handlers.create))
+	group.PUT(rbaccontract.PermissionSavedViewRoute, guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutPermissionSavedView, handlers.update))
+	group.DELETE(rbaccontract.PermissionSavedViewRoute, guard, strictsupport.Route(wrapper.DeletePermissionSavedView, handlers.remove))
 }
 
 //nolint:cyclop // 角色与权限保存视图的字段、类型和列白名单必须在同一 HTTP 边界逐项校验。

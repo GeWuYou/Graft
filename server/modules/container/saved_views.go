@@ -2,6 +2,8 @@ package container
 
 import (
 	"encoding/json"
+	containeropenapi "graft/server/internal/contract/openapi/container"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"net/http"
 	"strings"
 
@@ -98,25 +100,69 @@ var containerSavedViewDefinitions = []containerSavedViewDefinition{
 	},
 }
 
-func registerContainerSavedViewRoutes(ctx *module.Context, service moduleapi.SavedViewService, requireView gin.HandlerFunc) {
-	if ctx == nil || ctx.Router == nil || service == nil {
-		return
+type savedViewHandlers struct {
+	list   gin.HandlerFunc
+	create gin.HandlerFunc
+	update gin.HandlerFunc
+	remove gin.HandlerFunc
+}
+
+type containerSavedViewHandlers struct {
+	containers savedViewHandlers
+	images     savedViewHandlers
+	networks   savedViewHandlers
+	volumes    savedViewHandlers
+}
+
+func newContainerSavedViewHandlers(ctx *module.Context, service moduleapi.SavedViewService) containerSavedViewHandlers {
+	if service == nil {
+		return containerSavedViewHandlers{}
 	}
 	bySurface := make(map[string]containerSavedViewDefinition, len(containerSavedViewDefinitions))
 	for _, definition := range containerSavedViewDefinitions {
 		bySurface[definition.surface] = definition
 	}
-	registerSavedViewRoutes(ctx.Router.Group("/ops/containers"), ctx, service, requireView, bySurface[containerListSavedViewSurface])
-	registerSavedViewRoutes(ctx.Router.Group("/docker/images"), ctx, service, requireView, bySurface[dockerImageListSavedViewSurface])
-	registerSavedViewRoutes(ctx.Router.Group("/ops/docker/networks"), ctx, service, requireView, bySurface[dockerNetworkListSavedViewSurface])
-	registerSavedViewRoutes(ctx.Router.Group("/ops/docker/volumes"), ctx, service, requireView, bySurface[dockerVolumeListSavedViewSurface])
+	handlers := func(surface string) savedViewHandlers {
+		definition := bySurface[surface]
+		return savedViewHandlers{
+			list:   handleContainerSavedViewList(ctx.I18n, service, definition),
+			create: handleContainerSavedViewCreate(ctx.I18n, ctx, service, definition),
+			update: handleContainerSavedViewUpdate(ctx.I18n, ctx, service, definition),
+			remove: handleContainerSavedViewDelete(ctx.I18n, service, definition),
+		}
+	}
+	return containerSavedViewHandlers{
+		containers: handlers(containerListSavedViewSurface),
+		images:     handlers(dockerImageListSavedViewSurface),
+		networks:   handlers(dockerNetworkListSavedViewSurface),
+		volumes:    handlers(dockerVolumeListSavedViewSurface),
+	}
 }
 
-func registerSavedViewRoutes(group *gin.RouterGroup, ctx *module.Context, service moduleapi.SavedViewService, guard gin.HandlerFunc, definition containerSavedViewDefinition) {
-	group.GET("/saved-views", guard, handleContainerSavedViewList(ctx.I18n, service, definition))
-	group.POST("/saved-views", guard, handleContainerSavedViewCreate(ctx.I18n, ctx, service, definition))
-	group.PUT("/saved-views/:viewId", guard, handleContainerSavedViewUpdate(ctx.I18n, ctx, service, definition))
-	group.DELETE("/saved-views/:viewId", guard, handleContainerSavedViewDelete(ctx.I18n, service, definition))
+func registerContainerSavedViewRoutes(ctx *module.Context, handlers containerSavedViewHandlers, wrapper containeropenapi.ServerInterfaceWrapper, guard gin.HandlerFunc) {
+	if ctx == nil || ctx.Router == nil || handlers.containers.list == nil {
+		return
+	}
+	containers := ctx.Router.Group("/ops/containers")
+	containers.GET("/saved-views", guard, strictsupport.Route(wrapper.GetContainerSavedViews, nil))
+	containers.POST("/saved-views", guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostContainerSavedView, handlers.containers.create))
+	containers.PUT("/saved-views/:viewId", guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutContainerSavedView, handlers.containers.update))
+	containers.DELETE("/saved-views/:viewId", guard, strictsupport.Route(wrapper.DeleteContainerSavedView, handlers.containers.remove))
+	images := ctx.Router.Group("/docker/images")
+	images.GET("/saved-views", guard, strictsupport.Route(wrapper.GetDockerImageSavedViews, nil))
+	images.POST("/saved-views", guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostDockerImageSavedView, handlers.images.create))
+	images.PUT("/saved-views/:viewId", guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutDockerImageSavedView, handlers.images.update))
+	images.DELETE("/saved-views/:viewId", guard, strictsupport.Route(wrapper.DeleteDockerImageSavedView, handlers.images.remove))
+	networks := ctx.Router.Group("/ops/docker/networks")
+	networks.GET("/saved-views", guard, strictsupport.Route(wrapper.GetDockerNetworkSavedViews, nil))
+	networks.POST("/saved-views", guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostDockerNetworkSavedView, handlers.networks.create))
+	networks.PUT("/saved-views/:viewId", guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutDockerNetworkSavedView, handlers.networks.update))
+	networks.DELETE("/saved-views/:viewId", guard, strictsupport.Route(wrapper.DeleteDockerNetworkSavedView, handlers.networks.remove))
+	volumes := ctx.Router.Group("/ops/docker/volumes")
+	volumes.GET("/saved-views", guard, strictsupport.Route(wrapper.GetDockerVolumeSavedViews, nil))
+	volumes.POST("/saved-views", guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostDockerVolumeSavedView, handlers.volumes.create))
+	volumes.PUT("/saved-views/:viewId", guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutDockerVolumeSavedView, handlers.volumes.update))
+	volumes.DELETE("/saved-views/:viewId", guard, strictsupport.Route(wrapper.DeleteDockerVolumeSavedView, handlers.volumes.remove))
 }
 
 func validateContainerSavedView(request httpx.SavedViewRequest, ctx *module.Context, definition containerSavedViewDefinition) error {

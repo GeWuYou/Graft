@@ -1,8 +1,11 @@
 package network
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	networkopenapi "graft/server/internal/contract/openapi/network"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"net/http"
 	"strconv"
 	"strings"
@@ -43,28 +46,34 @@ func registerNetworkRoutes(ctx *module.Context, service *Service) error {
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	group := ctx.Router.Group(networkcontract.NetworkGroup)
 	group.Use(httpx.RequestIDMiddleware())
-	group.GET(networkcontract.OutboundNetworkRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleGet)
-	group.PUT(networkcontract.OutboundNetworkRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkWritePermission.String(), publisher), routes.handlePut)
-	group.POST(networkcontract.OutboundNetworkResetRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkWritePermission.String(), publisher), routes.handleReset)
-	group.POST(networkcontract.LegacyDiagnosticRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkDiagnosePermission.String(), publisher), routes.handleLegacyDiagnostic)
-	group.GET(networkcontract.LegacyDiagnosticHistoryRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleLegacyDiagnosticHistory)
-	group.GET(networkcontract.ConnectivityTargetsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityTargets)
-	group.GET(networkcontract.ConnectivityCustomTargetsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkManageTargetsPermission.String(), publisher), routes.handleConnectivityCustomTargets)
-	group.POST(networkcontract.ConnectivityCustomTargetsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkManageTargetsPermission.String(), publisher), routes.handleCreateConnectivityCustomTarget)
-	group.DELETE(networkcontract.ConnectivityCustomTargetRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkManageTargetsPermission.String(), publisher), routes.handleDeleteConnectivityCustomTarget)
-	group.GET(networkcontract.ConnectivityLatestRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityLatest)
-	group.GET(networkcontract.ConnectivityAggregateRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityAggregate)
-	group.POST(networkcontract.ConnectivityRunRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkDiagnosePermission.String(), publisher), routes.handleConnectivityRun)
-	group.POST(networkcontract.ConnectivityBatchRunRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkDiagnosePermission.String(), publisher), routes.handleConnectivityBatchRun)
-	group.GET(networkcontract.ConnectivityHistoryRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityHistory)
-	group.GET(networkcontract.ConnectivityReportRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityReport)
-	group.GET(networkcontract.ConnectivityTraceRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityTrace)
-	group.GET(networkcontract.ConnectivityExportRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), routes.handleConnectivityExport)
+	wrapper := networkopenapi.ServerInterfaceWrapper{
+		Handler: networkopenapi.NewStrictHandlerWithOptions(networkStrictServer{routes: routes}, nil, networkopenapi.StrictGinServerOptions{
+			RequestErrorHandlerFunc: strictsupport.RequestErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String(), nil),
+			HandlerErrorFunc:        strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
+		}),
+		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
+	}
+	group.GET(networkcontract.OutboundNetworkRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), strictsupport.Route(wrapper.GetPlatformNetworkOutbound, nil))
+	group.PUT(networkcontract.OutboundNetworkRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkWritePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutPlatformNetworkOutbound, func(c *gin.Context) { routes.handlePut(c, nil) }))
+	group.POST(networkcontract.OutboundNetworkResetRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkWritePermission.String(), publisher), strictsupport.Route(wrapper.ResetPlatformNetworkOutbound, routes.handleReset))
+	group.POST(networkcontract.LegacyDiagnosticRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkDiagnosePermission.String(), publisher), strictsupport.Route(wrapper.PostPlatformNetworkDiagnostic, routes.handleLegacyDiagnostic))
+	group.GET(networkcontract.LegacyDiagnosticHistoryRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), strictsupport.Route(wrapper.GetPlatformNetworkDiagnosticHistory, routes.handleLegacyDiagnosticHistory))
+	group.GET(networkcontract.ConnectivityTargetsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), strictsupport.Route(wrapper.GetPlatformConnectivityTargets, nil))
+	group.GET(networkcontract.ConnectivityCustomTargetsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkManageTargetsPermission.String(), publisher), strictsupport.Route(wrapper.GetPlatformConnectivityCustomTargets, nil))
+	group.POST(networkcontract.ConnectivityCustomTargetsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkManageTargetsPermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostPlatformConnectivityCustomTarget, func(c *gin.Context) { routes.handleCreateConnectivityCustomTarget(c, nil) }))
+	group.DELETE(networkcontract.ConnectivityCustomTargetRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkManageTargetsPermission.String(), publisher), strictsupport.Route(wrapper.DeletePlatformConnectivityCustomTarget, routes.handleDeleteConnectivityCustomTarget))
+	group.GET(networkcontract.ConnectivityLatestRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), strictsupport.Route(wrapper.GetPlatformConnectivityLatest, nil))
+	group.GET(networkcontract.ConnectivityAggregateRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), strictsupport.Route(wrapper.GetPlatformConnectivityAggregate, nil))
+	group.POST(networkcontract.ConnectivityRunRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkDiagnosePermission.String(), publisher), strictsupport.Route(wrapper.PostPlatformConnectivityRun, routes.handleConnectivityRun))
+	group.POST(networkcontract.ConnectivityBatchRunRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkDiagnosePermission.String(), publisher), strictsupport.Route(wrapper.PostPlatformConnectivityBatchRun, nil))
+	group.GET(networkcontract.ConnectivityHistoryRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), strictsupport.Route(wrapper.GetPlatformConnectivityHistory, routes.handleConnectivityHistory))
+	group.GET(networkcontract.ConnectivityReportRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), strictsupport.Route(wrapper.GetPlatformConnectivityReport, routes.handleConnectivityReport))
+	group.GET(networkcontract.ConnectivityTraceRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), strictsupport.Route(wrapper.GetPlatformConnectivityTrace, routes.handleConnectivityTrace))
+	group.GET(networkcontract.ConnectivityExportRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, networkcontract.NetworkReadPermission.String(), publisher), strictsupport.Route(wrapper.GetPlatformConnectivityExport, routes.handleConnectivityExport))
 	return nil
 }
 
 func (r routeRuntime) handleGet(ginCtx *gin.Context) {
-	networkGeneratedHandler{}.GetPlatformNetworkOutbound(bindGetParams(ginCtx))
 	overview, err := r.service.Overview(ginCtx.Request.Context())
 	if err != nil {
 		r.writeError(ginCtx, err)
@@ -74,17 +83,20 @@ func (r routeRuntime) handleGet(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toOverview(overview))
 }
 
-func (r routeRuntime) handlePut(ginCtx *gin.Context) {
+func (r routeRuntime) handlePut(ginCtx *gin.Context, bound *generated.PutPlatformNetworkOutboundJSONRequestBody) {
 	expectedVersion, ok := r.bindIfMatch(ginCtx)
 	if !ok {
 		return
 	}
 	var request generated.PutPlatformNetworkOutboundJSONRequestBody
-	if err := ginCtx.ShouldBindJSON(&request); err != nil {
-		r.badRequest(ginCtx)
-		return
+	if bound != nil {
+		request = *bound
+	} else {
+		if err := ginCtx.ShouldBindJSON(&request); err != nil {
+			r.badRequest(ginCtx)
+			return
+		}
 	}
-	networkGeneratedHandler{}.PutPlatformNetworkOutbound(bindPutParams(ginCtx), request)
 	overview, err := r.service.Update(ginCtx.Request.Context(), moduleapi.OutboundNetworkPolicy{Enabled: request.Enabled, HTTPProxy: request.HttpProxy, HTTPSProxy: request.HttpsProxy, NoProxy: request.NoProxy}, currentUserID(ginCtx), expectedVersion)
 	if err != nil {
 		r.writeError(ginCtx, err)
@@ -99,7 +111,6 @@ func (r routeRuntime) handleReset(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	networkGeneratedHandler{}.ResetPlatformNetworkOutbound(bindResetParams(ginCtx))
 	overview, err := r.service.Reset(ginCtx.Request.Context(), currentUserID(ginCtx), expectedVersion)
 	if err != nil {
 		r.writeError(ginCtx, err)
@@ -199,32 +210,79 @@ func currentUserID(ginCtx *gin.Context) *uint64 {
 	return &userID
 }
 
-type networkGeneratedHandler struct{}
-
-func (networkGeneratedHandler) GetPlatformNetworkOutbound(generated.GetPlatformNetworkOutboundParams) {
-}
-func (networkGeneratedHandler) PutPlatformNetworkOutbound(generated.PutPlatformNetworkOutboundParams, generated.PutPlatformNetworkOutboundJSONRequestBody) {
-}
-func (networkGeneratedHandler) ResetPlatformNetworkOutbound(generated.ResetPlatformNetworkOutboundParams) {
+// networkStrictServer 将现有 HTTP 响应写入接入生成的请求契约。
+type networkStrictServer struct {
+	routes routeRuntime
 }
 
-func bindGetParams(ginCtx *gin.Context) generated.GetPlatformNetworkOutboundParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.GetPlatformNetworkOutboundParams{XGraftLocale: locale, XRequestId: requestID}
+var _ networkopenapi.StrictServerInterface = networkStrictServer{}
+
+func (s networkStrictServer) GetPlatformNetworkOutbound(ctx context.Context, _ networkopenapi.GetPlatformNetworkOutboundRequestObject) (networkopenapi.GetPlatformNetworkOutboundResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.handleGet)
 }
 
-func bindPutParams(ginCtx *gin.Context) generated.PutPlatformNetworkOutboundParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PutPlatformNetworkOutboundParams{XGraftLocale: locale, XRequestId: requestID}
+func (s networkStrictServer) PutPlatformNetworkOutbound(ctx context.Context, req networkopenapi.PutPlatformNetworkOutboundRequestObject) (networkopenapi.PutPlatformNetworkOutboundResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, func(c *gin.Context) {
+		s.routes.handlePut(c, (*generated.PutPlatformNetworkOutboundJSONRequestBody)(req.Body))
+	})
 }
 
-func bindResetParams(ginCtx *gin.Context) generated.ResetPlatformNetworkOutboundParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.ResetPlatformNetworkOutboundParams{XGraftLocale: locale, XRequestId: requestID}
+func (s networkStrictServer) ResetPlatformNetworkOutbound(ctx context.Context, _ networkopenapi.ResetPlatformNetworkOutboundRequestObject) (networkopenapi.ResetPlatformNetworkOutboundResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.handleReset)
 }
 
-func commonHeaders(ginCtx *gin.Context) (*string, *string) {
-	locale := ginCtx.GetHeader(string(httpheader.Locale))
-	requestID := httpx.EnsureRequestID(ginCtx)
-	return &locale, &requestID
+func (s networkStrictServer) PostPlatformNetworkDiagnostic(ctx context.Context, _ networkopenapi.PostPlatformNetworkDiagnosticRequestObject) (networkopenapi.PostPlatformNetworkDiagnosticResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.handleLegacyDiagnostic)
+}
+
+func (s networkStrictServer) GetPlatformNetworkDiagnosticHistory(ctx context.Context, _ networkopenapi.GetPlatformNetworkDiagnosticHistoryRequestObject) (networkopenapi.GetPlatformNetworkDiagnosticHistoryResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.handleLegacyDiagnosticHistory)
+}
+
+func (s networkStrictServer) GetPlatformConnectivityTargets(ctx context.Context, _ networkopenapi.GetPlatformConnectivityTargetsRequestObject) (networkopenapi.GetPlatformConnectivityTargetsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.handleConnectivityTargets)
+}
+
+func (s networkStrictServer) GetPlatformConnectivityCustomTargets(ctx context.Context, _ networkopenapi.GetPlatformConnectivityCustomTargetsRequestObject) (networkopenapi.GetPlatformConnectivityCustomTargetsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.handleConnectivityCustomTargets)
+}
+
+func (s networkStrictServer) PostPlatformConnectivityCustomTarget(ctx context.Context, req networkopenapi.PostPlatformConnectivityCustomTargetRequestObject) (networkopenapi.PostPlatformConnectivityCustomTargetResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, func(c *gin.Context) { s.routes.handleCreateConnectivityCustomTarget(c, req.Body) })
+}
+
+func (s networkStrictServer) DeletePlatformConnectivityCustomTarget(ctx context.Context, _ networkopenapi.DeletePlatformConnectivityCustomTargetRequestObject) (networkopenapi.DeletePlatformConnectivityCustomTargetResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.handleDeleteConnectivityCustomTarget)
+}
+
+func (s networkStrictServer) GetPlatformConnectivityLatest(ctx context.Context, _ networkopenapi.GetPlatformConnectivityLatestRequestObject) (networkopenapi.GetPlatformConnectivityLatestResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.handleConnectivityLatest)
+}
+
+func (s networkStrictServer) GetPlatformConnectivityAggregate(ctx context.Context, _ networkopenapi.GetPlatformConnectivityAggregateRequestObject) (networkopenapi.GetPlatformConnectivityAggregateResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.handleConnectivityAggregate)
+}
+
+func (s networkStrictServer) PostPlatformConnectivityRun(ctx context.Context, _ networkopenapi.PostPlatformConnectivityRunRequestObject) (networkopenapi.PostPlatformConnectivityRunResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.handleConnectivityRun)
+}
+
+func (s networkStrictServer) PostPlatformConnectivityBatchRun(ctx context.Context, _ networkopenapi.PostPlatformConnectivityBatchRunRequestObject) (networkopenapi.PostPlatformConnectivityBatchRunResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.handleConnectivityBatchRun)
+}
+
+func (s networkStrictServer) GetPlatformConnectivityHistory(ctx context.Context, _ networkopenapi.GetPlatformConnectivityHistoryRequestObject) (networkopenapi.GetPlatformConnectivityHistoryResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.handleConnectivityHistory)
+}
+
+func (s networkStrictServer) GetPlatformConnectivityReport(ctx context.Context, _ networkopenapi.GetPlatformConnectivityReportRequestObject) (networkopenapi.GetPlatformConnectivityReportResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.handleConnectivityReport)
+}
+
+func (s networkStrictServer) GetPlatformConnectivityTrace(ctx context.Context, _ networkopenapi.GetPlatformConnectivityTraceRequestObject) (networkopenapi.GetPlatformConnectivityTraceResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.handleConnectivityTrace)
+}
+
+func (s networkStrictServer) GetPlatformConnectivityExport(ctx context.Context, _ networkopenapi.GetPlatformConnectivityExportRequestObject) (networkopenapi.GetPlatformConnectivityExportResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.handleConnectivityExport)
 }

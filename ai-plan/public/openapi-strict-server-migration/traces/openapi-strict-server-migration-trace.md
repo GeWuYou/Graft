@@ -80,3 +80,22 @@
 - Migration note for remaining modules: when user/rbac/network/modules/health domains
   move to per-domain configs, the corresponding legacy targets must be repointed the
   same way (see tracking recipe table).
+
+## 2026-11-19 Resume and full module wiring
+
+- Continued from the previous commits after the OpenAPI breaking gate merged. Converted
+  all remaining eight HTTP modules to per-domain strict server mounts.
+- Repaired inherited request regressions in auth sessions, backup create, notification
+  read-all, task replay, scheduler actions and audit writes. Preserved request ID and
+  locale header selection, localized envelopes and existing permission guards.
+- Added a source test comparing 295 generated mount points to canonical operation IDs
+  and HTTP methods. Kept the container Shell WebSocket handshake explicit.
+- Freshness now derives all 19 output paths from their generation directives, covering
+  the runtime-target artifact omitted by the earlier inventory.
+- Connected generated bodies directly for user writes, Docker resource actions, Build
+  writes and uploads, Network writes, registry writes with compatible representations,
+  and project operations with compatible models. The remaining saved-view and complex
+  project payloads retain their module parsers where raw JSON or different generated
+  union and enum representations are involved.
+- Removed prior types-only marker handlers once the actual generated route mounts
+  owned the compile-time contract.

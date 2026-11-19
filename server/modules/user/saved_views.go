@@ -2,6 +2,8 @@ package user
 
 import (
 	"encoding/json"
+	"graft/server/internal/contract/openapi/strictsupport"
+	useropenapi "graft/server/internal/contract/openapi/user"
 	"net/http"
 	"strings"
 
@@ -9,7 +11,6 @@ import (
 
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
-	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	usercontract "graft/server/modules/user/contract"
 )
@@ -24,14 +25,33 @@ type userSavedViewListResponse struct {
 	Items []httpx.SavedViewResponse `json:"items"`
 }
 
-func registerUserSavedViews(group *gin.RouterGroup, moduleCtx *module.Context, service moduleapi.SavedViewService, guard gin.HandlerFunc) {
-	if group == nil || moduleCtx == nil || service == nil {
+type userSavedViewHandlers struct {
+	list   gin.HandlerFunc
+	create gin.HandlerFunc
+	update gin.HandlerFunc
+	remove gin.HandlerFunc
+}
+
+func newUserSavedViewHandlers(localizer *i18n.Service, service moduleapi.SavedViewService) userSavedViewHandlers {
+	if service == nil {
+		return userSavedViewHandlers{}
+	}
+	return userSavedViewHandlers{
+		list:   handleUserSavedViewList(localizer, service),
+		create: handleUserSavedViewCreate(localizer, service),
+		update: handleUserSavedViewUpdate(localizer, service),
+		remove: handleUserSavedViewDelete(localizer, service),
+	}
+}
+
+func registerUserSavedViews(group *gin.RouterGroup, handlers userSavedViewHandlers, wrapper useropenapi.ServerInterfaceWrapper, guard gin.HandlerFunc) {
+	if handlers.list == nil {
 		return
 	}
-	group.GET(usercontract.UserSavedViewsRoute, guard, handleUserSavedViewList(moduleCtx.I18n, service))
-	group.POST(usercontract.UserSavedViewsRoute, guard, handleUserSavedViewCreate(moduleCtx.I18n, service))
-	group.PUT(usercontract.UserSavedViewRoute, guard, handleUserSavedViewUpdate(moduleCtx.I18n, service))
-	group.DELETE(usercontract.UserSavedViewRoute, guard, handleUserSavedViewDelete(moduleCtx.I18n, service))
+	group.GET(usercontract.UserSavedViewsRoute, guard, strictsupport.Route(wrapper.GetUserSavedViews, nil))
+	group.POST(usercontract.UserSavedViewsRoute, guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostUserSavedView, handlers.create))
+	group.PUT(usercontract.UserSavedViewRoute, guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutUserSavedView, handlers.update))
+	group.DELETE(usercontract.UserSavedViewRoute, guard, strictsupport.Route(wrapper.DeleteUserSavedView, handlers.remove))
 }
 
 func validateUserSavedView(request httpx.SavedViewRequest) error {

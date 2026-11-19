@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"net/http"
 	"strings"
 
@@ -18,9 +19,9 @@ import (
 )
 
 func (r authRouteRegistrar) registerLoginRoutes(authGroup *gin.RouterGroup) {
-	authGroup.POST(authcontract.AuthLogin, r.wrapper.PostAuthLogin)
-	authGroup.POST(authcontract.AuthRefresh, r.wrapper.PostAuthRefresh)
-	authGroup.POST(authcontract.AuthLogout, r.wrapper.PostAuthLogout)
+	authGroup.POST(authcontract.AuthLogin, strictsupport.Route(r.wrapper.PostAuthLogin, nil))
+	authGroup.POST(authcontract.AuthRefresh, strictsupport.Route(r.wrapper.PostAuthRefresh, nil))
+	authGroup.POST(authcontract.AuthLogout, strictsupport.Route(r.wrapper.PostAuthLogout, nil))
 }
 
 func (r authRouteRegistrar) handleLoginRoute(ginCtx *gin.Context, request authopenapi.PostAuthLoginJSONRequestBody) {
@@ -90,10 +91,10 @@ func (r authRouteRegistrar) handleLogoutRoute(ginCtx *gin.Context) {
 }
 
 func (r authRouteRegistrar) registerCurrentUserSessionRoutes(authGroup *gin.RouterGroup) {
-	authGroup.POST(authcontract.AuthSessionsRevokeAll, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.PostAuthSessionsRevokeAll)
-	authGroup.POST(authcontract.AuthSessionsRevokeOthers, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.PostAuthSessionsRevokeOthers)
-	authGroup.GET(authcontract.AuthSessions, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.GetAuthSessions)
-	authGroup.POST(authcontract.AuthSessionRevoke, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.PostAuthSessionRevoke)
+	authGroup.POST(authcontract.AuthSessionsRevokeAll, r.guards.authenticated, r.guards.restrictedSession, strictsupport.Route(r.wrapper.PostAuthSessionsRevokeAll, nil))
+	authGroup.POST(authcontract.AuthSessionsRevokeOthers, r.guards.authenticated, r.guards.restrictedSession, strictsupport.Route(r.wrapper.PostAuthSessionsRevokeOthers, nil))
+	authGroup.GET(authcontract.AuthSessions, r.guards.authenticated, r.guards.restrictedSession, strictsupport.Route(r.wrapper.GetAuthSessions, r.handleSessionsListRoute))
+	authGroup.POST(authcontract.AuthSessionRevoke, r.guards.authenticated, r.guards.restrictedSession, strictsupport.Route(r.wrapper.PostAuthSessionRevoke, nil))
 }
 
 func (r authRouteRegistrar) handleSessionsRevokeAllRoute(ginCtx *gin.Context) {
@@ -152,9 +153,9 @@ func (r authRouteRegistrar) handleSessionRevokeRoute(ginCtx *gin.Context) {
 }
 
 func (r authRouteRegistrar) registerPersonalAccessTokenRoutes(authGroup *gin.RouterGroup) {
-	authGroup.GET(authcontract.AuthPersonalAccessTokens, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.GetAuthPersonalAccessTokens)
-	authGroup.POST(authcontract.AuthPersonalAccessTokens, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.PostAuthPersonalAccessTokens)
-	authGroup.POST(authcontract.AuthPersonalAccessTokenRevoke, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.PostAuthPersonalAccessTokenRevoke)
+	authGroup.GET(authcontract.AuthPersonalAccessTokens, r.guards.authenticated, r.guards.restrictedSession, strictsupport.Route(r.wrapper.GetAuthPersonalAccessTokens, nil))
+	authGroup.POST(authcontract.AuthPersonalAccessTokens, r.guards.authenticated, r.guards.restrictedSession, strictsupport.Route(r.wrapper.PostAuthPersonalAccessTokens, nil))
+	authGroup.POST(authcontract.AuthPersonalAccessTokenRevoke, r.guards.authenticated, r.guards.restrictedSession, strictsupport.Route(r.wrapper.PostAuthPersonalAccessTokenRevoke, nil))
 }
 
 func (r authRouteRegistrar) handlePersonalAccessTokenListRoute(ginCtx *gin.Context) {
@@ -210,7 +211,7 @@ func (r authRouteRegistrar) registerBootstrapAndPasswordRoutes(authGroup *gin.Ro
 }
 
 func (r authRouteRegistrar) registerBootstrapRoute(authGroup *gin.RouterGroup) {
-	authGroup.GET(authcontract.AuthBootstrap, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.GetAuthBootstrap)
+	authGroup.GET(authcontract.AuthBootstrap, r.guards.authenticated, r.guards.restrictedSession, strictsupport.Route(r.wrapper.GetAuthBootstrap, nil))
 }
 
 func (r authRouteRegistrar) handleBootstrapRoute(ginCtx *gin.Context) {
@@ -230,7 +231,7 @@ func (r authRouteRegistrar) handleBootstrapRoute(ginCtx *gin.Context) {
 }
 
 func (r authRouteRegistrar) registerChangePasswordRoute(authGroup *gin.RouterGroup) {
-	authGroup.POST(authcontract.AuthChangePassword, r.guards.authenticated, r.guards.restrictedSession, r.wrapper.PostAuthChangePassword)
+	authGroup.POST(authcontract.AuthChangePassword, r.guards.authenticated, r.guards.restrictedSession, strictsupport.Route(r.wrapper.PostAuthChangePassword, nil))
 }
 
 func (r authRouteRegistrar) handleChangePasswordRoute(ginCtx *gin.Context, request authopenapi.PostAuthChangePasswordJSONRequestBody) {
@@ -252,7 +253,7 @@ func (r authRouteRegistrar) handleChangePasswordRoute(ginCtx *gin.Context, reque
 }
 
 func (r authRouteRegistrar) registerCompleteRequiredPasswordChangeRoute(authGroup *gin.RouterGroup) {
-	authGroup.POST(authcontract.AuthCompleteRequiredPasswordChange, r.guards.authenticated, r.guards.requiredPasswordChange, r.wrapper.PostAuthCompleteRequiredPasswordChange)
+	authGroup.POST(authcontract.AuthCompleteRequiredPasswordChange, r.guards.authenticated, r.guards.requiredPasswordChange, strictsupport.Route(r.wrapper.PostAuthCompleteRequiredPasswordChange, nil))
 }
 
 func (r authRouteRegistrar) handleCompleteRequiredPasswordChangeRoute(ginCtx *gin.Context, request authopenapi.PostAuthCompleteRequiredPasswordChangeJSONRequestBody) {
@@ -283,72 +284,6 @@ func handleSessionRevocation(
 
 	clearRefreshCookieWhen(ginCtx, cookies, shouldClearCookie)
 	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
-}
-
-func bindGeneratedAuthLoginParams(ginCtx *gin.Context) authopenapi.PostAuthLoginParams {
-	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
-	return authopenapi.PostAuthLoginParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-func bindGeneratedAuthChangePasswordParams(ginCtx *gin.Context) authopenapi.PostAuthChangePasswordParams {
-	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
-	return authopenapi.PostAuthChangePasswordParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-func bindGeneratedAuthCompleteRequiredPasswordChangeParams(
-	ginCtx *gin.Context,
-) authopenapi.PostAuthCompleteRequiredPasswordChangeParams {
-	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
-	return authopenapi.PostAuthCompleteRequiredPasswordChangeParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-func bindGeneratedAuthBootstrapParams(ginCtx *gin.Context) authopenapi.GetAuthBootstrapParams {
-	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
-	return authopenapi.GetAuthBootstrapParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-func bindGeneratedAuthRefreshParams(ginCtx *gin.Context) authopenapi.PostAuthRefreshParams {
-	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
-	return authopenapi.PostAuthRefreshParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-func bindGeneratedAuthLogoutParams(ginCtx *gin.Context) authopenapi.PostAuthLogoutParams {
-	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
-	return authopenapi.PostAuthLogoutParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-func bindGeneratedAuthPersonalAccessTokenListParams(ginCtx *gin.Context) authopenapi.GetAuthPersonalAccessTokensParams {
-	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
-	return authopenapi.GetAuthPersonalAccessTokensParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-func bindGeneratedAuthPersonalAccessTokenCreateParams(ginCtx *gin.Context) authopenapi.PostAuthPersonalAccessTokensParams {
-	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
-	return authopenapi.PostAuthPersonalAccessTokensParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
 }
 
 func bindGeneratedAuthPersonalAccessTokenRevokeParams(
@@ -383,22 +318,6 @@ func bindGeneratedAuthSessionsParams(ginCtx *gin.Context) (authopenapi.GetAuthSe
 	}
 
 	return params, nil
-}
-
-func bindGeneratedAuthSessionsRevokeAllParams(ginCtx *gin.Context) authopenapi.PostAuthSessionsRevokeAllParams {
-	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
-	return authopenapi.PostAuthSessionsRevokeAllParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-func bindGeneratedAuthSessionsRevokeOthersParams(ginCtx *gin.Context) authopenapi.PostAuthSessionsRevokeOthersParams {
-	locale, requestID := bindGeneratedAuthHeaders(ginCtx)
-	return authopenapi.PostAuthSessionsRevokeOthersParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
 }
 
 func bindGeneratedAuthSessionRevokeParams(

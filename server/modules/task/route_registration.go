@@ -48,13 +48,14 @@ func registerTaskRoutes(ctx *module.Context, runtime *Runtime, publisher httpx.S
 		),
 		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
 	}
-	g.GET("", wrapper.ListTasks)
-	g.GET("/:taskId", wrapper.GetTask)
-	g.GET("/:taskId/stages", wrapper.ListTaskStages)
-	g.GET("/:taskId/events", wrapper.ListTaskEvents)
-	g.GET("/:taskId/logs", wrapper.ListTaskLogs)
-	g.POST("/:taskId/cancel", wrapper.CancelTask)
-	g.POST("/:taskId/stages/:stageId/retry", wrapper.RetryTaskStage)
+	g.GET("", strictsupport.Route(wrapper.ListTasks, r.list))
+	g.GET("/:taskId", strictsupport.Route(wrapper.GetTask, nil))
+	g.GET("/:taskId/stages", strictsupport.Route(wrapper.ListTaskStages, nil))
+	replayEvents := func(c *gin.Context) { r.replay(c, taskReplayEvents, defaultTaskEventLimit, maxTaskEventLimit) }
+	g.GET("/:taskId/events", strictsupport.Route(wrapper.ListTaskEvents, replayEvents))
+	g.GET("/:taskId/logs", strictsupport.Route(wrapper.ListTaskLogs, r.logs))
+	g.POST("/:taskId/cancel", strictsupport.Route(wrapper.CancelTask, nil))
+	g.POST("/:taskId/stages/:stageId/retry", strictsupport.Route(wrapper.RetryTaskStage, nil))
 	return nil
 }
 
@@ -148,10 +149,6 @@ func (r taskRoutes) stages(c *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(c, http.StatusOK, map[string]any{"items": taskStageResponses(stages)})
-}
-
-func (r taskRoutes) events(c *gin.Context) {
-	r.replay(c, taskReplayEvents, defaultTaskEventLimit, maxTaskEventLimit)
 }
 
 func (r taskRoutes) logs(c *gin.Context) {

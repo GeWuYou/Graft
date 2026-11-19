@@ -78,7 +78,7 @@ func (m *Module) Register(ctx *module.Context) error {
 	}
 	group.GET(securitycontract.OverviewCollection,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, securitycontract.OverviewReadPermission.String(), publisher),
-		wrapper.GetSecurityOverview,
+		strictsupport.Route(wrapper.GetSecurityOverview, nil),
 	)
 	return nil
 }

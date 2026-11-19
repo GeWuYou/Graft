@@ -1,0 +1,18 @@
+package: buildopenapi
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  include-operation-ids:
+    - getBuildArtifactPublications
+    - getBuildArtifacts
+    - getBuildBuilderPools
+    - getBuildInputSnapshots
+    - getBuildJob
+    - getBuildJobs
+    - getBuildRuntimeTargets
+    - getBuildWorkspaces
+    - postBuildArtifactPromotion
+    - postBuildInputSnapshot
+    - postBuildJob

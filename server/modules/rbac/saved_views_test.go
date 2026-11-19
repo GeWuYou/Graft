@@ -68,9 +68,11 @@ func TestRBACSavedViewHandlersServeCRUDAndRequireOwner(t *testing.T) {
 	engine := gin.New()
 	ctx := &module.Context{Router: engine}
 	group := engine.Group("/roles")
-	registerRBACSavedViewRoutes(group, ctx, service, func(c *gin.Context) {
+	handlers := newRBACSavedViewHandlers(ctx.I18n, service, roleSavedViewDefinition)
+	wrapper := newRBACStrictWrapper(ctx, rbacStrictServer{roles: handlers})
+	registerRoleSavedViewRoutes(group, handlers, wrapper, func(c *gin.Context) {
 		c.Request = c.Request.WithContext(moduleapi.WithRequestAuthContext(c.Request.Context(), moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 7}}))
-	}, roleSavedViewDefinition)
+	})
 
 	body := `{"name":"Saved","query_state":{"keyword":"role"},"page_size":20,"visible_columns":["role"]}`
 	request := func(method, path, payload string) *httptest.ResponseRecorder {

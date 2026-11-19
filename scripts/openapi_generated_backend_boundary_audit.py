@@ -39,27 +39,29 @@ HANDLER_BOUNDARY_CHECKS = {
         "authopenapi.PostAuthChangePasswordJSONRequestBody",
     ),
     "server/modules/user/route_user_handlers.go": (
-        "useropenapi.GetUsersParams",
         "useropenapi.PostUsersJSONRequestBody",
         "useropenapi.PostUserUpdateJSONRequestBody",
     ),
-    "server/modules/user/route_admin_session_handlers.go": (
-        "useropenapi.GetUserSessionsParams",
-        "useropenapi.PostUserSessionsRevokeAllParams",
-        "useropenapi.PostUserSessionRevokeParams",
+    "server/modules/user/strict_server.go": (
+        "useropenapi.GetUsersRequestObject",
+        "useropenapi.GetUserSessionsRequestObject",
+        "useropenapi.PostUserSessionsRevokeAllRequestObject",
+        "useropenapi.PostUserSessionRevokeRequestObject",
     ),
     "server/modules/rbac/route_read_handlers.go": (
         "rbacopenapi.GetPermissionsParams",
         "rbacopenapi.GetRolesParams",
-        "rbacopenapi.GetRolePermissionsParams",
-        "rbacopenapi.GetUserRolesParams",
+    ),
+    "server/modules/rbac/strict_server.go": (
+        "rbacopenapi.GetRolePermissionsRequestObject",
+        "rbacopenapi.GetUserRolesRequestObject",
     ),
     "server/modules/rbac/route_write_handlers.go": (
         "rbacopenapi.PostRolesJSONRequestBody",
         "rbacopenapi.PostRoleUpdateJSONRequestBody",
         "rbacopenapi.PostRoleStatusJSONRequestBody",
     ),
-    "server/modules/rbac/route_write_generated.go": (
+    "server/modules/rbac/route_write_stable_ids.go": (
         "rbacopenapi.PostRolePermissionsReplaceJSONRequestBody",
         "rbacopenapi.PostRolePermissionsAddJSONRequestBody",
         "rbacopenapi.DeleteRolePermissionsJSONRequestBody",

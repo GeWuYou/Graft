@@ -60,12 +60,12 @@ func registerSchedulerSavedViewRoutes(group *gin.RouterGroup, ctx *module.Contex
 	if group == nil || ctx == nil || handlers.list == nil {
 		return
 	}
-	group.GET(schedulercontract.ScheduledTaskSavedViewsRoute, guard, wrapper.GetScheduledTaskSavedViews)
+	group.GET(schedulercontract.ScheduledTaskSavedViewsRoute, guard, strictsupport.Route(wrapper.GetScheduledTaskSavedViews, nil))
 	// 保存视图 create/update 保持 RawMessage query_state 字节不变，路由在生成绑定前缓存原始请求体，
 	// 生成 wrapper 校验后 handler 仍按原始字节重新绑定。
-	group.POST(schedulercontract.ScheduledTaskSavedViewsRoute, guard, strictsupport.CacheRequestBody(ctx.I18n), wrapper.PostScheduledTaskSavedView)
-	group.PUT(schedulercontract.ScheduledTaskSavedViewRoute, guard, strictsupport.CacheRequestBody(ctx.I18n), wrapper.PutScheduledTaskSavedView)
-	group.DELETE(schedulercontract.ScheduledTaskSavedViewRoute, guard, wrapper.DeleteScheduledTaskSavedView)
+	group.POST(schedulercontract.ScheduledTaskSavedViewsRoute, guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostScheduledTaskSavedView, nil))
+	group.PUT(schedulercontract.ScheduledTaskSavedViewRoute, guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutScheduledTaskSavedView, nil))
+	group.DELETE(schedulercontract.ScheduledTaskSavedViewRoute, guard, strictsupport.Route(wrapper.DeleteScheduledTaskSavedView, nil))
 }
 
 func validateSchedulerSavedView(request httpx.SavedViewRequest) error {

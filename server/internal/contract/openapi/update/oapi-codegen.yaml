@@ -1,0 +1,17 @@
+package: updateopenapi
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  include-operation-ids:
+    - getPlatformUpdateActiveOperation
+    - getPlatformUpdateFailureDiagnostic
+    - getPlatformUpdateOperation
+    - getPlatformUpdateOperationEvents
+    - getPlatformUpdateOperationFailureDiagnostic
+    - getPlatformUpdateOperations
+    - getPlatformUpdateStatus
+    - postPlatformUpdateCheck
+    - postPlatformUpdateOperation
+    - postPlatformUpdateOperationRecovery

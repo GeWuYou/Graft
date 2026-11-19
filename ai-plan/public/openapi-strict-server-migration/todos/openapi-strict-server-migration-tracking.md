@@ -115,17 +115,21 @@ write directly through `*gin.Context`.
 4. Wrapper/strict binding errors route through configurable error handlers that write the
    unified envelope (module invalid-request key where one exists) instead of the
    oapi-codegen default `{"msg": ...}` body.
-5. Known edge shifts recorded as accepted contract alignment: malformed typed path/query
-  /header parameters now fail at the generated binding layer with the unified envelope
-   before reaching handler bodies; duplicated request-id headers fail binding instead of
-   being silently truncated.
+5. Route-local compatibility callbacks run only if generated binding fails after the
+   original guards. This preserves diagnostics, defaulted filters, and authorization or
+   resource lookup order on existing endpoints. Normal request binding goes through
+   oapi-codegen. Shared locale and request ID headers retain first-value semantics.
+6. Where the HTTP body is still interpreted by an existing module parser, capture the
+   bytes actually consumed during generated decoding and replay them without pre-reading
+   the whole stream. Keep this on routes that need old input semantics or raw JSON.
+   Multipart build input uses the generated reader under the existing byte limit.
 
 ### Follow-ups (recorded, not fixed here)
 
 - Contract drift: audit module mounts `POST /api/audit/logs/batch-delete` while the spec
   declares `POST /api/audit/logs/deletions`. Owner: OpenAPI contract / audit module.
-  The strict adapter already covers the operation binding; the live route stays on the
-  legacy fragment until the contract owner fixes the path.
+  The live fragment mounts the generated deletion operation. The URL stays the same for
+  callers until the contract owner resolves the documented drift.
 - `trend-range-query` parameter documents a lenient fallback while its schema enum
   constrains values; generated binding does not validate enums so behavior matches
   today, but the schema/description conflict should be resolved by the contract owner.
@@ -142,48 +146,27 @@ write directly through `*gin.Context`.
   takeover calls (`RegisterHandlers*`, `HandlerFromMux`, bare `NewStrictHandler(`,
   `StrictHandlerFunc`, `StrictHTTPServerOptions`) stay forbidden.
 
-## Migration State (batch 3, 2026-11-19)
+## Migration State
 
-Migrated modules (strict wrapper mounted, `StrictServerInterface` adapter asserted,
-tests green): `system-config`, `task`, `notification`, `security`, `backup`, `monitor`,
-`scheduler`, `audit`, `auth`, `announcement`, `runtime-target` (11 modules).
-
-Not migrated (registration still hand-wired; regeneration for their domains not yet
-applied). Per-module recovery recipe, identical mechanics to the migrated set:
-
-| Module | Ops | Notes for migration |
-| --- | --- | --- |
-| user | 14 | 10 inline closures in route_user_handlers.go / route_admin_session_handlers.go to convert to named registrar methods; body ops postUsers/postUserUpdate/postUserStatus/postUserResetPassword must take strict bodies; remove `useropenapi.WriteServerInterface` / `ReadServerInterface` spike assertions and colliding contract spike types.go; saved-view create/update need `CacheRequestBody`. |
-| update | 10 | routes.go mounts; body ops postPlatformUpdateCheck/postPlatformUpdateOperation/postPlatformUpdateOperationRecovery need strict bodies. |
-| build | 11 | route_registration.go; body ops postBuildJob/postBuildInputSnapshot/postBuildArtifactPromotion need strict bodies; domain dir is new (`build`). |
-| registry | 18 | route_registration.go; body ops postRegistry/postRegistryVerify/postRegistryArtifactRepository/putRegistry variants and assignment batch ops need strict bodies; public available-destinations uses build permission. |
-| network | 17 | routes.go; connectivity body ops plus postPlatformNetworkDiagnostic/putPlatformNetworkOutbound/resetPlatformNetworkOutbound need strict bodies; existing `network` domain include list must extend beyond connectivity ops. |
-| rbac | 22 | route_registration.go + route_write_handlers.go + route_read_handlers.go + saved_views.go; remove rbacopenapi ReadServerInterface / WriteServerInterface / UserRoleServerInterface spikes and types.go; body ops need strict bodies; saved views need `CacheRequestBody`. |
-| project | 58 | largest module; route_registration.go; many body ops (application create/import/template/workspace/file content); public template endpoints keep explicit no-guard mounts; run param-name reconciliation against spec (`applicationId` etc.). |
-| container | 45 plus whitelisted WS | route_registration.go + saved_views.go; exclude `getContainerShellWebSocket` from include list (whitelisted hand-written); realtime ops are core-owned (already excluded); many body ops (actions, pull/tag, shell session, batch); saved views need `CacheRequestBody`. |
-
-## Current Recovery Point
-
-- Current batch: 3 (11 modules migrated; 9 modules remain with per-module recipes above).
-- Generation infrastructure, freshness targets (`backend-openapi-servers`), CLI wiring,
-  whitelist documentation test and shared `strictsupport` bridge are in place.
-- Next step: continue module migration following the recipe table; dead hand-wired
-  binding code (spike `X{}.Method()` assertions) for migrated modules is already removed
-  inside each migration commit.
+- Initial modules: announcement, audit, auth, backup, monitor, notification,
+  runtime-target, scheduler, security, system-config and task.
+- Remaining module routes migrated: build, container, network, project, rbac,
+  registry, update and user.
+- Coverage: 295 business operations with one generated method mount per operation and
+  matching HTTP methods. The source check does not infer the final Gin path from group
+  expressions. Existing route fragments and permission wiring are preserved by the
+  registration diff, with the update diagnostic path placeholder aligned to its
+  canonical name. The placeholder change is internal to Gin.
+- Exceptions: 25 core-owned operations and the container Shell WebSocket operation.
+  Credential vault, deployment and saved-view supply services without HTTP routes.
 
 ## Task Checklist
 
-- [x] Batch 0: topic bootstrap and route/operation classification.
-- [x] Batch 1: generation infrastructure and freshness coverage.
-- [x] Batch 2: permission middleware strategy + pilot module `system-config`
-      (byte-identical probe comparison on 7 scenarios except natural timestamps).
-- [x] Batch 3 (partial): migrated system-config, task, notification, security, backup,
-      monitor, scheduler, audit, auth, announcement, runtime-target.
-- [ ] Batch 4: migrate user, update, build, registry, network, rbac.
-- [ ] Batch 5: migrate project, container (largest; WS whitelisted).
-- [ ] Closeout: full `go run ./cmd/graft validate backend` (lint stage blocked by local
-      golangci-lint/go1.26 toolchain mismatch, CI owns final lint), lessons review,
-      archive.
+- [x] Classify route and operation owners.
+- [x] Add per-domain strict generation and freshness checks.
+- [x] Validate the system-config pilot and migrate the remaining module routes.
+- [x] Compare business operations with strict mount coverage.
+- [ ] Complete final validation and review.
 
 ## Acceptance Conditions
 

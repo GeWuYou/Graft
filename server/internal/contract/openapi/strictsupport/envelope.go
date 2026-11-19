@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
-	messagecontract "graft/server/internal/contract/message"
+	"graft/server/internal/contract/httpheader"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 )
@@ -52,6 +52,9 @@ func GinContext(ctx context.Context) *gin.Context {
 // 生成默认响应体会绕过平台错误结构，这里强制回到 httpx 本地化错误链路。
 func BindingErrorHandler(localizer *i18n.Service, messageKey string) func(*gin.Context, error, int) {
 	return func(ginCtx *gin.Context, _ error, status int) {
+		if runBindingFallback(ginCtx) {
+			return
+		}
 		httpx.WriteLocalizedError(ginCtx, localizer, status, messageKey, nil)
 	}
 }
@@ -60,6 +63,9 @@ func BindingErrorHandler(localizer *i18n.Service, messageKey string) func(*gin.C
 // data 保留模块既有的错误结构字段（如 field 标注），保证响应与迁移前一致。
 func RequestErrorHandler(localizer *i18n.Service, messageKey string, data any) func(*gin.Context, error) {
 	return func(ginCtx *gin.Context, _ error) {
+		if runBindingFallback(ginCtx) {
+			return
+		}
 		httpx.WriteLocalizedError(ginCtx, localizer, http.StatusBadRequest, messageKey, data)
 	}
 }
@@ -72,45 +78,82 @@ func HandlerErrorHandler(localizer *i18n.Service, runtimeLogger *zap.Logger) fun
 	}
 }
 
-// cachedRequestBodyKey 保存 CacheRequestBody 缓存的原始请求体字节，供 Dispatch
-// 在生成绑定消费请求体后为 handler 重置可重读的请求体。
+const bindingFallbackKey = "strictsupport.binding_fallback"
 const cachedRequestBodyKey = "strictsupport.cached_request_body"
 
-// CacheRequestBody 缓存原始 JSON 请求体，供生成绑定后仍需按原始字节读取请求体的
-// handler（如保存视图的 RawMessage query_state）重新绑定；读取失败按统一 envelope
-// 返回 400。仅挂在生成 wrapper 之前、确有二次读取需求的路由上。
-func CacheRequestBody(localizer *i18n.Service) gin.HandlerFunc {
+// Route 在权限守卫后调用生成 wrapper。兼容解析器仅用于已有错误语义不一致的绑定失败路径。
+func Route(strict gin.HandlerFunc, bindingFallback gin.HandlerFunc) gin.HandlerFunc {
 	return func(ginCtx *gin.Context) {
-		if ginCtx.Request == nil || ginCtx.Request.Body == nil || ginCtx.Request.ContentLength == 0 {
-			ginCtx.Next()
-			return
+		if bindingFallback != nil {
+			ginCtx.Set(bindingFallbackKey, bindingFallback)
 		}
-		data, err := io.ReadAll(ginCtx.Request.Body)
-		_ = ginCtx.Request.Body.Close()
-		if err != nil {
-			httpx.WriteLocalizedError(ginCtx, localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "body"})
-			ginCtx.Abort()
-			return
+		firstHeaderValue(ginCtx.Request, httpheader.RequestID.String())
+		firstHeaderValue(ginCtx.Request, httpheader.Locale.String())
+		strict(ginCtx)
+	}
+}
+
+func firstHeaderValue(request *http.Request, name string) {
+	key := http.CanonicalHeaderKey(name)
+	if values := request.Header[key]; len(values) > 1 {
+		request.Header[key] = values[:1]
+	}
+}
+
+func runBindingFallback(ginCtx *gin.Context) bool {
+	value, exists := ginCtx.Get(bindingFallbackKey)
+	if !exists {
+		return false
+	}
+	handler, ok := value.(gin.HandlerFunc)
+	if !ok {
+		return false
+	}
+	resetCachedRequestBody(ginCtx)
+	handler(ginCtx)
+	return true
+}
+
+type capturedRequestBody struct {
+	io.ReadCloser
+	consumed bytes.Buffer
+}
+
+func (body *capturedRequestBody) Read(p []byte) (int, error) {
+	n, err := body.ReadCloser.Read(p)
+	_, _ = body.consumed.Write(p[:n])
+	return n, err
+}
+
+type replayRequestBody struct {
+	io.Reader
+	io.Closer
+}
+
+// CacheRequestBody 记录生成绑定实际读取的字节，供仍需原始 JSON 的 handler 重放。
+// 读取量和错误由原请求体控制，避免预读改变大小限制及校验顺序。
+func CacheRequestBody() gin.HandlerFunc {
+	return func(ginCtx *gin.Context) {
+		if ginCtx.Request != nil && ginCtx.Request.Body != nil {
+			body := &capturedRequestBody{ReadCloser: ginCtx.Request.Body}
+			ginCtx.Set(cachedRequestBodyKey, body)
+			ginCtx.Request.Body = body
 		}
-		ginCtx.Set(cachedRequestBodyKey, data)
-		ginCtx.Request.Body = io.NopCloser(bytes.NewReader(data))
 		ginCtx.Next()
 	}
 }
 
-// resetCachedRequestBody 在 handler 执行前重置缓存的原始请求体；生成绑定消费过
-// 请求体时，仍需按原始字节绑定的 handler 由此获得全新的 body reader。
 func resetCachedRequestBody(ginCtx *gin.Context) {
-	if ginCtx == nil || ginCtx.Request == nil {
+	if ginCtx.Request == nil {
 		return
 	}
-	value, ok := ginCtx.Get(cachedRequestBodyKey)
-	if !ok {
+	value, _ := ginCtx.Get(cachedRequestBodyKey)
+	body, ok := value.(*capturedRequestBody)
+	if !ok || ginCtx.Request.Body != body {
 		return
 	}
-	data, ok := value.([]byte)
-	if !ok || len(data) == 0 {
-		return
+	ginCtx.Request.Body = replayRequestBody{
+		Reader: io.MultiReader(bytes.NewReader(body.consumed.Bytes()), body.ReadCloser),
+		Closer: body.ReadCloser,
 	}
-	ginCtx.Request.Body = io.NopCloser(bytes.NewReader(data))
 }

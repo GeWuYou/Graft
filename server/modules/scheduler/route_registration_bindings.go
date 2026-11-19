@@ -161,61 +161,6 @@ func bindGeneratedTaskListParams(ginCtx *gin.Context, ctx *module.Context) (sche
 	return params, true
 }
 
-func bindGeneratedTaskCreateHeaders(ginCtx *gin.Context) scheduleropenapi.PostScheduledTaskParams {
-	locale, requestID := bindGeneratedSchedulerHeaders(ginCtx)
-	return scheduleropenapi.PostScheduledTaskParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindGeneratedTaskJobDefinitionsHeaders(ginCtx *gin.Context) scheduleropenapi.GetScheduledTaskJobDefinitionsParams {
-	locale, requestID := bindGeneratedSchedulerHeaders(ginCtx)
-	return scheduleropenapi.GetScheduledTaskJobDefinitionsParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindGeneratedTaskJobDefinitionDetailHeaders(ginCtx *gin.Context) scheduleropenapi.GetScheduledTaskJobDefinitionParams {
-	locale, requestID := bindGeneratedSchedulerHeaders(ginCtx)
-	return scheduleropenapi.GetScheduledTaskJobDefinitionParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindGeneratedTaskDetailHeaders(ginCtx *gin.Context) scheduleropenapi.GetScheduledTaskParams {
-	locale, requestID := bindGeneratedSchedulerHeaders(ginCtx)
-	return scheduleropenapi.GetScheduledTaskParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindGeneratedTaskUpdateHeaders(ginCtx *gin.Context) scheduleropenapi.PutScheduledTaskParams {
-	locale, requestID := bindGeneratedSchedulerHeaders(ginCtx)
-	return scheduleropenapi.PutScheduledTaskParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindGeneratedTaskDeleteHeaders(ginCtx *gin.Context) scheduleropenapi.DeleteScheduledTaskParams {
-	locale, requestID := bindGeneratedSchedulerHeaders(ginCtx)
-	return scheduleropenapi.DeleteScheduledTaskParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindGeneratedTaskEnableHeaders(ginCtx *gin.Context) scheduleropenapi.PostScheduledTaskEnableParams {
-	locale, requestID := bindGeneratedSchedulerHeaders(ginCtx)
-	return scheduleropenapi.PostScheduledTaskEnableParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindGeneratedTaskDisableHeaders(ginCtx *gin.Context) scheduleropenapi.PostScheduledTaskDisableParams {
-	locale, requestID := bindGeneratedSchedulerHeaders(ginCtx)
-	return scheduleropenapi.PostScheduledTaskDisableParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindGeneratedTaskRunHeaders(ginCtx *gin.Context) scheduleropenapi.PostScheduledTaskRunParams {
-	locale, requestID := bindGeneratedSchedulerHeaders(ginCtx)
-	return scheduleropenapi.PostScheduledTaskRunParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindGeneratedTaskActionHeaders(ginCtx *gin.Context) scheduleropenapi.PostScheduledTaskActionParams {
-	locale, requestID := bindGeneratedSchedulerHeaders(ginCtx)
-	return scheduleropenapi.PostScheduledTaskActionParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindGeneratedTaskRunDetailHeaders(ginCtx *gin.Context) scheduleropenapi.GetScheduledTaskRunParams {
-	locale, requestID := bindGeneratedSchedulerHeaders(ginCtx)
-	return scheduleropenapi.GetScheduledTaskRunParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
 func bindGeneratedRunListParams(ginCtx *gin.Context, ctx *module.Context) (scheduleropenapi.GetScheduledTaskRunsParams, bool) {
 	locale, requestID := bindGeneratedSchedulerHeaders(ginCtx)
 	params := scheduleropenapi.GetScheduledTaskRunsParams{XGraftLocale: locale, XRequestId: requestID}

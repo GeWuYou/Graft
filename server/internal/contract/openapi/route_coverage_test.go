@@ -162,9 +162,6 @@ func TestNonStrictEndpointsStayHandwrittenWhitelist(t *testing.T) {
 	handWrittenSpecEndpoints := map[string]string{
 		// WebSocket 升级握手无法进入 JSON strict 绑定链路；容器模块保持手写挂载。
 		"/api/ops/containers/{id}/shell/ws": "websocket upgrade keeps explicit hand-written registration",
-		// 契约漂移：模块现挂载 /api/audit/logs/batch-delete，spec 声明 /api/audit/logs/deletions。
-		// strict adapter 已覆盖该操作的绑定契约，线上路由等待契约 owner 修复路径后切换。
-		"/api/audit/logs/deletions": "module still mounts the legacy /logs/batch-delete fragment; pending contract drift fix",
 	}
 	for route, reason := range handWrittenSpecEndpoints {
 		if spec.Paths.Find(route) == nil {

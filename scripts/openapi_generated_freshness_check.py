@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import shlex
 import shutil
 import subprocess
 import sys
@@ -12,21 +13,7 @@ from pathlib import Path
 
 
 REPO_SENTINEL = "AGENTS.md"
-# Per-domain oapi-codegen strict server bindings. Each entry regenerates the tracked
-# file from its sibling `oapi-codegen.yaml` config (models + gin-server + strict-server)
-# and compares bytes; `--mode fix` overwrites the tracked file explicitly.
-STRICT_SERVER_TARGETS: list[tuple[str, Path]] = [
-    ("announcement", Path("server/internal/contract/openapi/announcement/zz_generated.announcement.go")),
-    ("audit", Path("server/internal/contract/openapi/audit/zz_generated.audit.go")),
-    ("auth", Path("server/internal/contract/openapi/auth/zz_generated.auth.go")),
-    ("backup", Path("server/internal/contract/openapi/backup/zz_generated.backup.go")),
-    ("scheduler", Path("server/internal/contract/openapi/scheduler/zz_generated.scheduler.go")),
-    ("monitor", Path("server/internal/contract/openapi/monitor/zz_generated.types.go")),
-    ("notification", Path("server/internal/contract/openapi/notification/zz_generated.notification.go")),
-    ("security", Path("server/internal/contract/openapi/security/zz_generated.security.go")),
-    ("systemconfig", Path("server/internal/contract/openapi/systemconfig/zz_generated.systemconfig.go")),
-    ("task", Path("server/internal/contract/openapi/task/zz_generated.task.go")),
-]
+OPENAPI_BINDINGS = Path("server/internal/contract/openapi")
 MONITOR_TARGET = Path("server/internal/contract/openapi/monitor/zz_generated.types.go")
 HEALTH_TARGET = Path("server/internal/contract/openapi/health/zz_generated.health.go")
 RBAC_MANAGEMENT_TARGET = Path("server/internal/contract/openapi/rbac/zz_generated.management.go")
@@ -44,22 +31,6 @@ HEALTH_ARGS = [
     "--package",
     "healthopenapi",
 ]
-RBAC_MANAGEMENT_ARGS = [
-    "--include-operation-ids",
-    "deleteRolePermissions,deleteUserRoles,deleteUsersRoles,getPermission,getPermissions,getRole,getRoles,getRolePermissions,postRoleClone,postRoleDelete,postRolePermissionsAdd,postRolePermissionsReplace,postRoles,postRoleStatus,postRoleUpdate,getUserRoles,postUserRolesAdd,postUserRolesReplace,postUsersRolesAdd,postUsersRolesReplace",
-    "--generate",
-    "types",
-    "--package",
-    "rbacopenapi",
-]
-USER_WRITE_ARGS = [
-    "--include-operation-ids",
-    "getUsers,getUserById,getUserSessions,postUsers,postUserUpdate,postUserStatus,postUserResetPassword,deleteUser,postUserSessionsRevokeAll,postUserSessionRevoke",
-    "--generate",
-    "types",
-    "--package",
-    "useropenapi",
-]
 MODULES_ARGS = [
     "--include-operation-ids",
     "getModulesRuntime,getModulesRuntimeModule",
@@ -68,16 +39,6 @@ MODULES_ARGS = [
     "--package",
     "modulesopenapi",
 ]
-NETWORK_CONNECTIVITY_ARGS = [
-    "--include-operation-ids",
-    "getPlatformConnectivityTargets,getPlatformConnectivityCustomTargets,postPlatformConnectivityCustomTarget,deletePlatformConnectivityCustomTarget,getPlatformConnectivityLatest,getPlatformConnectivityAggregate,postPlatformConnectivityRun,postPlatformConnectivityBatchRun,getPlatformConnectivityHistory,getPlatformConnectivityReport,getPlatformConnectivityTrace,getPlatformConnectivityExport",
-    "--generate",
-    "types",
-    "--package",
-    "networkopenapi",
-]
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Check or regenerate repository-owned OpenAPI generated artifacts without editing them by default."
@@ -109,6 +70,25 @@ def find_repo_root() -> Path:
     raise SystemExit(f"could not locate repository root containing {REPO_SENTINEL}")
 
 
+def strict_server_targets(repo_root: Path) -> list[tuple[str, Path]]:
+    """Use package generator directives as the inventory of strict artifacts."""
+    targets: list[tuple[str, Path]] = []
+    for config in sorted((repo_root / OPENAPI_BINDINGS).glob("*/oapi-codegen.yaml")):
+        generator = config.with_name("generate.go")
+        directives = [
+            shlex.split(line.removeprefix("//go:generate "))
+            for line in generator.read_text(encoding="utf-8").splitlines()
+            if line.startswith("//go:generate go tool oapi-codegen -config oapi-codegen.yaml -o ")
+        ]
+        if len(directives) != 1 or len(directives[0]) != 8 or Path(directives[0][6]).name != directives[0][6]:
+            raise SystemExit(f"{generator}: expected one local strict server output")
+        artifact = config.with_name(directives[0][6]).relative_to(repo_root)
+        targets.append((config.parent.name, artifact))
+    if not targets:
+        raise SystemExit("could not locate any per-domain strict server configs")
+    return targets
+
+
 def run_strict_server_target_by_artifact(repo_root: Path, mode: str, artifact: Path) -> int:
     """Validate one artifact through the per-domain config it is generated from.
 
@@ -116,7 +96,7 @@ def run_strict_server_target_by_artifact(repo_root: Path, mode: str, artifact: P
     legacy types-only CLI regeneration, so legacy targets whose artifact moved to a
     per-domain config must compare against that config's output.
     """
-    for _, target in STRICT_SERVER_TARGETS:
+    for _, target in strict_server_targets(repo_root):
         if target == artifact:
             return run_strict_server_target(
                 repo_root=repo_root,
@@ -146,47 +126,19 @@ def run_backend_health(repo_root: Path, mode: str) -> int:
 
 
 def run_backend_rbac_permissions(repo_root: Path, mode: str) -> int:
-    return run_generated_target(
-        repo_root=repo_root,
-        target=RBAC_MANAGEMENT_TARGET,
-        spec=repo_root / MONITOR_SPEC,
-        generator_args=RBAC_MANAGEMENT_ARGS,
-        mode=mode,
-        temp_prefix="graft-openapi-rbac-permissions-",
-    )
+    return run_strict_server_target_by_artifact(repo_root, mode, RBAC_MANAGEMENT_TARGET)
 
 
 def run_backend_rbac_read(repo_root: Path, mode: str) -> int:
-    return run_generated_target(
-        repo_root=repo_root,
-        target=RBAC_MANAGEMENT_TARGET,
-        spec=repo_root / MONITOR_SPEC,
-        generator_args=RBAC_MANAGEMENT_ARGS,
-        mode=mode,
-        temp_prefix="graft-openapi-rbac-read-",
-    )
+    return run_strict_server_target_by_artifact(repo_root, mode, RBAC_MANAGEMENT_TARGET)
 
 
 def run_backend_rbac_management(repo_root: Path, mode: str) -> int:
-    return run_generated_target(
-        repo_root=repo_root,
-        target=RBAC_MANAGEMENT_TARGET,
-        spec=repo_root / MONITOR_SPEC,
-        generator_args=RBAC_MANAGEMENT_ARGS,
-        mode=mode,
-        temp_prefix="graft-openapi-rbac-management-",
-    )
+    return run_strict_server_target_by_artifact(repo_root, mode, RBAC_MANAGEMENT_TARGET)
 
 
 def run_backend_user_write(repo_root: Path, mode: str) -> int:
-    return run_generated_target(
-        repo_root=repo_root,
-        target=USER_MANAGEMENT_TARGET,
-        spec=repo_root / MONITOR_SPEC,
-        generator_args=USER_WRITE_ARGS,
-        mode=mode,
-        temp_prefix="graft-openapi-user-write-",
-    )
+    return run_strict_server_target_by_artifact(repo_root, mode, USER_MANAGEMENT_TARGET)
 
 
 def run_backend_auth_session(repo_root: Path, mode: str) -> int:
@@ -207,19 +159,12 @@ def run_backend_modules_runtime(repo_root: Path, mode: str) -> int:
 
 
 def run_backend_network_connectivity(repo_root: Path, mode: str) -> int:
-    return run_generated_target(
-        repo_root=repo_root,
-        target=NETWORK_CONNECTIVITY_TARGET,
-        spec=repo_root / MONITOR_SPEC,
-        generator_args=NETWORK_CONNECTIVITY_ARGS,
-        mode=mode,
-        temp_prefix="graft-openapi-network-connectivity-",
-    )
+    return run_strict_server_target_by_artifact(repo_root, mode, NETWORK_CONNECTIVITY_TARGET)
 
 
 def run_backend_openapi_servers(repo_root: Path, mode: str) -> int:
     failed: list[str] = []
-    for name, target in STRICT_SERVER_TARGETS:
+    for name, target in strict_server_targets(repo_root):
         config = target.parent / "oapi-codegen.yaml"
         status = run_strict_server_target(
             repo_root=repo_root,

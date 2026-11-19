@@ -82,7 +82,7 @@ func registerSchedulerRoutesWithRuntime(
 	group.GET(
 		schedulercontract.ScheduledTaskCollectionRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
-		wrapper.GetScheduledTasks,
+		strictsupport.Route(wrapper.GetScheduledTasks, nil),
 	)
 	if err := registerSchedulerSavedViews(group, ctx, authService, authorizer, publisher, wrapper); err != nil {
 		return err
@@ -90,65 +90,69 @@ func registerSchedulerRoutesWithRuntime(
 	group.POST(
 		schedulercontract.ScheduledTaskCollectionRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskCreatePermission.String(), publisher),
-		wrapper.PostScheduledTask,
+		strictsupport.Route(wrapper.PostScheduledTask, nil),
 	)
 	group.GET(
 		schedulercontract.ScheduledTaskJobDefinitionsRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
-		wrapper.GetScheduledTaskJobDefinitions,
+		strictsupport.Route(wrapper.GetScheduledTaskJobDefinitions, nil),
 	)
 	group.GET(
 		schedulercontract.ScheduledTaskJobDefinitionDetailRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
-		wrapper.GetScheduledTaskJobDefinition,
+		strictsupport.Route(wrapper.GetScheduledTaskJobDefinition, nil),
 	)
 	group.GET(
 		schedulercontract.ScheduledTaskRunDetailRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
-		wrapper.GetScheduledTaskRun,
+		strictsupport.Route(wrapper.GetScheduledTaskRun, nil),
 	)
 	group.GET(
 		schedulercontract.ScheduledTaskDetailRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
-		wrapper.GetScheduledTask,
+		strictsupport.Route(wrapper.GetScheduledTask, nil),
 	)
 	group.PUT(
 		schedulercontract.ScheduledTaskDetailRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskUpdatePermission.String(), publisher),
-		wrapper.PutScheduledTask,
+		strictsupport.Route(wrapper.PutScheduledTask, nil),
 	)
 	group.DELETE(
 		schedulercontract.ScheduledTaskDetailRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskDeletePermission.String(), publisher),
-		wrapper.DeleteScheduledTask,
+		strictsupport.Route(wrapper.DeleteScheduledTask, nil),
 	)
+	registerScheduledTaskActionRoutes(group, ctx, authService, authorizer, publisher, wrapper)
+	return nil
+}
+
+func registerScheduledTaskActionRoutes(group *gin.RouterGroup, ctx *module.Context, authService moduleapi.AuthService, authorizer moduleapi.Authorizer, publisher httpx.SecurityAuditPublisher, wrapper scheduleropenapi.ServerInterfaceWrapper) {
 	group.POST(
 		schedulercontract.ScheduledTaskEnableRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskEnablePermission.String(), publisher),
-		wrapper.PostScheduledTaskEnable,
+		strictsupport.Route(wrapper.PostScheduledTaskEnable, nil),
 	)
 	group.POST(
 		schedulercontract.ScheduledTaskDisableRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskEnablePermission.String(), publisher),
-		wrapper.PostScheduledTaskDisable,
+		strictsupport.Route(wrapper.PostScheduledTaskDisable, nil),
 	)
 	group.GET(
 		schedulercontract.ScheduledTaskRunsRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
-		wrapper.GetScheduledTaskRuns,
+		strictsupport.Route(wrapper.GetScheduledTaskRuns, nil),
 	)
 	group.POST(
 		schedulercontract.ScheduledTaskRunRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskRunPermission.String(), publisher),
-		wrapper.PostScheduledTaskRun,
+		strictsupport.Route(wrapper.PostScheduledTaskRun, nil),
 	)
 	group.POST(
 		schedulercontract.ScheduledTaskActionRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskRunPermission.String(), publisher),
-		wrapper.PostScheduledTaskAction,
+		strictsupport.Route(wrapper.PostScheduledTaskAction, nil),
 	)
 
-	return nil
 }
 
 func registerSchedulerSavedViews(
@@ -240,10 +244,11 @@ func (s schedulerStrictServer) GetScheduledTaskJobDefinition(ctx context.Context
 }
 
 func (s schedulerStrictServer) PostScheduledTaskAction(ctx context.Context, request scheduleropenapi.PostScheduledTaskActionRequestObject) (scheduleropenapi.PostScheduledTaskActionResponseObject, error) {
-	if request.Body == nil {
-		return nil, errSchedulerStrictMissingBody
+	var body scheduleropenapi.PostScheduledTaskActionJSONRequestBody
+	if request.Body != nil {
+		body = *request.Body
 	}
-	return nil, strictsupport.Dispatch(ctx, func(ginCtx *gin.Context) { s.runtime.handleRunAction(ginCtx, *request.Body) })
+	return nil, strictsupport.Dispatch(ctx, func(ginCtx *gin.Context) { s.runtime.handleRunAction(ginCtx, body) })
 }
 
 func (s schedulerStrictServer) GetScheduledTaskSavedViews(ctx context.Context, _ scheduleropenapi.GetScheduledTaskSavedViewsRequestObject) (scheduleropenapi.GetScheduledTaskSavedViewsResponseObject, error) {

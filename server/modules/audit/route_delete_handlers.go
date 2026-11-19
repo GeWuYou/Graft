@@ -22,8 +22,8 @@ type auditBatchDeleter interface {
 }
 
 // handleBatchDeleteAuditLogs 处理受专用删除权限保护的审计日志批量删除。
-func handleBatchDeleteAuditLogs(ctx *module.Context, moduleName string, reader auditReader) gin.HandlerFunc {
-	return func(ginCtx *gin.Context) {
+func handleBatchDeleteAuditLogs(ctx *module.Context, moduleName string, reader auditReader) func(*gin.Context, *auditopenapi.PostAuditLogDeletionJSONRequestBody) {
+	return func(ginCtx *gin.Context, request *auditopenapi.PostAuditLogDeletionJSONRequestBody) {
 		deleter, ok := reader.(auditBatchDeleter)
 		if !ok {
 			reported := reportAuditRouteError(ginCtx, ctx, "audit deletion service unavailable", errors.New("audit batch deleter is unavailable"),
@@ -31,10 +31,12 @@ func handleBatchDeleteAuditLogs(ctx *module.Context, moduleName string, reader a
 			httpx.AbortAppError(ginCtx, ctx.I18n, ctx.Logger, reported)
 			return
 		}
-		var request auditopenapi.PostAuditLogDeletionJSONRequestBody
-		if err := ginCtx.ShouldBindJSON(&request); err != nil {
-			httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "ids"})
-			return
+		if request == nil {
+			request = &auditopenapi.PostAuditLogDeletionJSONRequestBody{}
+			if err := ginCtx.ShouldBindJSON(request); err != nil {
+				httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), map[string]any{"field": "ids"})
+				return
+			}
 		}
 		ids, ok := bindAuditDeletionIDs(ginCtx, ctx, request.Ids)
 		if !ok {

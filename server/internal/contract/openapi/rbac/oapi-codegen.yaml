@@ -1,0 +1,35 @@
+package: rbacopenapi
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  include-operation-ids:
+    - deletePermissionSavedView
+    - deleteRolePermissions
+    - deleteRoleSavedView
+    - deleteUserRoles
+    - deleteUsersRoles
+    - getPermission
+    - getPermissionSavedViews
+    - getPermissions
+    - getRole
+    - getRolePermissions
+    - getRoleSavedViews
+    - getRoles
+    - getUserRoles
+    - postPermissionSavedView
+    - postRoleClone
+    - postRoleDelete
+    - postRolePermissionsAdd
+    - postRolePermissionsReplace
+    - postRoleSavedView
+    - postRoleStatus
+    - postRoleUpdate
+    - postRoles
+    - postUserRolesAdd
+    - postUserRolesReplace
+    - postUsersRolesAdd
+    - postUsersRolesReplace
+    - putPermissionSavedView
+    - putRoleSavedView

@@ -3,8 +3,6 @@ package announcement
 import (
 	"context"
 	"errors"
-	"io"
-	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -62,23 +60,23 @@ func registerAnnouncementRoutes(ctx *module.Context, service *Service, guards an
 	}
 	admin := ctx.Router.Group(announcementcontract.AnnouncementGroup)
 	admin.Use(httpx.RequestIDMiddleware())
-	admin.GET(announcementcontract.AnnouncementCollectionRoute, guards.read, wrapper.GetAnnouncements)
+	admin.GET(announcementcontract.AnnouncementCollectionRoute, guards.read, strictsupport.Route(wrapper.GetAnnouncements, nil))
 	if len(savedViews) > 0 && savedViews[0] != nil {
 		registerAnnouncementSavedViewRoutes(admin, ctx, guards.read, wrapper)
 	}
-	admin.POST(announcementcontract.AnnouncementCollectionRoute, guards.create, wrapper.PostAnnouncements)
-	admin.GET(announcementcontract.AnnouncementDetailRoute, guards.read, wrapper.GetAnnouncement)
-	admin.PUT(announcementcontract.AnnouncementDetailRoute, guards.update, wrapper.PutAnnouncement)
-	admin.POST(announcementcontract.AnnouncementPublishRoute, guards.publish, wrapper.PostAnnouncementPublish)
-	admin.POST(announcementcontract.AnnouncementArchiveRoute, guards.publish, wrapper.PostAnnouncementArchive)
-	admin.DELETE(announcementcontract.AnnouncementDetailRoute, guards.delete, wrapper.DeleteAnnouncement)
+	admin.POST(announcementcontract.AnnouncementCollectionRoute, guards.create, strictsupport.Route(wrapper.PostAnnouncements, nil))
+	admin.GET(announcementcontract.AnnouncementDetailRoute, guards.read, strictsupport.Route(wrapper.GetAnnouncement, nil))
+	admin.PUT(announcementcontract.AnnouncementDetailRoute, guards.update, strictsupport.Route(wrapper.PutAnnouncement, nil))
+	admin.POST(announcementcontract.AnnouncementPublishRoute, guards.publish, strictsupport.Route(wrapper.PostAnnouncementPublish, nil))
+	admin.POST(announcementcontract.AnnouncementArchiveRoute, guards.publish, strictsupport.Route(wrapper.PostAnnouncementArchive, nil))
+	admin.DELETE(announcementcontract.AnnouncementDetailRoute, guards.delete, strictsupport.Route(wrapper.DeleteAnnouncement, nil))
 
 	user := ctx.Router.Group(announcementcontract.MyAnnouncementGroup)
 	user.Use(httpx.RequestIDMiddleware())
-	user.GET(announcementcontract.MyAnnouncementCollectionRoute, guards.authenticated, wrapper.GetMyAnnouncements)
-	user.POST(announcementcontract.MyAnnouncementReadRoute, guards.authenticated, wrapper.PostMyAnnouncementRead)
-	user.POST(announcementcontract.MyAnnouncementReadAllRoute, guards.authenticated, wrapper.PostMyAnnouncementsReadAll)
-	user.GET(announcementcontract.MyAnnouncementUnreadCountRoute, guards.authenticated, wrapper.GetMyAnnouncementsUnreadCount)
+	user.GET(announcementcontract.MyAnnouncementCollectionRoute, guards.authenticated, strictsupport.Route(wrapper.GetMyAnnouncements, nil))
+	user.POST(announcementcontract.MyAnnouncementReadRoute, guards.authenticated, strictsupport.Route(wrapper.PostMyAnnouncementRead, nil))
+	user.POST(announcementcontract.MyAnnouncementReadAllRoute, guards.authenticated, strictsupport.Route(wrapper.PostMyAnnouncementsReadAll, nil))
+	user.GET(announcementcontract.MyAnnouncementUnreadCountRoute, guards.authenticated, strictsupport.Route(wrapper.GetMyAnnouncementsUnreadCount, nil))
 	return nil
 }
 
@@ -407,40 +405,6 @@ func (r announcementRouteRuntime) writeRouteError(ginCtx *gin.Context, err error
 	httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, err)
 }
 
-type announcementGeneratedHandler struct{}
-
-func (announcementGeneratedHandler) GetAnnouncements(announcementopenapi.GetAnnouncementsParams) {}
-
-func (announcementGeneratedHandler) PostAnnouncements(announcementopenapi.PostAnnouncementsParams, announcementopenapi.PostAnnouncementsJSONRequestBody) {
-}
-
-func (announcementGeneratedHandler) GetAnnouncement(int64, announcementopenapi.GetAnnouncementParams) {
-}
-
-func (announcementGeneratedHandler) PutAnnouncement(int64, announcementopenapi.PutAnnouncementParams, announcementopenapi.PutAnnouncementJSONRequestBody) {
-}
-
-func (announcementGeneratedHandler) PostAnnouncementPublish(int64, announcementopenapi.PostAnnouncementPublishParams, announcementopenapi.PostAnnouncementPublishJSONRequestBody) {
-}
-
-func (announcementGeneratedHandler) PostAnnouncementArchive(int64, announcementopenapi.PostAnnouncementArchiveParams) {
-}
-
-func (announcementGeneratedHandler) DeleteAnnouncement(int64, announcementopenapi.DeleteAnnouncementParams) {
-}
-
-func (announcementGeneratedHandler) GetMyAnnouncements(announcementopenapi.GetMyAnnouncementsParams) {
-}
-
-func (announcementGeneratedHandler) PostMyAnnouncementRead(int64, announcementopenapi.PostMyAnnouncementReadParams) {
-}
-
-func (announcementGeneratedHandler) PostMyAnnouncementsReadAll(announcementopenapi.PostMyAnnouncementsReadAllParams) {
-}
-
-func (announcementGeneratedHandler) GetMyAnnouncementsUnreadCount(announcementopenapi.GetMyAnnouncementsUnreadCountParams) {
-}
-
 func bindAdminListParams(ginCtx *gin.Context, ctx *module.Context) (announcementopenapi.GetAnnouncementsParams, bool) {
 	locale, requestID := commonHeaders(ginCtx)
 	query := ginCtx.Request.URL.Query()
@@ -491,51 +455,6 @@ func bindUserListParams(ginCtx *gin.Context, ctx *module.Context) (announcemento
 	return params, true
 }
 
-func bindCommonParams(ginCtx *gin.Context) announcementopenapi.PostAnnouncementsParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return announcementopenapi.PostAnnouncementsParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindGetAnnouncementParams(ginCtx *gin.Context) announcementopenapi.GetAnnouncementParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return announcementopenapi.GetAnnouncementParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindPutAnnouncementParams(ginCtx *gin.Context) announcementopenapi.PutAnnouncementParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return announcementopenapi.PutAnnouncementParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindPostAnnouncementPublishParams(ginCtx *gin.Context) announcementopenapi.PostAnnouncementPublishParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return announcementopenapi.PostAnnouncementPublishParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindPostAnnouncementArchiveParams(ginCtx *gin.Context) announcementopenapi.PostAnnouncementArchiveParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return announcementopenapi.PostAnnouncementArchiveParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindDeleteAnnouncementParams(ginCtx *gin.Context) announcementopenapi.DeleteAnnouncementParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return announcementopenapi.DeleteAnnouncementParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindPostMyAnnouncementReadParams(ginCtx *gin.Context) announcementopenapi.PostMyAnnouncementReadParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return announcementopenapi.PostMyAnnouncementReadParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindPostMyAnnouncementsReadAllParams(ginCtx *gin.Context) announcementopenapi.PostMyAnnouncementsReadAllParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return announcementopenapi.PostMyAnnouncementsReadAllParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindGetMyAnnouncementsUnreadCountParams(ginCtx *gin.Context) announcementopenapi.GetMyAnnouncementsUnreadCountParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return announcementopenapi.GetMyAnnouncementsUnreadCountParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
 func commonHeaders(ginCtx *gin.Context) (*string, *string) {
 	locale := ginCtx.GetHeader(string(httpheader.Locale))
 	requestID := httpx.EnsureRequestID(ginCtx)
@@ -550,14 +469,6 @@ func bindAnnouncementID(ginCtx *gin.Context, ctx *module.Context) (uint64, bool)
 		return 0, false
 	}
 	return value, true
-}
-
-func bindGeneratedAnnouncementID(ginCtx *gin.Context, ctx *module.Context, value uint64) (int64, bool) {
-	if value > math.MaxInt64 {
-		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
-		return 0, false
-	}
-	return int64(value), true
 }
 
 func currentUserID(ginCtx *gin.Context, ctx *module.Context) (uint64, bool) {
@@ -576,25 +487,6 @@ func currentUserIDPointer(ginCtx *gin.Context) *uint64 {
 	}
 	userID := requestAuth.User.ID
 	return &userID
-}
-
-func bindJSON[T any](ginCtx *gin.Context, ctx *module.Context, target *T) bool {
-	if err := ginCtx.ShouldBindJSON(target); err != nil {
-		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
-		return false
-	}
-	return true
-}
-
-func bindOptionalJSON[T any](ginCtx *gin.Context, ctx *module.Context, target *T) bool {
-	if ginCtx.Request == nil || ginCtx.Request.Body == nil {
-		return true
-	}
-	if err := ginCtx.ShouldBindJSON(target); err != nil && !errors.Is(err, io.EOF) {
-		httpx.AbortLocalizedError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
-		return false
-	}
-	return true
 }
 
 func optionalQuery(raw string) *string {
