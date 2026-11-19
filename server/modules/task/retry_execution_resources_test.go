@@ -8,9 +8,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
+	containerdi "graft/server/internal/container"
 	"graft/server/internal/dockerexecution"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
@@ -122,4 +124,47 @@ func TestUnknownTaskRetryExcludesItsOwnResourceClaim(t *testing.T) {
 	if err := runtime.RetryStage(context.Background(), receipt.TaskID, stages[0].ID); err != nil {
 		t.Fatalf("unknown Task conflicted with its own retained resources: %v", err)
 	}
+}
+
+func TestTaskRetryChecksOwnerBeforeMalformedStageID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	runtime, _ := localRuntimeForTest(t)
+	receipt, err := runtime.Submit(context.Background(), localSubmitInput("hidden", "compose:hidden"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	services := containerdi.New()
+	if err := services.RegisterSingleton((*moduleapi.AuthService)(nil), func(containerdi.Resolver) (any, error) { return taskRetryRouteAuth{}, nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := services.RegisterSingleton((*moduleapi.Authorizer)(nil), func(containerdi.Resolver) (any, error) { return taskRetryRouteAuth{}, nil }); err != nil {
+		t.Fatal(err)
+	}
+	engine := gin.New()
+	if err := registerTaskRoutes(&module.Context{Router: engine.Group("/api"), Services: services}, runtime, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/tasks/%d/stages/invalid/retry", receipt.TaskID), nil)
+	request.Header.Set("Authorization", "Bearer route-test-token")
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("retry with hidden owner: status = %d, want 404, body = %s", response.Code, response.Body.String())
+	}
+}
+
+type taskRetryRouteAuth struct{}
+
+func (taskRetryRouteAuth) CurrentUser(context.Context) (*moduleapi.CurrentUser, error) {
+	return &moduleapi.CurrentUser{ID: 7}, nil
+}
+
+func (taskRetryRouteAuth) ParseAccessToken(context.Context, string) (*moduleapi.AccessTokenClaims, error) {
+	return &moduleapi.AccessTokenClaims{UserID: 7, SessionID: "task-test-session", ExpiresAt: time.Now().Add(time.Hour)}, nil
+}
+
+func (taskRetryRouteAuth) Authorize(context.Context, moduleapi.RequestAuthContext, string) error {
+	return nil
 }

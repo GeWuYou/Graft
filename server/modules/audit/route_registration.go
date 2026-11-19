@@ -24,20 +24,21 @@ func registerAuditRoutes(ctx *module.Context, moduleName string, reader auditRea
 	deleteLogs := handleBatchDeleteAuditLogs(ctx, moduleName, reader)
 	legacyDelete := func(c *gin.Context) { deleteLogs(c, nil) }
 	saved := auditSavedViewHandlersOf(ctx, savedViews)
+	strict := auditStrictServer{
+		savedViews:          saved,
+		listLogs:            handleListAuditLogs(ctx, moduleName, reader),
+		readLog:             handleReadAuditLog(ctx, moduleName, reader),
+		readIncident:        handleReadAuditIncident(ctx, moduleName, reader),
+		readPolicy:          handleReadAuditVisibilityPolicy(ctx, moduleName, reader),
+		updatePolicy:        handleUpdateAuditVisibilityDefault(ctx, moduleName, reader),
+		upsertOverride:      handleUpsertAuditVisibilityOverride(ctx, moduleName, reader),
+		upsertOverrideBatch: handleUpsertAuditVisibilityOverrides(ctx, moduleName, reader),
+		deleteOverride:      handleDeleteAuditVisibilityOverride(ctx, moduleName, reader),
+		batchDeleteLogs:     deleteLogs,
+	}
 	wrapper := auditopenapi.ServerInterfaceWrapper{
 		Handler: auditopenapi.NewStrictHandlerWithOptions(
-			auditStrictServer{
-				savedViews:          saved,
-				listLogs:            handleListAuditLogs(ctx, moduleName, reader),
-				readLog:             handleReadAuditLog(ctx, moduleName, reader),
-				readIncident:        handleReadAuditIncident(ctx, moduleName, reader),
-				readPolicy:          handleReadAuditVisibilityPolicy(ctx, moduleName, reader),
-				updatePolicy:        handleUpdateAuditVisibilityDefault(ctx, moduleName, reader),
-				upsertOverride:      handleUpsertAuditVisibilityOverride(ctx, moduleName, reader),
-				upsertOverrideBatch: handleUpsertAuditVisibilityOverrides(ctx, moduleName, reader),
-				deleteOverride:      handleDeleteAuditVisibilityOverride(ctx, moduleName, reader),
-				batchDeleteLogs:     deleteLogs,
-			},
+			strict,
 			nil,
 			auditopenapi.StrictGinServerOptions{
 				RequestErrorHandlerFunc: strictsupport.RequestErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String(), gin.H{"field": "body"}),
@@ -49,16 +50,16 @@ func registerAuditRoutes(ctx *module.Context, moduleName string, reader auditRea
 	if savedViews != nil {
 		registerAuditSavedViewRoutes(group, guard.read, wrapper, saved)
 	}
-	group.GET(auditcontract.AuditCollection, guard.read, strictsupport.Route(wrapper.GetAuditLogs, handleListAuditLogs(ctx, moduleName, reader)))
+	group.GET(auditcontract.AuditCollection, guard.read, strictsupport.Route(wrapper.GetAuditLogs, strict.listLogs))
 	// 当前客户端仍访问批量删除的旧路径；沿用其路由与权限，并绑定该操作的 OpenAPI 请求。
 	group.POST(auditcontract.AuditBatchDeleteCollection, guard.delete, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostAuditLogDeletion, legacyDelete))
-	group.GET(auditcontract.AuditItem, guard.read, strictsupport.Route(wrapper.GetAuditLogDetail, nil))
-	group.GET(auditcontract.AuditIncidentItem, guard.read, strictsupport.Route(wrapper.GetAuditIncident, nil))
+	group.GET(auditcontract.AuditItem, guard.read, strictsupport.Route(wrapper.GetAuditLogDetail, strict.readLog))
+	group.GET(auditcontract.AuditIncidentItem, guard.read, strictsupport.Route(wrapper.GetAuditIncident, strict.readIncident))
 	group.GET(auditcontract.AuditVisibilityPolicyCollection, guard.manage, strictsupport.Route(wrapper.GetAuditVisibilityPolicy, nil))
 	group.PUT(auditcontract.AuditVisibilityPolicyCollection, guard.manage, strictsupport.Route(wrapper.PutAuditVisibilityPolicy, nil))
 	group.PUT(auditcontract.AuditVisibilityOverrideCollection, guard.manage, strictsupport.Route(wrapper.PutAuditVisibilityOverride, nil))
 	group.PUT(auditcontract.AuditVisibilityOverrideBatchCollection, guard.manage, strictsupport.Route(wrapper.PutAuditVisibilityOverridesBatch, nil))
-	group.DELETE(auditcontract.AuditVisibilityOverrideCollection, guard.manage, strictsupport.Route(wrapper.DeleteAuditVisibilityOverride, nil))
+	group.DELETE(auditcontract.AuditVisibilityOverrideCollection, guard.manage, strictsupport.Route(wrapper.DeleteAuditVisibilityOverride, strict.deleteOverride))
 }
 
 // auditStrictServer 将审计路由主体适配到生成的 strict server 契约；

@@ -3,9 +3,8 @@ package build
 import (
 	"context"
 	"errors"
-	buildopenapi "graft/server/internal/contract/openapi/build"
-	"graft/server/internal/contract/openapi/strictsupport"
 	"math"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"strconv"
@@ -16,8 +15,11 @@ import (
 	"github.com/gin-gonic/gin"
 
 	messagecontract "graft/server/internal/contract/message"
+	buildopenapi "graft/server/internal/contract/openapi/build"
 	openapigen "graft/server/internal/contract/openapi/generated"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"graft/server/internal/httpx"
+	"graft/server/internal/i18n"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	buildcontract "graft/server/modules/build/contract"
@@ -285,7 +287,7 @@ func registerRoutes(ctx *module.Context, service *Service) error {
 		}),
 		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, "common.invalidArgument"),
 	}
-	group.POST("/input-snapshots", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), limitBuildSnapshotBody, strictsupport.Route(wrapper.PostBuildInputSnapshot, nil))
+	group.POST("/input-snapshots", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), protectBuildSnapshotBody(ctx.I18n), strictsupport.Route(wrapper.PostBuildInputSnapshot, nil))
 	group.GET("/input-snapshots", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), strictsupport.Route(wrapper.GetBuildInputSnapshots, listSnapshots))
 	group.GET("/workspaces", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), strictsupport.Route(wrapper.GetBuildWorkspaces, listWorkspaces))
 	group.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildReadPermission, publisher), strictsupport.Route(wrapper.GetBuildRuntimeTargets, nil))
@@ -478,9 +480,17 @@ func (s buildStrictServer) PostBuildInputSnapshot(ctx context.Context, req build
 	return nil, strictsupport.Dispatch(ctx, func(c *gin.Context) { s.uploadSnapshot(c, req.Body) })
 }
 
-func limitBuildSnapshotBody(c *gin.Context) {
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxInputSnapshotUploadBytes+inputSnapshotMultipartOverhead)
-	c.Next()
+// protectBuildSnapshotBody 沿用文件上传的 form-data 类型和最大读取量。
+func protectBuildSnapshotBody(localizer *i18n.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		mediaType, _, err := mime.ParseMediaType(c.GetHeader("Content-Type"))
+		if err != nil || mediaType != "multipart/form-data" {
+			httpx.AbortLocalizedError(c, localizer, http.StatusBadRequest, "common.invalidArgument", nil)
+			return
+		}
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxInputSnapshotUploadBytes+inputSnapshotMultipartOverhead)
+		c.Next()
+	}
 }
 
 func (s buildStrictServer) GetBuildInputSnapshots(ctx context.Context, _ buildopenapi.GetBuildInputSnapshotsRequestObject) (buildopenapi.GetBuildInputSnapshotsResponseObject, error) {

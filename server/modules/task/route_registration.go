@@ -55,7 +55,7 @@ func registerTaskRoutes(ctx *module.Context, runtime *Runtime, publisher httpx.S
 	g.GET("/:taskId/events", strictsupport.Route(wrapper.ListTaskEvents, replayEvents))
 	g.GET("/:taskId/logs", strictsupport.Route(wrapper.ListTaskLogs, r.logs))
 	g.POST("/:taskId/cancel", strictsupport.Route(wrapper.CancelTask, nil))
-	g.POST("/:taskId/stages/:stageId/retry", strictsupport.Route(wrapper.RetryTaskStage, nil))
+	g.POST("/:taskId/stages/:stageId/retry", strictsupport.Route(wrapper.RetryTaskStage, r.retry))
 	return nil
 }
 
