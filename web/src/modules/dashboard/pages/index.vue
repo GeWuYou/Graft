@@ -16,7 +16,8 @@
 </template>
 <script setup lang="ts">
 // 正式首页把注册表事实投影为工作台语义；loader 状态、业务状态与页面展示分别处理。
-import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue';
+import { useQuery } from '@tanstack/vue-query';
+import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { API_CODE } from '@/contracts/api/codes';
@@ -33,19 +34,17 @@ import {
   seedContainerDashboardSummary,
   selectContainerDashboardSummaryView,
 } from '@/modules/container/shared/stats-manager';
+import { SYSTEM_CONFIG_PERMISSION_CODE } from '@/modules/system-config/contract/permissions';
+import { useSystemConfigsQuery } from '@/modules/system-config/contract/queries';
+import { queryClient } from '@/shared/query';
 import { usePermissionStore } from '@/store/modules/permission';
 import type { ApiRequestError } from '@/types/axios';
 import { createLogger } from '@/utils/logger';
 
 import { getDashboardSummary, getDashboardWidget } from '../api/dashboard';
-import { getDashboardSystemConfigs } from '../api/quick-actions-config';
 import DashboardWorkbench from '../components/workbench/DashboardWorkbench.vue';
 import { useDashboardQuickActions } from '../composables/use-dashboard-quick-actions';
-import {
-  type DashboardQuickActionConfig,
-  DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG,
-  resolveDashboardQuickActionConfig,
-} from '../contract/quick-actions';
+import { DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG, resolveDashboardQuickActionConfig } from '../contract/quick-actions';
 import { buildDashboardQuickActionLinks } from '../contract/sidebar-quick-actions';
 import {
   type DashboardResourceLoadState,
@@ -56,23 +55,62 @@ import {
   projectWorkbenchScenario,
   type WorkbenchNavigationSource,
 } from '../presentation/workbench';
-import type { DashboardSummaryResponse } from '../types/dashboard';
+import type { DashboardSummaryResponse, DashboardWidgetResponse } from '../types/dashboard';
 
 defineOptions({ name: 'DashboardHomePage' });
 
 const logger = createLogger('dashboard.home');
 const router = useRouter();
 const permissionStore = usePermissionStore();
+const summaryQueryKey = ['dashboard', 'summary'] as const;
+const containerSummaryQueryKey = ['dashboard', 'container-summary'] as const;
 const initialTimestamp = new Date().toISOString();
-const loading = ref(false);
-const errorMessage = ref('');
-const summary = ref<DashboardSummaryResponse | null>(null);
-const lastUpdatedAt = ref('');
-const retryingPresentationItemId = ref('');
-const quickActionConfig = ref<DashboardQuickActionConfig>({ ...DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG });
-const containerResourceState = ref<DashboardResourceLoadState>('hidden');
 const dashboardPageActive = ref(false);
+const retryingPresentationItemId = ref('');
 let dashboardContainerRealtimeSubscribed = false;
+
+const canViewContainerOverview = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.VIEW));
+const canReadSystemConfig = computed(() => permissionStore.hasPermission(SYSTEM_CONFIG_PERMISSION_CODE.READ));
+const summaryQuery = useQuery(
+  { queryKey: summaryQueryKey, queryFn: getDashboardSummary, enabled: dashboardPageActive, retry: false },
+  queryClient,
+);
+const configQuery = useSystemConfigsQuery(computed(() => dashboardPageActive.value && canReadSystemConfig.value));
+const containerQuery = useQuery(
+  {
+    queryKey: containerSummaryQueryKey,
+    queryFn: containerModuleFacades.getContainerDashboardSummary,
+    enabled: computed(() => dashboardPageActive.value && canViewContainerOverview.value),
+    retry: false,
+  },
+  queryClient,
+);
+const summary = summaryQuery.data;
+const loading = computed(
+  () => summaryQuery.isFetching.value || configQuery.isFetching.value || containerQuery.isFetching.value,
+);
+const errorMessage = computed(() =>
+  summaryQuery.error.value ? requestErrorMessage(summaryQuery.error.value, t('dashboard.error.fallback')) : '',
+);
+const lastUpdatedAt = computed(() =>
+  summaryQuery.dataUpdatedAt.value ? new Date(summaryQuery.dataUpdatedAt.value).toISOString() : '',
+);
+const quickActionConfig = computed(() => {
+  if (!canReadSystemConfig.value || configQuery.isError.value || !configQuery.data.value) {
+    return DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG;
+  }
+  return resolveDashboardQuickActionConfig(configQuery.data.value.items ?? [], {
+    onInvalidConfigValue: ({ key, error }) => {
+      logger.warn('dashboard quick-action config value parse failed', { key, error });
+    },
+  });
+});
+const containerResourceState = computed<DashboardResourceLoadState>(() => {
+  if (!canViewContainerOverview.value) return 'hidden';
+  if (containerQuery.isFetching.value) return 'loading';
+  if (containerQuery.isError.value) return 'failed';
+  return containerQuery.data.value ? 'loaded' : 'loading';
+});
 
 const emptyPresentation = projectWorkbenchScenario({
   generatedAt: initialTimestamp,
@@ -87,7 +125,6 @@ const { rankedLinks, recordAccess } = useDashboardQuickActions(
   () => quickLinks.value,
   () => quickActionConfig.value,
 );
-const canViewContainerOverview = computed(() => permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.VIEW));
 const containerDashboardSummary = computed<ContainerDashboardSummary>(
   () => selectContainerDashboardSummaryView() ?? emptyContainerDashboardSummary(),
 );
@@ -109,85 +146,50 @@ const presentation = computed(() => {
   });
 });
 
-onMounted(() => {
-  dashboardPageActive.value = true;
-  void loadSummary();
+onMounted(activateDashboard);
+onActivated(activateDashboard);
+onDeactivated(deactivateDashboard);
+onUnmounted(deactivateDashboard);
+
+watch(summaryQuery.error, (error) => {
+  if (error) logger.error('dashboard summary request failed', error);
 });
-
-onUnmounted(() => {
-  dashboardPageActive.value = false;
-  releaseDashboardContainerRealtimeSubscription();
+watch(configQuery.error, (error) => {
+  if (error && canReadSystemConfig.value) logger.error('dashboard quick-action config request failed', error);
 });
-
-onActivated(() => {
-  dashboardPageActive.value = true;
-  acquireDashboardContainerRealtimeSubscription();
-});
-
-onDeactivated(() => {
-  dashboardPageActive.value = false;
-  releaseDashboardContainerRealtimeSubscription();
-});
-
-async function loadSummary() {
-  if (loading.value) {
-    return;
-  }
-  loading.value = true;
-  errorMessage.value = '';
-
-  try {
-    const [response] = await Promise.all([
-      getDashboardSummary(),
-      loadQuickActionConfig(),
-      loadDashboardContainerResources(),
-    ]);
-    summary.value = response;
-    lastUpdatedAt.value = new Date().toISOString();
-  } catch (error) {
-    logger.error('dashboard summary request failed', error);
-    errorMessage.value = requestErrorMessage(error, t('dashboard.error.fallback'));
-  } finally {
-    loading.value = false;
-  }
-}
-
-async function loadQuickActionConfig() {
-  try {
-    const response = await getDashboardSystemConfigs();
-    quickActionConfig.value = resolveDashboardQuickActionConfig(response.items ?? [], {
-      onInvalidConfigValue: ({ key, error }) => {
-        logger.warn('dashboard quick-action config value parse failed', { key, error });
-      },
-    });
-  } catch (error) {
-    logger.error('dashboard quick-action config request failed', error);
-    quickActionConfig.value = { ...DEFAULT_DASHBOARD_QUICK_ACTION_CONFIG };
-  }
-}
-
-async function loadDashboardContainerResources() {
-  if (!canViewContainerOverview.value) {
-    containerResourceState.value = 'hidden';
-    releaseDashboardContainerRealtimeSubscription();
-    clearContainerDashboardSummary();
-    return;
-  }
-
-  containerResourceState.value = 'loading';
-  try {
-    const nextSummary = await containerModuleFacades.getContainerDashboardSummary();
-    seedContainerDashboardSummary(nextSummary);
-    containerResourceState.value = 'loaded';
-    acquireDashboardContainerRealtimeSubscription();
-  } catch (error) {
-    logger.warn('dashboard container resource seed request failed', error);
-    containerResourceState.value = 'failed';
-    if (shouldResetContainerRealtimeState(error)) {
+// 只有页面活跃且有权限时才把 HTTP 缓存接入容器实时投影。
+watch(
+  [dashboardPageActive, canViewContainerOverview, containerQuery.data, containerQuery.error],
+  ([active, permitted, snapshot, error]) => {
+    if (!permitted) {
       releaseDashboardContainerRealtimeSubscription();
+      clearContainerDashboardSummary();
+    } else if (active && error) {
+      logger.warn('dashboard container resource seed request failed', error);
+      if (shouldResetContainerRealtimeState(error)) releaseDashboardContainerRealtimeSubscription();
+      clearContainerDashboardSummary();
+    } else if (active && snapshot) {
+      seedContainerDashboardSummary(snapshot);
+      acquireDashboardContainerRealtimeSubscription();
     }
-    clearContainerDashboardSummary();
-  }
+  },
+  { immediate: true },
+);
+
+function activateDashboard() {
+  dashboardPageActive.value = true;
+}
+
+function deactivateDashboard() {
+  dashboardPageActive.value = false;
+  releaseDashboardContainerRealtimeSubscription();
+}
+
+function loadSummary() {
+  if (!dashboardPageActive.value || loading.value) return;
+  void summaryQuery.refetch();
+  if (canReadSystemConfig.value) void configQuery.refetch();
+  if (canViewContainerOverview.value) void containerQuery.refetch();
 }
 
 function emptyContainerDashboardSummary(): ContainerDashboardSummary {
@@ -235,42 +237,43 @@ function navigate(route: string, source: WorkbenchNavigationSource) {
 }
 
 async function retryItem(item: PresentationItem) {
-  if (!item.sourceWidgetId || retryingPresentationItemId.value) {
+  const widgetId = item.sourceWidgetId;
+  if (!widgetId || retryingPresentationItemId.value) {
     return;
   }
 
   retryingPresentationItemId.value = item.id;
   try {
-    const widget = await getDashboardWidget(item.sourceWidgetId);
-    if (summary.value) {
-      summary.value = {
-        ...summary.value,
-        widgets: summary.value.widgets.map((current) => (current.id === widget.id ? widget : current)),
-      };
-    }
+    const widget = await queryClient.fetchQuery({
+      queryKey: ['dashboard', 'widget', widgetId],
+      queryFn: () => getDashboardWidget(widgetId),
+      staleTime: 0,
+      retry: false,
+    });
+    updateSummaryWidget(widget.id, () => widget);
   } catch (error) {
     logger.error('dashboard widget refresh failed', error);
-    if (summary.value) {
-      summary.value = {
-        ...summary.value,
-        widgets: summary.value.widgets.map((current) =>
-          current.id === item.sourceWidgetId
-            ? {
-                ...current,
-                status: 'error',
-                error: {
-                  code: requestErrorCode(error),
-                  message_key: requestErrorMessageKey(error),
-                  message: requestErrorMessage(error, t('dashboard.widget.errorFallback')),
-                },
-              }
-            : current,
-        ),
-      };
-    }
+    updateSummaryWidget(widgetId, (current) => ({
+      ...current,
+      status: 'error',
+      error: {
+        code: requestErrorCode(error),
+        message_key: requestErrorMessageKey(error),
+        message: requestErrorMessage(error, t('dashboard.widget.errorFallback')),
+      },
+    }));
   } finally {
     retryingPresentationItemId.value = '';
   }
+}
+
+function updateSummaryWidget(id: string, update: (widget: DashboardWidgetResponse) => DashboardWidgetResponse) {
+  queryClient.setQueryData<DashboardSummaryResponse>(
+    summaryQueryKey,
+    (current) =>
+      current && { ...current, widgets: current.widgets.map((widget) => (widget.id === id ? update(widget) : widget)) },
+    { updatedAt: summaryQuery.dataUpdatedAt.value },
+  );
 }
 
 function isApiRequestError(error: unknown): error is ApiRequestError {

@@ -7,19 +7,21 @@ import type { RouteRecordRaw } from 'vue-router';
 import type { BootstrapResponse } from '@/modules/auth/contract/types';
 import { CONTAINER_ROUTE_PATH } from '@/modules/container/contract/paths';
 import { resetContainerStatsManager } from '@/modules/container/shared/stats-manager';
+import { clearQueryCache } from '@/shared/query';
 import { usePermissionStore } from '@/store/modules/permission';
 
+import { DASHBOARD_QUICK_ACTION_STORAGE_KEY } from '../contract/quick-actions';
 import type { WorkbenchPresentation } from '../presentation/workbench';
 import type { DashboardSummaryResponse } from '../types/dashboard';
 import DashboardHomePage from './index.vue';
 
 const dashboardApiMocks = vi.hoisted(() => ({ getDashboardSummary: vi.fn(), getDashboardWidget: vi.fn() }));
-const configApiMocks = vi.hoisted(() => ({ getDashboardSystemConfigs: vi.fn() }));
+const configApiMocks = vi.hoisted(() => ({ getSystemConfigs: vi.fn() }));
 const containerApiMocks = vi.hoisted(() => ({ getContainerDashboardSummary: vi.fn() }));
 const routerMocks = vi.hoisted(() => ({ push: vi.fn() }));
 
 vi.mock('../api/dashboard', () => dashboardApiMocks);
-vi.mock('../api/quick-actions-config', () => configApiMocks);
+vi.mock('@/modules/system-config/api/system-config', () => configApiMocks);
 vi.mock('vue-router', () => ({ useRouter: () => routerMocks }));
 vi.mock('@/modules/container', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/modules/container')>();
@@ -203,13 +205,14 @@ function mountPage() {
 describe('DashboardHomePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearQueryCache();
     window.localStorage.clear();
     resetContainerStatsManager();
     setActivePinia(createPinia());
     usePermissionStore().routers = routes();
-    usePermissionStore().setBootstrapSnapshot(bootstrapSnapshot(['container.view']));
+    usePermissionStore().setBootstrapSnapshot(bootstrapSnapshot(['container.view', 'system-config.read']));
     dashboardApiMocks.getDashboardSummary.mockResolvedValue(summaryResponse());
-    configApiMocks.getDashboardSystemConfigs.mockResolvedValue({ items: [] });
+    configApiMocks.getSystemConfigs.mockResolvedValue({ items: [] });
     containerApiMocks.getContainerDashboardSummary.mockResolvedValue(containerSummary());
   });
 
@@ -226,8 +229,40 @@ describe('DashboardHomePage', () => {
     expect(wrapper.findAll('.quick-action')).toHaveLength(4);
   });
 
+  it('reuses fresh dashboard snapshots across remounts and refetches them on demand', async () => {
+    const first = mountPage();
+    await flushPromises();
+    first.unmount();
+
+    const second = mountPage();
+    await flushPromises();
+    expect(second.getComponent({ name: 'DashboardWorkbenchStub' }).props('ready')).toBe(true);
+    expect(dashboardApiMocks.getDashboardSummary).toHaveBeenCalledTimes(1);
+    expect(configApiMocks.getSystemConfigs).toHaveBeenCalledTimes(1);
+    expect(containerApiMocks.getContainerDashboardSummary).toHaveBeenCalledTimes(1);
+
+    await second.get('.refresh-page').trigger('click');
+    await flushPromises();
+    expect(dashboardApiMocks.getDashboardSummary).toHaveBeenCalledTimes(2);
+    expect(configApiMocks.getSystemConfigs).toHaveBeenCalledTimes(2);
+    expect(containerApiMocks.getContainerDashboardSummary).toHaveBeenCalledTimes(2);
+    second.unmount();
+  });
+
+  it('keeps default quick actions without querying system config when permission is absent', async () => {
+    usePermissionStore().setBootstrapSnapshot(bootstrapSnapshot(['container.view']));
+    const wrapper = mountPage();
+    await flushPromises();
+    await wrapper.get('.refresh-page').trigger('click');
+    await flushPromises();
+
+    expect(configApiMocks.getSystemConfigs).not.toHaveBeenCalled();
+    expect(wrapper.findAll('.quick-action')).toHaveLength(4);
+    wrapper.unmount();
+  });
+
   it('honors configurable quick-action counts without fixing the homepage to four items', async () => {
-    configApiMocks.getDashboardSystemConfigs.mockResolvedValueOnce({
+    configApiMocks.getSystemConfigs.mockResolvedValueOnce({
       items: [configItem('{"enabled":true,"maxItems":6,"strategy":"hybrid"}')],
     });
     const wrapper = mountPage();
@@ -242,7 +277,7 @@ describe('DashboardHomePage', () => {
   });
 
   it('hides quick actions when the existing system config disables them', async () => {
-    configApiMocks.getDashboardSystemConfigs.mockResolvedValueOnce({
+    configApiMocks.getSystemConfigs.mockResolvedValueOnce({
       items: [configItem('{"enabled":false,"maxItems":4,"strategy":"hybrid"}')],
     });
     const wrapper = mountPage();
@@ -308,7 +343,7 @@ describe('DashboardHomePage', () => {
     await flushPromises();
     await wrapper.get('.quick-action').trigger('click');
     expect(routerMocks.push).toHaveBeenCalledWith('/feature-0');
-    expect(window.localStorage.getItem('dashboard:quick-actions:route-usage')).toContain('/feature-0');
+    expect(window.localStorage.getItem(DASHBOARD_QUICK_ACTION_STORAGE_KEY.ROUTE_USAGE)).toContain('/feature-0');
   });
 
   it('opens contextual resource actions without changing quick-entry usage ranking', async () => {
@@ -318,6 +353,6 @@ describe('DashboardHomePage', () => {
     await wrapper.get('.resource-item').trigger('click');
 
     expect(routerMocks.push).toHaveBeenCalledWith(CONTAINER_ROUTE_PATH.LIST);
-    expect(window.localStorage.getItem('dashboard:quick-actions:route-usage')).toBeNull();
+    expect(window.localStorage.getItem(DASHBOARD_QUICK_ACTION_STORAGE_KEY.ROUTE_USAGE)).toBeNull();
   });
 });
