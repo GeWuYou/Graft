@@ -442,6 +442,7 @@ func (r *SQLRepository) transitionTaskWith(ctx context.Context, executor interfa
 	now := time.Now().UTC()
 	result, err := executor.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
 		SET status = ?, current_stage_key = ?, failure_code = ?, failure_message = ?,
+			failure_stage = NULL, failure_class = NULL,
 			started_at = COALESCE(?, started_at), finished_at = ?, duration_ms = ?, updated_at = ?
 		WHERE id = ? AND status = ?`),
 		input.To,
@@ -472,6 +473,7 @@ func (r *SQLRepository) TransitionStage(ctx context.Context, input StageTransiti
 	now := time.Now().UTC()
 	result, err := r.db.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
 		SET status = ?, attempt = ?, next_retry_at = ?, result_json = ?, failure_code = ?, failure_message = ?,
+			failure_stage = NULL, failure_class = NULL,
 			started_at = COALESCE(?, started_at), finished_at = ?, duration_ms = ?, updated_at = ?
 		WHERE id = ? AND status = ?`),
 		input.To,
@@ -840,6 +842,7 @@ func (r *SQLRepository) resumeRetryableTask(ctx context.Context, tx *sql.Tx, tas
 func (r *SQLRepository) markStagePendingForRetry(ctx context.Context, tx *sql.Tx, taskID uint64, stageID uint64, retryAt time.Time) error {
 	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
 		SET status = ?, next_retry_at = ?, failure_code = NULL, failure_message = NULL,
+			failure_stage = NULL, failure_class = NULL,
 			finished_at = NULL, duration_ms = NULL, updated_at = ?
 		WHERE id = ? AND task_id = ? AND status IN (?, ?)`),
 		moduleapi.StageStatusPending, retryAt.UTC(), retryAt.UTC(), stageID, taskID, moduleapi.StageStatusFailed, moduleapi.StageStatusUnknown,
@@ -1265,6 +1268,7 @@ func (r *SQLRepository) appendRecoveryEvents(ctx context.Context, tx *sql.Tx, no
 func (r *SQLRepository) rescheduleIdempotentRecovery(ctx context.Context, tx *sql.Tx, now time.Time) (int, error) {
 	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
 		SET status = ?, next_retry_at = ?, failure_code = NULL, failure_message = NULL,
+			failure_stage = NULL, failure_class = NULL,
 			finished_at = NULL, duration_ms = NULL, updated_at = ?
 		WHERE status = ? AND recovery_policy = ?
 			AND NOT EXISTS (
@@ -1507,7 +1511,7 @@ func (r *SQLRepository) reconcileReceiptLaunch(ctx context.Context, tx *sql.Tx, 
 	if status != moduleapi.StageStatusRunning && status != moduleapi.StageStatusUnknown {
 		return ErrStateConflict
 	}
-	result, err := tx.ExecContext(ctx, r.placeholder.rebind("UPDATE task_stages SET status = ?, failure_code = NULL, failure_message = NULL, finished_at = ?, updated_at = ? WHERE id = ? AND task_id = ? AND attempt = ? AND status = ?"), moduleapi.StageStatusSuccess, now, now, input.LaunchStageID, input.TaskID, input.LaunchAttempt, status)
+	result, err := tx.ExecContext(ctx, r.placeholder.rebind("UPDATE task_stages SET status = ?, failure_code = NULL, failure_message = NULL, failure_stage = NULL, failure_class = NULL, finished_at = ?, updated_at = ? WHERE id = ? AND task_id = ? AND attempt = ? AND status = ?"), moduleapi.StageStatusSuccess, now, now, input.LaunchStageID, input.TaskID, input.LaunchAttempt, status)
 	if err != nil {
 		return err
 	}

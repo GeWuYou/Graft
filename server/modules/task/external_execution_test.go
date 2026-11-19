@@ -240,6 +240,53 @@ func TestExternalExecutionLeaseSurvivesRestartUntilExpiry(t *testing.T) {
 	}
 }
 
+func TestExternalExecutionRetryClearsFailureDiagnostics(t *testing.T) {
+	runtime, repository, first := failedExternalExecutionTaskWithDiagnostics(t)
+	if err := runtime.RetryStage(context.Background(), first.TaskID, first.StageID); err != nil {
+		t.Fatalf("retry failed external stage: %v", err)
+	}
+	task := mustTask(t, repository, first.TaskID)
+	if task.Status != moduleapi.TaskStatusRunning || task.FailureCode != nil || task.FailureMessage != nil || task.FailureStage != nil || task.FailureClass != nil {
+		t.Fatalf("task after retry = %#v", task)
+	}
+	stages, err := repository.ListStages(context.Background(), first.TaskID)
+	if err != nil || len(stages) != 1 {
+		t.Fatalf("stages after retry = %#v err=%v", stages, err)
+	}
+	stage := stages[0]
+	if stage.Status != moduleapi.StageStatusPending || stage.FailureCode != nil || stage.FailureMessage != nil || stage.FailureStage != nil || stage.FailureClass != nil {
+		t.Fatalf("pending stage after retry = %#v", stage)
+	}
+}
+
+func TestExternalExecutionRetryCreatesFreshFencedAttempt(t *testing.T) {
+	runtime, _, first := failedExternalExecutionTaskWithDiagnostics(t)
+	if err := runtime.RetryStage(context.Background(), first.TaskID, first.StageID); err != nil {
+		t.Fatalf("retry failed external stage: %v", err)
+	}
+	second := claimTestExternalExecution(t, runtime)
+	if second.ID == first.ID || second.Attempt != first.Attempt+1 {
+		t.Fatalf("retried external lease = first:%#v second:%#v", first, second)
+	}
+	if settlement, err := runtime.SettleExternalExecution(context.Background(), testExternalExecutionReceipt(second, moduleapi.ExternalReceiptOutcomeSuccess, "")); err != nil || settlement.Status != moduleapi.TaskStatusSuccess {
+		t.Fatalf("settle retried stage = %#v err=%v", settlement, err)
+	}
+}
+
+// failedExternalExecutionTaskWithDiagnostics 构造一个携带完整诊断事实的已失败外部执行任务。
+func failedExternalExecutionTaskWithDiagnostics(t *testing.T) (*Runtime, *taskstore.SQLRepository, moduleapi.ExternalExecutionLease) {
+	t.Helper()
+	runtime, repository, first := claimedExternalExecutionTaskWithAttempts(t, 1, 2)
+	receipt := testExternalExecutionReceipt(first, moduleapi.ExternalReceiptOutcomeFailed, "provider_operation_failed")
+	receipt.FailureStage = moduleapi.ExecutionStageComposeLoad
+	receipt.FailureClass = moduleapi.ExecutionFailureClassInfrastructure
+	receipt.DiagnosticSummary = "yaml: line 3: could not find expected ':'"
+	if settlement, err := runtime.SettleExternalExecution(context.Background(), receipt); err != nil || settlement.Status != moduleapi.TaskStatusFailed {
+		t.Fatalf("failed settlement = %#v err=%v", settlement, err)
+	}
+	return runtime, repository, first
+}
+
 func TestExternalExecutionRetryCreatesNewFencedAttempt(t *testing.T) {
 	runtime, repository, first := claimedExternalExecutionTaskWithAttempts(t, 1, 2)
 	if count, err := repository.ExpireExternalExecutionLeases(context.Background(), first.AbsoluteDeadlineAt.Add(time.Second), 10); err != nil || count != 1 {
