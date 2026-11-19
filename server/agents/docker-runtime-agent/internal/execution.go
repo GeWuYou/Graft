@@ -430,31 +430,40 @@ func pollExecutionCapabilities(ctx context.Context, client *http.Client, c confi
 		claims.Wait()
 		close(results)
 	}()
-	cycle, admitted, identityRejected := collectClaimResults(ctx, client, c, results)
+	outcome := collectClaimResults(ctx, client, c, results)
 	// 拒绝或传输失败优先记录；无工作不算失败，只要本轮证明过领取成功就清空遗留结论。
-	if claimAdmissionRank(cycle.Class) >= claimAdmissionBlockedRank || !admitted {
-		tracker.observe(cycle.Class, cycle.HTTPStatus)
+	// 领取结论必须先于执行等待落盘，长时间执行的租约不得延迟本地 admission 证据。
+	if claimAdmissionRank(outcome.cycle.Class) >= claimAdmissionBlockedRank || !outcome.admitted {
+		tracker.observe(outcome.cycle.Class, outcome.cycle.HTTPStatus)
 	} else {
 		tracker.clear()
 	}
 	reportAdmissionTelemetry(ctx, client, c, tracker)
-	if identityRejected.Load() {
+	outcome.executions.Wait()
+	if outcome.identityRejected.Load() {
 		return persistedState{}
 	}
 	return state
 }
 
+// claimCycleOutcome 汇合同一轮的领取事实；executions 在调用方持久化 admission 结论后才等待。
+type claimCycleOutcome struct {
+	cycle            claimAdmission
+	admitted         bool
+	identityRejected *atomic.Bool
+	executions       *sync.WaitGroup
+}
+
 // collectClaimResults 汇合同一轮的并发领取结论，并启动已领取租约的执行。
 // 结论按拒绝 > 传输失败 > 无工作合并，避免后到的 204 掩盖已被拒绝的能力。
-func collectClaimResults(ctx context.Context, client *http.Client, c config, results <-chan claimResult) (claimAdmission, bool, *atomic.Bool) {
+func collectClaimResults(ctx context.Context, client *http.Client, c config, results <-chan claimResult) claimCycleOutcome {
 	var executions sync.WaitGroup
 	var identityRejected atomic.Bool
-	var cycle claimAdmission
-	var admitted bool
+	outcome := claimCycleOutcome{identityRejected: &identityRejected, executions: &executions}
 	for result := range results {
 		var admission *claimAdmissionError
-		if errors.As(result.err, &admission) && claimAdmissionRank(admission.class) > claimAdmissionRank(cycle.Class) {
-			cycle = claimAdmission{Class: admission.class, HTTPStatus: admission.status}
+		if errors.As(result.err, &admission) && claimAdmissionRank(admission.class) > claimAdmissionRank(outcome.cycle.Class) {
+			outcome.cycle = claimAdmission{Class: admission.class, HTTPStatus: admission.status}
 		}
 		if errors.Is(result.err, errAgentIdentityRejected) {
 			identityRejected.Store(true)
@@ -463,7 +472,7 @@ func collectClaimResults(ctx context.Context, client *http.Client, c config, res
 		if result.err != nil {
 			continue
 		}
-		admitted = true
+		outcome.admitted = true
 		executions.Add(1)
 		go func(lease executionLease) {
 			defer executions.Done()
@@ -472,8 +481,7 @@ func collectClaimResults(ctx context.Context, client *http.Client, c config, res
 			}
 		}(result.lease)
 	}
-	executions.Wait()
-	return cycle, admitted, &identityRejected
+	return outcome
 }
 
 const (

@@ -268,6 +268,63 @@ func TestPollExecutionCapabilitiesClearsStaleEvidenceAfterHealthyCycle(t *testin
 	}
 }
 
+func TestPollExecutionCapabilitiesObservesAdmissionBeforeExecutionWait(t *testing.T) {
+	dir := t.TempDir()
+	tracker := newAdmissionTracker(dir)
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case executionClaimPath:
+			var request executionClaimRequest
+			_ = json.NewDecoder(r.Body).Decode(&request)
+			if request.Capability == "compose_execution" {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"lease_id":"lease-slow","fence_token":"fence-slow","lease_ttl_ms":1000}`))
+		case "/agent/v1/execution-leases/lease-slow/renew":
+			// 阻塞续租以模拟长时间执行；拒绝结论必须在此期间已经落盘。
+			<-release
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(executionLease{ID: "lease-slow", FenceToken: "fence-slow", LeaseTTLMS: 1000, LeaseExpiresAt: time.Now().Add(time.Second), AbsoluteDeadlineAt: time.Now().Add(time.Minute)})
+		case ledgerSnapshotPath:
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(ledgerSnapshot{Generation: 1, SnapshotID: strings.Repeat("a", 64), SnapshotDigest: strings.Repeat("b", 64), ExpiresAt: time.Now().Add(time.Minute), ObservedAt: time.Now()})
+		case telemetryPath:
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			// 续租放行后的执行收尾与结论无关；失败即可终止执行。
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+	defer server.Close()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		pollExecutionCapabilities(context.Background(), server.Client(), config{AgentURL: server.URL, ProviderID: "docker", CapabilityVersion: "docker/v1", Capabilities: []string{"compose_execution", "container_execution"}}, persistedState{CertificatePEM: "certificate", ExpiresAt: time.Now().Add(time.Hour)}, tracker)
+	}()
+	// 执行仍被阻塞时，身份拒绝结论必须先于执行等待写入本地 admission 状态。
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		persisted, err := loadAdmissionState(dir)
+		if err == nil && persisted.Class == claimAdmissionIdentityRejected {
+			break
+		}
+		if time.Now().After(deadline) {
+			close(release)
+			<-done
+			t.Fatal("admission observation was delayed by the running execution")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	close(release)
+	<-done
+	if class := tracker.currentAdmissionClass(); class != claimAdmissionIdentityRejected {
+		t.Fatalf("observed admission class = %s", class)
+	}
+}
+
 func TestHealthcheckSurfacesIdentityRejection(t *testing.T) {
 	dir := t.TempDir()
 	configPath := dir + "/agent.json"
