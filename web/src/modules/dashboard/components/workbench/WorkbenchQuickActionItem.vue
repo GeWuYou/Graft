@@ -9,8 +9,8 @@
       <graft-menu-icon :icon-key="action.iconKey" />
     </span>
     <span class="workbench-quick-action-item__copy">
-      <strong>{{ resolveDashboardText(action.titleKey, action.titleFallback || action.id) }}</strong>
-      <span>{{ resolveDashboardText(action.descriptionKey, action.descriptionFallback || '') }}</span>
+      <strong>{{ title }}</strong>
+      <span v-if="description">{{ description }}</span>
     </span>
     <chevron-right-icon
       v-if="variant === 'drawer-featured' && action.kind === 'action'"
@@ -20,6 +20,7 @@
 </template>
 <script setup lang="ts">
 import { ChevronRightIcon } from 'tdesign-icons-vue-next';
+import { computed } from 'vue';
 
 import GraftMenuIcon from '@/shared/icons/MenuIcon.vue';
 
@@ -27,7 +28,7 @@ import type { QuickAction } from '../../presentation/workbench';
 import { resolveDashboardText } from '../widgets/widget-i18n';
 
 // 工作台快捷入口统一首页与抽屉的动作语义，数据与可见范围仍由 presentation model 决定。
-withDefaults(
+const props = withDefaults(
   defineProps<{
     action: QuickAction;
     variant?: 'default' | 'drawer-featured';
@@ -38,6 +39,14 @@ withDefaults(
 const emit = defineEmits<{
   activate: [action: QuickAction];
 }>();
+
+const title = computed(() =>
+  resolveDashboardText(props.action.titleKey, props.action.titleFallback || props.action.id),
+);
+const description = computed(() => {
+  const text = resolveDashboardText(props.action.descriptionKey, props.action.descriptionFallback, '').trim();
+  return text === title.value.trim() ? '' : text;
+});
 </script>
 <style scoped lang="less">
 .workbench-quick-action-item {
@@ -48,11 +57,11 @@ const emit = defineEmits<{
   color: inherit;
   cursor: pointer;
   display: grid;
-  gap: var(--graft-density-gap-12);
+  gap: var(--graft-density-gap-8);
   grid-template-columns: auto minmax(0, 1fr);
-  min-height: 64px;
+  min-height: 56px;
   min-width: 0;
-  padding: var(--graft-density-gap-10) var(--graft-density-gap-12);
+  padding: var(--graft-density-gap-8) var(--graft-density-gap-10);
   text-align: left;
   transition:
     background-color 120ms ease,

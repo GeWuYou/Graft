@@ -2,6 +2,8 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, inject, type InjectionKey, nextTick, type PropType, provide, ref } from 'vue';
 
+import { BUILD_ROUTE_PATH } from '@/modules/build/contract/paths';
+
 import enUS from '../../locales/en-US.json';
 import zhCN from '../../locales/zh-CN.json';
 import { DASHBOARD_PREVIEW_PRESENTATION } from '../../presentation/preview-workbench';
@@ -159,12 +161,29 @@ const emptyPresentation = projectWorkbenchScenario({
   quickActions: [],
 });
 
+const workbenchWithContextLinks: WorkbenchPresentation = {
+  ...DASHBOARD_PREVIEW_PRESENTATION,
+  contextLinkGroups: [
+    {
+      id: 'context-link-group:build:recent-jobs',
+      titleKey: 'dashboard.previewWorkbench.quickActions.createBuild.title',
+      sourceWidgetId: 'build.recent-jobs',
+      links: Array.from({ length: 8 }, (_, index) => ({
+        key: index === 0 ? 'build-jobs' : `build-jobs-${index}`,
+        labelKey: 'dashboard.actions.details',
+        route: BUILD_ROUTE_PATH.JOBS,
+        disabled: false,
+      })),
+    },
+  ],
+};
+
 function mountWorkbench(overrides: Partial<InstanceType<typeof DashboardWorkbench>['$props']> = {}) {
   return mount(DashboardWorkbench, {
     props: {
       generatedAt: DASHBOARD_PREVIEW_PRESENTATION.generatedAt,
       navigationLinks: [],
-      presentation: DASHBOARD_PREVIEW_PRESENTATION as WorkbenchPresentation,
+      presentation: workbenchWithContextLinks,
       preview: true,
       ...overrides,
     },
@@ -179,6 +198,8 @@ function mountWorkbench(overrides: Partial<InstanceType<typeof DashboardWorkbenc
         TList: surfaceStub,
         TListItem: surfaceStub,
         TSkeleton: surfaceStub,
+        TStatistic: { props: ['value'], template: '<strong>{{ value }}</strong>' },
+        TProgress: { props: ['percentage'], template: '<div :data-progress="percentage" />' },
         TTag: surfaceStub,
         WorkbenchQuickActionItem: quickActionStub,
         WorkbenchStatusIndicator: statusStub,
@@ -222,6 +243,14 @@ describe('DashboardWorkbench', () => {
     expect(
       wrapper.findAll('[data-first-screen-region]').map((node) => node.attributes('data-first-screen-region')),
     ).toEqual(['operational-status', 'attention', 'health', 'module-coverage']);
+    expect(wrapper.findAll('[data-workbench-kpi]').map((node) => node.attributes('data-workbench-kpi'))).toEqual([
+      'attention',
+      'modules',
+      'failed-tasks',
+      'high-risk-events',
+    ]);
+    expect(wrapper.get('[data-workbench-kpi="attention"] strong').text()).toBe('6');
+    expect(wrapper.get('[data-workbench-kpi="modules"] strong').text()).toBe('22');
     expect(wrapper.findAll('[data-attention-id]')).toHaveLength(5);
     expect(wrapper.findAll('[data-health-id]')).toHaveLength(3);
     expect(wrapper.findAll('[data-context-link-key]')).toHaveLength(6);
@@ -247,7 +276,7 @@ describe('DashboardWorkbench', () => {
 
     expect(layout.findAll('.workbench-layout__column')).toHaveLength(2);
     expect(wrapper.findAll('.workbench-details')).toHaveLength(0);
-    expect(primarySurfaceOrder.slice(0, 2)).toEqual(['workbench-surface--attention', 'workbench-surface--metrics']);
+    expect(primarySurfaceOrder.slice(0, 2)).toEqual(['workbench-surface--attention', 'workbench-surface--resources']);
     expect(secondarySurfaceOrder.slice(0, 2)).toEqual([
       'workbench-surface--health',
       'workbench-surface--module-coverage',
@@ -313,7 +342,7 @@ describe('DashboardWorkbench', () => {
     expect(navigations.at(-1)?.[0]).not.toBe('/infrastructure/docker/containers/resources');
   });
 
-  it('renders detailed loaded resources without inventing timeline activity', () => {
+  it('renders bounded resource metrics, labeled ranking bars, and a container drill-down', async () => {
     const wrapper = mountWorkbench();
 
     expect(wrapper.get('[data-resource-state="loaded"]').attributes('data-resource-state')).toBe('loaded');
@@ -322,6 +351,14 @@ describe('DashboardWorkbench', () => {
     expect(wrapper.text()).toContain('graft-api');
     expect(wrapper.text()).toContain('graft-postgres');
     expect(wrapper.text()).toContain('graft-worker');
+    expect(wrapper.findAll('[data-resource-metric]')).toHaveLength(4);
+    expect(wrapper.get('[data-resource-group="cpu"] [data-progress]').attributes('data-progress')).toBe('8.2');
+    expect(wrapper.get('[data-resource-group="memory"] [data-progress]').attributes('data-progress')).toBe('48.6');
+    await wrapper.get('[data-container-anomaly-id="worker"]').trigger('click');
+    expect(wrapper.emitted('navigate')?.at(-1)).toEqual([
+      '/infrastructure/docker/containers/worker',
+      'contextual-action',
+    ]);
   });
 
   it('preserves loading, error, and empty feedback boundaries', () => {

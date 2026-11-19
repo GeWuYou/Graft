@@ -1,13 +1,14 @@
 import { ACCESS_LOG_ROUTE_PATH } from '@/modules/access-log/contract/paths';
 import { AUDIT_ROUTE_PATH } from '@/modules/audit/contract/paths';
 import { BUILD_ROUTE_PATH } from '@/modules/build/contract/paths';
+import { CONTAINER_ROUTE_PATH } from '@/modules/container/contract/paths';
 import { MONITOR_ROUTE_PATH } from '@/modules/monitor/contract/paths';
 import { NETWORK_ROUTE_PATH } from '@/modules/network/contract/paths';
 import { SCHEDULED_TASK_ROUTE_PATH } from '@/modules/scheduled-task/contract/paths';
 
 import { EVIDENCE_STATE, PRESENTATION_STATUS, projectWorkbenchScenario, type WorkbenchScenario } from './workbench';
 
-/** 预览场景只服务 development-only 设计验收，删除预览路由时应整体移除。 */
+/** 预览场景以固定采样验证工作台布局与动作，不读取生产资源。 */
 export const DASHBOARD_PREVIEW_SCENARIO = {
   generatedAt: '2026-08-17T03:20:00.000Z',
   operational: {
@@ -177,70 +178,6 @@ export const DASHBOARD_PREVIEW_SCENARIO = {
       ],
     },
   ],
-  contextLinkGroups: [
-    {
-      id: 'context-link-group:preview:operations',
-      titleKey: 'dashboard.workbench.quickActions.title',
-      descriptionKey: 'dashboard.workbench.quickActions.description',
-      sourceWidgetId: 'preview.operations',
-      links: [
-        {
-          key: 'build-jobs',
-          labelKey: 'dashboard.previewWorkbench.quickActions.createBuild.title',
-          route: BUILD_ROUTE_PATH.JOBS,
-          iconKey: 'build',
-          disabled: false,
-        },
-        {
-          key: 'observability',
-          labelKey: 'dashboard.previewWorkbench.quickActions.observability.title',
-          route: MONITOR_ROUTE_PATH.OBSERVABILITY_OVERVIEW,
-          iconKey: 'observability-overview',
-          disabled: false,
-        },
-        {
-          key: 'audit',
-          labelKey: 'dashboard.previewWorkbench.quickActions.audit.title',
-          route: AUDIT_ROUTE_PATH.LOGS,
-          iconKey: 'audit-trail',
-          disabled: false,
-        },
-        {
-          key: 'artifacts',
-          labelKey: 'dashboard.previewWorkbench.quickActions.artifacts.title',
-          route: BUILD_ROUTE_PATH.ARTIFACTS,
-          iconKey: 'image-artifact',
-          disabled: false,
-        },
-        {
-          key: 'scheduled-tasks',
-          labelKey: 'dashboard.previewWorkbench.quickActions.scheduledTasks.title',
-          route: SCHEDULED_TASK_ROUTE_PATH.LIST,
-          iconKey: 'scheduled-automation',
-          disabled: false,
-        },
-        {
-          key: 'access-logs',
-          labelKey: 'dashboard.previewWorkbench.quickActions.accessLogs.title',
-          route: ACCESS_LOG_ROUTE_PATH.LIST,
-          iconKey: 'access-log',
-          disabled: false,
-        },
-        {
-          key: 'network-outbound',
-          labelKey: 'dashboard.previewWorkbench.attention.outbound.title',
-          route: NETWORK_ROUTE_PATH.OUTBOUND,
-          disabled: false,
-        },
-        {
-          key: 'build-create',
-          labelKey: 'dashboard.previewWorkbench.quickActions.createBuild.title',
-          route: BUILD_ROUTE_PATH.CREATE,
-          disabled: false,
-        },
-      ],
-    },
-  ],
   resourceSummary: {
     state: 'loaded',
     route: MONITOR_ROUTE_PATH.OBSERVABILITY_OVERVIEW,
@@ -289,6 +226,7 @@ export const DASHBOARD_PREVIEW_SCENARIO = {
       {
         id: 'worker',
         name: 'graft-worker',
+        route: CONTAINER_ROUTE_PATH.DETAIL.replace(':id', 'worker'),
         shortId: '4d5e6f7a',
         image: 'graft/worker:latest',
         state: 'restarting',

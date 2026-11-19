@@ -86,6 +86,9 @@ closeout:
   (expanded-list alignment repair) now back the clean formal-homepage browser runtime. Machine browser acceptance is
   complete in the current dark/brand theme; human subjective acceptance remains explicitly pending before preview
   deletion.
+- The current workbench refinement updates the formal and preview titles, four KPI cards, main and secondary
+  panels, resource ranking progress bars, and permission-aware container detail actions. The current task keeps
+  the development preview for verification.
 
 ## Task Checklist
 
@@ -109,8 +112,8 @@ closeout:
 - [x] Complete formal-homepage machine browser inspection at desktop/tablet/mobile widths and repair the discovered
   Collapse keyboard accessibility and expanded-list alignment defects.
 - [ ] Record human subjective acceptance of the formal homepage.
-- [ ] After human acceptance, delete the development preview route, presentation, page, tests, and dedicated locale
-  namespace together.
+- [x] Synchronize the consolidated home layout and titles with the development-only preview.
+- [ ] Verify the consolidated home layout in the primary-checkout browser.
 - [ ] Implement the additive typed attention contract in a later batch.
 
 ## Validation Evidence
@@ -215,7 +218,7 @@ closeout:
 - The fixed scenario contains no fabricated error state.
 - The formal homepage uses the accepted workbench; the Dashboard Registry shape remains unchanged, while OpenAPI correctly treats key-first alert fallback `title` as optional.
 - Automated validation and formal machine browser acceptance pass; human subjective acceptance remains a separate,
-  explicit gate before preview deletion.
+  explicit review. The development preview remains available for the current refinement.
 
 ## Batch State
 
@@ -227,15 +230,16 @@ closeout:
     "production-web-adoption",
     "homepage-acceptance-corrective-repair",
     "existing-contract-authority-and-content-expansion",
-    "formal-homepage-browser-machine-acceptance"
+    "formal-homepage-browser-machine-acceptance",
+    "workbench-home-layout-and-title"
   ],
   "pending_batches": [
     "formal-homepage-human-acceptance",
-    "preview-removal-after-acceptance",
+    "workbench-home-layout-browser-verification",
     "typed-attention-contract"
   ],
-  "current_batch": "formal-homepage-human-acceptance",
-  "next_batch": "formal-homepage-human-acceptance",
-  "closeout_status": "awaiting-human-subjective-acceptance"
+  "current_batch": "workbench-home-layout-and-title",
+  "next_batch": "workbench-home-layout-browser-verification",
+  "closeout_status": "awaiting-browser-verification"
 }
 ```

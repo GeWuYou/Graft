@@ -131,7 +131,7 @@ export type WorkbenchResourceOverview = Omit<ContainerDashboardOverview, 'collec
 
 export type WorkbenchResourceHotspot = ContainerDashboardHotspotItem;
 
-export type WorkbenchResourceAnomaly = ContainerDashboardAnomalyItem;
+export type WorkbenchResourceAnomaly = ContainerDashboardAnomalyItem & { route?: string };
 
 export interface WorkbenchResourceSummary {
   state: WorkbenchResourceState;

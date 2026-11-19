@@ -436,6 +436,10 @@ describe('production workbench projection', () => {
     }));
 
     const projected = projectResourceSummary({ route: '/containers', state: 'loaded', summary });
+    expect(projected.anomalies[0]?.route).toBeUndefined();
+
+    const withDetailPermission = projectResourceSummary({ canViewDetails: true, state: 'loaded', summary });
+    expect(withDetailPermission.anomalies[0]?.route).toBe('/infrastructure/docker/containers/container-20');
 
     expect(projected).toMatchObject({
       state: 'loaded',

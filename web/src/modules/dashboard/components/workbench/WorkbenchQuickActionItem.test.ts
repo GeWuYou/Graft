@@ -41,6 +41,21 @@ describe('WorkbenchQuickActionItem', () => {
     expect(wrapper.emitted('activate')?.[0]).toEqual([action]);
   });
 
+  it('shows only the title when the description is missing or repeats the title', async () => {
+    const wrapper = mount(WorkbenchQuickActionItem, {
+      props: { action: { ...action, descriptionFallback: ' Create Build ' } },
+    });
+    const copy = wrapper.get('.workbench-quick-action-item__copy');
+
+    expect(copy.text()).toBe('Create Build');
+    expect(copy.find('span').exists()).toBe(false);
+
+    await wrapper.setProps({ action: { ...action, descriptionKey: '', descriptionFallback: undefined } });
+
+    expect(copy.text()).toBe('Create Build');
+    expect(copy.find('span').exists()).toBe(false);
+  });
+
   it('keeps an action indicator only for executable featured drawer actions', async () => {
     const wrapper = mount(WorkbenchQuickActionItem, { props: { action, variant: 'drawer-featured' } });
 

@@ -24,7 +24,7 @@
       <t-button
         v-if="item.action"
         :variant="variant === 'attention' ? 'outline' : 'text'"
-        :theme="variant === 'attention' ? 'default' : 'primary'"
+        theme="primary"
         size="small"
         :loading="retryingId === item.id"
         @click="emit('activate', item)"
@@ -88,23 +88,23 @@ function formatTime(value: string) {
 </script>
 <style scoped lang="less">
 .attention-row {
-  border-left: 3px solid transparent;
-  padding-left: var(--graft-density-gap-16) !important;
+  border-inline-start: 3px solid transparent;
+  padding-inline-start: var(--graft-density-gap-12) !important;
 }
 
 .attention-row--warning {
   background: color-mix(in srgb, var(--td-warning-color-light) 12%, transparent) !important;
-  border-left-color: var(--td-warning-color);
+  border-inline-start-color: var(--td-warning-color);
 }
 
 .attention-row--error {
   background: color-mix(in srgb, var(--td-error-color-light) 10%, transparent) !important;
-  border-left-color: var(--td-error-color);
+  border-inline-start-color: var(--td-error-color);
 }
 
 .attention-row--unknown {
   background: color-mix(in srgb, var(--td-bg-color-container-hover) 22%, transparent) !important;
-  border-left-color: var(--td-text-color-placeholder);
+  border-inline-start-color: var(--td-text-color-placeholder);
 }
 
 .workbench-row {
@@ -121,6 +121,7 @@ function formatTime(value: string) {
 .workbench-row__copy {
   flex: 1 1 auto;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .workbench-row__copy strong {

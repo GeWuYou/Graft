@@ -183,7 +183,8 @@ describe('dashboard workbench presentation model', () => {
     expect(DASHBOARD_PREVIEW_PRESENTATION.health).toHaveLength(5);
     expect(DASHBOARD_PREVIEW_PRESENTATION.activity).toEqual([]);
     expect(DASHBOARD_PREVIEW_PRESENTATION.metricGroups[0]?.metrics).toHaveLength(3);
-    expect(DASHBOARD_PREVIEW_PRESENTATION.contextLinkGroups[0]?.links).toHaveLength(8);
+    expect(DASHBOARD_PREVIEW_PRESENTATION.contextLinkGroups).toEqual([]);
+    expect(DASHBOARD_PREVIEW_PRESENTATION.quickActions).toHaveLength(6);
     expect(DASHBOARD_PREVIEW_PRESENTATION.moduleCoverage).toEqual({
       registeredModules: 24,
       enabledModules: 22,

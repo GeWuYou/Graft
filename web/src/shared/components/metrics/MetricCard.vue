@@ -1,5 +1,5 @@
 <template>
-  <article class="metric-card">
+  <article class="metric-card" :data-tone="tone">
     <div class="metric-card__content">
       <span class="metric-card__title">{{ title }}</span>
       <t-statistic
@@ -29,6 +29,7 @@ defineProps<{
   title: string;
   value?: string;
   description?: string;
+  tone?: 'warning' | 'error';
   numericValue?: number;
   decimalPlaces?: number;
   unit?: string;
@@ -50,6 +51,14 @@ defineProps<{
   padding: var(--graft-density-gap-14);
 }
 
+.metric-card[data-tone='warning'] {
+  --metric-card-value-color: var(--td-warning-color);
+}
+
+.metric-card[data-tone='error'] {
+  --metric-card-value-color: var(--td-error-color);
+}
+
 .metric-card__content {
   display: flex;
   flex: 1;
@@ -67,7 +76,7 @@ defineProps<{
 }
 
 .metric-card__value {
-  color: var(--td-text-color-primary);
+  color: var(--metric-card-value-color, var(--td-text-color-primary));
   font: var(--td-font-title-medium);
   min-width: 0;
   overflow-wrap: anywhere;
@@ -82,7 +91,7 @@ defineProps<{
 }
 
 .metric-card :deep(.t-statistic__content) {
-  color: var(--td-text-color-primary);
+  color: var(--metric-card-value-color, var(--td-text-color-primary));
   font: var(--td-font-title-medium);
 }
 </style>

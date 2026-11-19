@@ -118,12 +118,11 @@
       "summaryHealthyWithCounts": "{healthy} 个模块正常运行，{attention} 个模块需要关注。",
       "unknown": "未知"
     },
-    "loading": "正在加载 Dashboard",
+    "loading": "正在加载工作台",
     "page": {
       "description": "查看需要关注的事项和近期运行情况。",
-      "eyebrow": "运维工作台",
       "lastUpdated": "最近刷新：{time}",
-      "title": "今天需要处理什么？"
+      "title": "工作台"
     },
     "quickActions": {
       "description": "当前权限可用入口",
@@ -172,9 +171,8 @@
       }
     },
     "previewWorkbench": {
-      "routeTitle": "工作台设计预览",
-      "eyebrow": "运维工作台 · 设计预览",
-      "title": "今天需要处理什么？",
+      "routeTitle": "工作台预览",
+      "title": "工作台",
       "description": "查看需要关注的事项和近期运行情况。",
       "updatedAt": "示例数据 · 数据时间：{time}",
       "refresh": "刷新数据",
@@ -247,9 +245,7 @@
       },
       "operational": {
         "title": "运行状态",
-        "eyebrow": "运行状态",
         "needsAttention": "需要关注",
-        "itemCount": "{count} 项",
         "distribution": "{warning} 项警告 · {unknown} 项未知",
         "distributionWithError": "{error} 项错误 · {warning} 项警告 · {unknown} 项未知",
         "modules": "启用模块",
@@ -268,12 +264,12 @@
       },
       "health": {
         "title": "系统健康",
-        "description": "关键基础服务运行正常。",
+        "description": "关键基础服务及其依赖的当前状态。",
         "empty": "暂无基础服务健康数据。"
       },
       "moduleCoverage": {
-        "title": "模块覆盖",
-        "description": "已注册模块与当前可见贡献源概况。",
+        "title": "模块部署",
+        "description": "已注册模块的运行状态及其数据来源。",
         "registered": "已注册",
         "enabled": "已启用",
         "degraded": "已降级",
@@ -287,8 +283,8 @@
         "view": "查看记录"
       },
       "resources": {
-        "title": "资源",
-        "description": "容器与运行资源概况。",
+        "title": "容器资源",
+        "description": "容器运行状态、资源热点和异常。",
         "empty": "暂无可用资源信息。",
         "loading": {
           "title": "正在获取资源信息",
@@ -314,10 +310,15 @@
         "noHotspots": "当前采样中没有资源热点。",
         "noAnomalies": "当前采样中没有容器异常。",
         "notCollected": "未采集",
-        "memoryUsage": "{usage} / {limit} · {percent}",
+        "memoryCapacity": "{usage} / {limit}",
         "hotspotMemory": "{usage} · {percent}",
         "restartCount": "重启 {count} 次",
         "unknownAnomaly": "容器状态需要关注",
+        "viewContainer": "查看 {name} 的详情",
+        "anomalyStatus": {
+          "health": { "unhealthy": "不健康" },
+          "state": { "restarting": "正在重启", "exited": "已退出", "dead": "已失效", "unknown": "未知" }
+        },
         "noSample": {
           "title": "暂时没有资源采样",
           "description": "等待下一次资源采集。",
@@ -330,7 +331,6 @@
       },
       "quickActions": {
         "title": "快捷操作",
-        "description": "常用功能入口",
         "viewAll": "全部",
         "drawerTitle": "全部入口",
         "closeDrawer": "关闭全部入口",

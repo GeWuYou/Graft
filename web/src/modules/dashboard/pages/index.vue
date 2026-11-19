@@ -155,6 +155,7 @@ const presentation = computed(() => {
     quickActionConfig: quickActionConfig.value,
     rankedQuickLinks: rankedLinks.value,
     resources: {
+      canViewDetails: permissionStore.hasPermission(CONTAINER_PERMISSION_CODE.DETAIL),
       route: CONTAINER_ROUTE_PATH.LIST,
       state: canViewContainerOverview.value ? containerResourceState.value : 'hidden',
       summary: containerDashboardSummary.value,
