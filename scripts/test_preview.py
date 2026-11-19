@@ -1,0 +1,418 @@
+"""Regression checks for the checkout-owned preview lifecycle."""
+import argparse
+import hashlib
+import io
+import json
+import os
+from contextlib import redirect_stdout
+from pathlib import Path
+import socket
+import subprocess
+import sys
+import tempfile
+import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import preview
+from preview import PreviewError
+
+
+class PreviewHttpServer:
+    """Ephemeral in-process HTTP server for health and status probing."""
+
+    def __init__(self, status=200, content_type="text/html", body=b"<html>ok</html>"):
+        outer = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(outer.status)
+                self.send_header("Content-Type", outer.content_type)
+                self.send_header("Content-Length", str(len(outer.body)))
+                self.end_headers()
+                self.wfile.write(outer.body)
+
+            def log_message(self, *args):
+                pass
+
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.status = status
+        self.content_type = content_type
+        self.body = body
+
+    @property
+    def port(self):
+        return self.server.server_address[1]
+
+    def start(self):
+        import threading
+        thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        thread.start()
+        return self
+
+    def stop(self):
+        self.server.shutdown()
+        self.server.server_close()
+
+
+def fake_compose(recorder):
+    def run(arguments, *, compose_file, project, env_file, timeout=None, capture=True):
+        recorder.append({"arguments": arguments, "project": project,
+                         "compose_file": str(compose_file), "env_file": str(env_file)})
+        return subprocess.CompletedProcess(command_arguments(arguments), 0,
+                                           stdout="fake compose log", stderr="")
+    return run
+
+
+def command_arguments(arguments):
+    return ["docker", "compose", *arguments]
+
+
+def lifecycle_args(**overrides):
+    values = {"task": "task-one", "image_tag": "graft:test", "port": None, "env": [],
+              "health_timeout": 5}
+    values.update(overrides)
+    return argparse.Namespace(**values)
+
+
+class IdentityTests(unittest.TestCase):
+    def test_identity_is_deterministic_and_separates_checkout_and_task(self):
+        first = preview.identity_for(Path("/repo/a"), "PR-42")
+        self.assertEqual(first, preview.identity_for(Path("/repo/a"), "PR-42"))
+        self.assertNotEqual(first, preview.identity_for(Path("/repo/b"), "PR-42"))
+        self.assertNotEqual(first, preview.identity_for(Path("/repo/a"), "PR-43"))
+
+    def test_slug_is_sanitized_and_digest_disambiguates_collisions(self):
+        identity = preview.identity_for(Path("/repo/a"), "Weird Task/Name!!")
+        self.assertTrue(identity.startswith("weird-task-name-"))
+        suffix = identity.rsplit("-", 1)[1]
+        self.assertRegex(suffix, r"^[0-9a-f]{12}$")
+        self.assertLessEqual(len(identity.rsplit("-", 1)[0]), 24)
+        self.assertRegex(identity, r"^[a-z0-9-]+$")
+        self.assertRegex(preview.compose_project_for(identity), r"^graft-preview-[a-z0-9-]+$")
+
+    def test_empty_task_is_refused(self):
+        with self.assertRaises(PreviewError):
+            preview.identity_for(Path("/repo/a"), "   ")
+
+
+class RegistryTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+
+    def test_missing_registry_reads_as_empty_default(self):
+        document = preview.read_registry(self.root)
+        self.assertEqual(document, {"schema_version": 1, "instances": {}})
+
+    def test_registry_round_trip_is_atomic_and_private(self):
+        document = {"schema_version": 1, "instances": {"task-abc": {"web_port": 38000}}}
+        preview.write_registry(self.root, document)
+        path = self.root / "registry.json"
+        self.assertEqual(json.loads(path.read_text(encoding="utf-8")), document)
+        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        self.assertFalse(list(self.root.glob("registry.json.tmp")))
+
+    def test_unsupported_schema_is_rejected(self):
+        (self.root / "registry.json").write_text('{"schema_version": 99, "instances": {}}',
+                                                 encoding="utf-8")
+        with self.assertRaises(PreviewError):
+            preview.read_registry(self.root)
+
+
+class PortAllocationTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.bind(("127.0.0.1", 0))
+        self.socket.listen(1)
+        self.addCleanup(self.socket.close)
+        self.bound_port = self.socket.getsockname()[1]
+
+    def document_with(self, ports):
+        return {"schema_version": 1, "instances": {
+            f"other-{index}": {"web_port": port} for index, port in enumerate(ports)}}
+
+    def test_foreign_listener_inside_range_is_refused(self):
+        with patch.dict(os.environ, {"GRAFT_PREVIEW_PORT_BASE": str(self.bound_port)}):
+            with self.assertRaises(PreviewError) as context:
+                preview.allocate_port(self.root, self.document_with([]), None)
+        self.assertIn(str(self.bound_port), str(context.exception))
+        self.assertIn("--port", str(context.exception))
+
+    def test_registered_ports_are_skipped_without_stealing_them(self):
+        document = self.document_with([self.bound_port])
+        with patch.dict(os.environ, {"GRAFT_PREVIEW_PORT_BASE": str(self.bound_port)}):
+            with patch.object(preview, "port_in_use", return_value=False):
+                allocated = preview.allocate_port(self.root, document, None)
+        self.assertEqual(allocated, self.bound_port + 1)
+
+    def test_foreign_listener_after_a_registered_skip_still_refuses(self):
+        document = self.document_with([self.bound_port - 1])
+        with patch.dict(os.environ, {"GRAFT_PREVIEW_PORT_BASE": str(self.bound_port - 1)}):
+            with self.assertRaises(PreviewError) as context:
+                preview.allocate_port(self.root, document, None)
+        self.assertIn(str(self.bound_port), str(context.exception))
+
+    def test_explicit_port_conflicts_are_refused(self):
+        with self.assertRaises(PreviewError):
+            preview.allocate_port(self.root, self.document_with([self.bound_port]), self.bound_port)
+        with self.assertRaises(PreviewError):
+            preview.allocate_port(self.root, self.document_with([]), self.bound_port)
+
+    def test_exhausted_range_is_refused_explicitly(self):
+        occupied = [self.bound_port + offset for offset in range(preview.PORT_RANGE)]
+        document = self.document_with(occupied)
+        with patch.dict(os.environ, {"GRAFT_PREVIEW_PORT_BASE": str(self.bound_port)}):
+            with self.assertRaises(PreviewError):
+                preview.allocate_port(self.root, document, None)
+
+
+class MaxRunningTests(unittest.TestCase):
+    def test_env_parsing_validates_bounds(self):
+        with patch.dict(os.environ, {"PREVIEW_MAX_RUNNING": "not-a-number"}):
+            with self.assertRaises(PreviewError):
+                preview.parse_max_running()
+        with patch.dict(os.environ, {"PREVIEW_MAX_RUNNING": "0"}):
+            with self.assertRaises(PreviewError):
+                preview.parse_max_running()
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("PREVIEW_MAX_RUNNING", None)
+            self.assertEqual(preview.parse_max_running(), preview.DEFAULT_MAX_RUNNING)
+
+    def test_start_refuses_at_the_running_cap(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            document = {"schema_version": 1, "instances": {
+                "full-one": {"state": "running", "web_port": 38001},
+                "full-two": {"state": "running", "web_port": 38002}}}
+            preview.write_registry(root, document)
+            with patch.dict(os.environ, {"GRAFT_PREVIEW_STATE_DIR": str(root),
+                                         "PREVIEW_MAX_RUNNING": "2"}):
+                with patch.object(preview, "run_compose", side_effect=AssertionError("must not run")):
+                    with self.assertRaises(PreviewError) as context:
+                        preview.start(lifecycle_args(task="third"))
+            self.assertIn("PREVIEW_MAX_RUNNING", str(context.exception))
+            self.assertNotIn(preview.identity_for(preview.checkout_root(), "third"),
+                             preview.read_registry(root)["instances"])
+
+
+class StartStopDestroyTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.calls = []
+        self.compose_patcher = patch.object(preview, "run_compose", fake_compose(self.calls))
+        self.compose_patcher.start()
+        self.addCleanup(self.compose_patcher.stop)
+        self.probe_patcher = patch.object(preview, "probe_http",
+                                          return_value={"ok": True, "status": 200, "error": None})
+        self.probe_patcher.start()
+        self.addCleanup(self.probe_patcher.stop)
+
+    def env(self, **extra):
+        mapping = {"GRAFT_PREVIEW_STATE_DIR": str(self.root)}
+        mapping.update(extra)
+        return patch.dict(os.environ, mapping)
+
+    def register(self, identity, state="running", port=38010):
+        document = preview.read_registry(self.root)
+        document["instances"][identity] = {
+            "identity": identity, "task_id": identity, "state": state,
+            "web_port": port, "compose_project": f"graft-preview-{identity}",
+            "checkout": str(preview.checkout_root()),
+            "source": {"revision": "a" * 40, "digest": "0" * 64},
+        }
+        preview.write_registry(self.root, document)
+        directory = preview.instance_dir(self.root, identity)
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "compose.yml").write_text("services: {}\n", encoding="utf-8")
+        (directory / ".env").write_text("GRAFT_IMAGE_TAG=graft:test\n", encoding="utf-8")
+        return document
+
+    def test_start_registers_instance_writes_env_and_converges(self):
+        with self.env():
+            result = preview.start(lifecycle_args(task="start-one", env=["GRAFT_DATABASE_URL=x"]))
+        identity = result["identity"]
+        document = preview.read_registry(self.root)
+        entry = document["instances"][identity]
+        self.assertEqual(entry["state"], "running")
+        directory = preview.instance_dir(self.root, identity)
+        env_text = (directory / ".env").read_text(encoding="utf-8")
+        self.assertIn("GRAFT_IMAGE_TAG=graft:test", env_text)
+        self.assertIn("GRAFT_DATABASE_URL=x", env_text)
+        self.assertIn(f"GRAFT_BUILD_SNAPSHOT_VOLUME=graft-preview-{identity}-build-snapshots", env_text)
+        self.assertIn(f"GRAFT_UPDATE_STATE_VOLUME=graft-preview-{identity}-update-state", env_text)
+        self.assertTrue((directory / "compose.yml").is_file())
+        self.assertTrue((directory / "logs" / "compose.log").is_file())
+        up_calls = [call for call in self.calls if call["arguments"] == ["up", "-d", "--wait"]]
+        self.assertEqual(len(up_calls), 1)
+        self.assertEqual(up_calls[0]["project"], f"graft-preview-{identity}")
+        self.assertEqual(result["web_url"], f"http://127.0.0.1:{entry['web_port']}/")
+
+    def test_start_is_idempotent_for_a_running_instance(self):
+        identity = preview.identity_for(preview.checkout_root(), "already-running")
+        self.register(identity, state="running")
+        registered_port = preview.read_registry(self.root)["instances"][identity]["web_port"]
+        with self.env():
+            result = preview.start(lifecycle_args(task="already-running"))
+        self.assertTrue(result["already_running"])
+        self.assertEqual(result["state"], "running")
+        self.assertEqual(result["web_url"], f"http://127.0.0.1:{registered_port}/")
+        self.assertEqual(self.calls, [])
+
+    def test_start_refuses_port_mismatch_on_registered_instance(self):
+        identity = preview.identity_for(preview.checkout_root(), "pinned-port")
+        self.register(identity, state="stopped", port=38099)
+        with self.env():
+            with self.assertRaises(PreviewError):
+                preview.start(lifecycle_args(task="pinned-port", port=38100))
+
+    def test_start_refuses_reserved_and_malformed_env_overrides(self):
+        with self.env():
+            with self.assertRaises(PreviewError):
+                preview.start(lifecycle_args(task="reserved-env", env=["GRAFT_IMAGE_TAG=evil"]))
+            with self.assertRaises(PreviewError):
+                preview.start(lifecycle_args(task="malformed-env", env=["bad-key=1"]))
+
+    def test_compose_failure_marks_the_instance_failed(self):
+        def failing_run(arguments, **kwargs):
+            return subprocess.CompletedProcess(["docker"], 1, stdout="", stderr="boom")
+        with self.env():
+            with patch.object(preview, "run_compose", failing_run):
+                with self.assertRaises(PreviewError):
+                    preview.start(lifecycle_args(task="failing-start"))
+        identity = preview.identity_for(preview.checkout_root(), "failing-start")
+        self.assertEqual(preview.read_registry(self.root)["instances"][identity]["state"], "failed")
+
+    def test_stop_uses_compose_stop_and_retains_data(self):
+        identity = preview.identity_for(preview.checkout_root(), "stop-one")
+        self.register(identity, state="running")
+        arguments = argparse.Namespace(task="stop-one", identity=None)
+        with self.env():
+            result = preview.stop(arguments)
+        self.assertEqual(result, {"identity": identity, "state": "stopped", "data_retained": True})
+        self.assertEqual([call["arguments"] for call in self.calls], [["stop"]])
+        entry = preview.read_registry(self.root)["instances"][identity]
+        self.assertEqual(entry["state"], "stopped")
+        self.assertTrue((preview.instance_dir(self.root, identity) / ".env").is_file())
+
+    def test_destroy_requires_the_exact_confirm_instance(self):
+        identity = preview.identity_for(preview.checkout_root(), "destroy-guard")
+        self.register(identity, state="running")
+        arguments = argparse.Namespace(task="destroy-guard", identity=None,
+                                       confirm_instance=identity.upper())
+        with self.env():
+            with self.assertRaises(PreviewError):
+                preview.destroy(arguments)
+        self.assertIn(identity, preview.read_registry(self.root)["instances"])
+        self.assertEqual(self.calls, [])
+
+    def test_destroy_removes_data_and_archives_sha256_evidence(self):
+        identity = preview.identity_for(preview.checkout_root(), "destroy-ok")
+        document = self.register(identity, state="running")
+        entry_before = document["instances"][identity]
+        arguments = argparse.Namespace(task="destroy-ok", identity=None,
+                                       confirm_instance=identity)
+        with self.env():
+            result = preview.destroy(arguments)
+        self.assertEqual(result["state"], "destroyed")
+        self.assertNotIn(identity, preview.read_registry(self.root)["instances"])
+        self.assertFalse(preview.instance_dir(self.root, identity).exists())
+        down_calls = [call for call in self.calls if call["arguments"]]
+        self.assertIn(["down", "--volumes", "--remove-orphans"],
+                      [call["arguments"] for call in down_calls])
+        archive_file = Path(result["archive_file"])
+        record = json.loads(archive_file.read_text(encoding="utf-8"))
+        self.assertEqual(record["registry_entry"], entry_before)
+        self.assertEqual(record["evidence_sha256"],
+                         hashlib.sha256(preview.canonical_json(entry_before).encode()).hexdigest())
+        manifest = preview.read_archive_manifest(self.root)
+        self.assertEqual(manifest["entries"][archive_file.name]["sha256"],
+                         preview.digest_file(archive_file))
+
+
+class StatusTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.http = PreviewHttpServer().start()
+        self.addCleanup(self.http.stop)
+        document = {"schema_version": 1, "instances": {
+            "status-one": {"identity": "status-one", "task_id": "status-one",
+                           "state": "running", "web_port": self.http.port,
+                           "compose_project": "graft-preview-status-one",
+                           "checkout": str(preview.checkout_root()),
+                           "image_tag": "graft:test", "created_at": "2026-01-01T00:00:00Z",
+                           "updated_at": "2026-01-01T00:00:00Z",
+                           "source": {"revision": "a" * 40, "digest": "0" * 64}}}}
+        preview.write_registry(self.root, document)
+
+    def env(self):
+        return patch.dict(os.environ, {"GRAFT_PREVIEW_STATE_DIR": str(self.root)})
+
+    def test_status_json_reports_urls_health_logs_and_source_digest(self):
+        arguments = argparse.Namespace(task=None, identity="status-one", all=False)
+        with self.env():
+            result = preview.status(arguments)
+        self.assertEqual(result["identity"], "status-one")
+        self.assertEqual(result["state"], "running")
+        self.assertEqual(result["web"]["url"], f"http://127.0.0.1:{self.http.port}/")
+        self.assertEqual(result["health"]["web"]["status"], 200)
+        self.assertTrue(result["health"]["web"]["ok"])
+        self.assertIn("logs/compose.log", result["logs"]["compose_log"])
+        self.assertEqual(result["source"]["revision"], "a" * 40)
+        self.assertIn("current_digest", result["source"])
+
+    def test_status_reports_source_drift_and_checkout_mismatch(self):
+        arguments = argparse.Namespace(task=None, identity="status-one", all=False)
+        directory = preview.instance_dir(self.root, "status-one")
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "compose.yml").write_text("services: {drifted: {}}\n", encoding="utf-8")
+        with self.env():
+            result = preview.status(arguments)
+        self.assertTrue(result["source"]["drifted"])
+        self.assertFalse(result["source"]["checkout_matches_start"])
+
+    def test_status_unknown_identity_is_explicit(self):
+        arguments = argparse.Namespace(task=None, identity="missing-one", all=False)
+        with self.env():
+            result = preview.status(arguments)
+        self.assertFalse(result["registered"])
+        self.assertEqual(result["identity"], "missing-one")
+
+    def test_status_all_lists_every_instance(self):
+        arguments = argparse.Namespace(task=None, identity=None, all=True)
+        with self.env():
+            result = preview.status(arguments)
+        self.assertEqual([item["identity"] for item in result["instances"]], ["status-one"])
+
+    def test_main_status_emits_pure_json_to_stdout(self):
+        buffer = io.StringIO()
+        with self.env():
+            with redirect_stdout(buffer):
+                preview.main(["status", "--identity", "status-one"])
+        document = json.loads(buffer.getvalue())
+        self.assertEqual(document["identity"], "status-one")
+
+
+class EnvFileTests(unittest.TestCase):
+    def test_extra_env_validation(self):
+        parsed = preview.parse_extra_env(["GRAFT_DATABASE_URL=host=db", "POSTGRES_DB=preview"])
+        self.assertEqual(parsed, {"GRAFT_DATABASE_URL": "host=db", "POSTGRES_DB": "preview"})
+        for bad in ("no-equals", "=value", "lower-case=1", "KEY=\nnewline"):
+            with self.assertRaises(PreviewError):
+                preview.parse_extra_env([bad])
+        with self.assertRaises(PreviewError):
+            preview.parse_extra_env(["COMPOSE_FILE_DIR=/elsewhere"])
+
+
+if __name__ == "__main__":
+    unittest.main()
