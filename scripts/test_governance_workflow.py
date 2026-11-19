@@ -174,3 +174,51 @@ class GovernanceWorkflowTests(unittest.TestCase):
         self.assertIn("ci_runtime_artifacts.py build-acceptance", commands)
         backend = "\n".join(step.get("run", "") for step in self.jobs["server-build-test"]["steps"])
         self.assertIn("registry-auth/main_test.go", backend)
+
+    def test_summary_needs_cover_every_other_job(self):
+        needs = set(self.jobs["required-checks"]["needs"])
+        others = set(self.jobs) - {"required-checks"}
+        self.assertEqual(needs, others)
+
+    def test_summary_verifies_every_job_via_api_for_current_run_attempt_sha(self):
+        job = self.jobs["required-checks"]
+        steps = job["steps"]
+        # The needs-based aggregate must stay the first step; it is the fast local gate.
+        self.assertTrue(steps[0]["run"].startswith("python3 - <<'PY'"))
+        cross = next(step for step in steps
+                     if step.get("name") == "Verify every workflow job for the current run, attempt and SHA")
+        env = cross["env"]
+        self.assertEqual(env["RUN_ID"], "${{ github.run_id }}")
+        self.assertEqual(env["RUN_ATTEMPT"], "${{ github.run_attempt }}")
+        # github.sha is the pull_request merge commit; the jobs API reports the PR head.
+        self.assertEqual(env["HEAD_SHA"], "${{ github.event.pull_request.head.sha || github.sha }}")
+        self.assertEqual(env["EVENT_NAME"], "${{ github.event_name }}")
+        self.assertEqual(env["GITHUB_TOKEN"], "${{ secrets.GITHUB_TOKEN }}")
+        program = "\n".join(cross["run"].splitlines()[1:-1])
+        self.assertIn('"gh", "api", "--method", "GET"', program)
+        # -f query fields imply POST unless --method GET pins the jobs-list verb.
+        self.assertNotIn('"-F"', program)
+        self.assertIn('"-f", "per_page=100"', program)
+        self.assertIn("attempts/{attempt}/jobs", program)
+        self.assertIn('job.get("head_sha") != head_sha', program)
+        self.assertIn('conclusion == "success"', program)
+        self.assertIn('conclusion == "skipped" and name in allowed_skips', program)
+        self.assertIn('allowed_skips = {"Secret Scan"} if event_name == "push" else set()', program)
+        # No raw HTTP header literals or direct HTTP clients in the cross-check.
+        self.assertNotIn("Authorization", cross["run"])
+        self.assertNotIn("urllib", program)
+
+    def test_workflow_has_no_hard_coded_authorization_header_literals(self):
+        text = (ROOT / ".github/workflows/pull-request-validation.yml").read_text()
+        self.assertNotIn("Authorization", text)
+        self.assertNotIn("Bearer ", text)
+
+    def test_every_step_job_declares_a_timeout(self):
+        for name, job in self.jobs.items():
+            if "steps" not in job:
+                # Reusable workflow callers delegate their timeout to the called workflow.
+                self.assertIn("uses", job, msg=f"job {name} has neither steps nor uses")
+                continue
+            with self.subTest(job=name):
+                self.assertIn("timeout-minutes", job)
+

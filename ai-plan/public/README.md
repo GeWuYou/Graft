@@ -79,6 +79,8 @@ Overlay note:
   - Recovery entry: `ai-plan/public/openapi-strict-server-migration/README.md`
 - `runtime-diagnostics-recovery`
   - Recovery entry: `ai-plan/public/runtime-diagnostics-recovery/README.md`
+- `validation-delivery-tooling`
+  - Recovery entry: `ai-plan/public/validation-delivery-tooling/README.md`
 ## Archive Location
 
 - Archived topic evidence lives under `ai-plan/public/archive/`.
