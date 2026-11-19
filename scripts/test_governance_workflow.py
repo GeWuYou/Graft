@@ -174,3 +174,37 @@ class GovernanceWorkflowTests(unittest.TestCase):
         self.assertIn("ci_runtime_artifacts.py build-acceptance", commands)
         backend = "\n".join(step.get("run", "") for step in self.jobs["server-build-test"]["steps"])
         self.assertIn("registry-auth/main_test.go", backend)
+
+    def test_summary_needs_cover_every_other_job(self):
+        needs = set(self.jobs["required-checks"]["needs"])
+        others = set(self.jobs) - {"required-checks"}
+        self.assertEqual(needs, others)
+
+    def test_summary_verifies_every_job_via_api_for_current_run_attempt_sha(self):
+        job = self.jobs["required-checks"]
+        steps = job["steps"]
+        # The needs-based aggregate must stay the first step; it is the fast local gate.
+        self.assertTrue(steps[0]["run"].startswith("python3 - <<'PY'"))
+        cross = next(step for step in steps
+                     if step.get("name") == "Verify every workflow job for the current run, attempt and SHA")
+        env = cross["env"]
+        self.assertEqual(env["RUN_ID"], "${{ github.run_id }}")
+        self.assertEqual(env["RUN_ATTEMPT"], "${{ github.run_attempt }}")
+        self.assertEqual(env["HEAD_SHA"], "${{ github.sha }}")
+        self.assertEqual(env["EVENT_NAME"], "${{ github.event_name }}")
+        program = "\n".join(cross["run"].splitlines()[1:-1])
+        self.assertIn("attempts/{attempt}/jobs", program)
+        self.assertIn('job.get("head_sha") != head_sha', program)
+        self.assertIn('conclusion == "success"', program)
+        self.assertIn('conclusion == "skipped" and name in allowed_skips', program)
+        self.assertIn('allowed_skips = {"Secret Scan"} if event_name == "push" else set()', program)
+
+    def test_every_step_job_declares_a_timeout(self):
+        for name, job in self.jobs.items():
+            if "steps" not in job:
+                # Reusable workflow callers delegate their timeout to the called workflow.
+                self.assertIn("uses", job, msg=f"job {name} has neither steps nor uses")
+                continue
+            with self.subTest(job=name):
+                self.assertIn("timeout-minutes", job)
+
