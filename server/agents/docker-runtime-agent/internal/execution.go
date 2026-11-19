@@ -9,12 +9,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"graft/server/internal/dockerexecution"
+	"graft/server/internal/moduleapi"
 )
 
 const (
@@ -59,10 +61,13 @@ type executionLogEntry struct {
 }
 
 type executionReceipt struct {
-	FenceToken      string `json:"fence_token"`
-	Outcome         string `json:"outcome"`
-	FailureCode     string `json:"failure_code,omitempty"`
-	IntegritySHA256 string `json:"integrity_sha256"`
+	FenceToken        string `json:"fence_token"`
+	Outcome           string `json:"outcome"`
+	FailureCode       string `json:"failure_code,omitempty"`
+	FailureStage      string `json:"failure_stage,omitempty"`
+	FailureClass      string `json:"failure_class,omitempty"`
+	DiagnosticSummary string `json:"diagnostic_summary,omitempty"`
+	IntegritySHA256   string `json:"integrity_sha256"`
 }
 
 type executionSettlement struct {
@@ -81,16 +86,16 @@ func claimExecutionLease(ctx context.Context, client *http.Client, agentURL stri
 	var lease executionLease
 	status, err := requestJSON(ctx, client, http.MethodPost, strings.TrimRight(agentURL, "/")+executionClaimPath, executionClaimRequest{ProviderID: providerID, Capability: capability, CapabilityVersion: capabilityVersion}, &lease)
 	if err != nil {
-		return executionLease{}, err
+		return executionLease{}, &claimAdmissionError{class: claimAdmissionTransportFailed, err: err}
 	}
 	if status == http.StatusNoContent {
-		return executionLease{}, errExecutionNoWork
+		return executionLease{}, &claimAdmissionError{class: claimAdmissionNoWork, status: status, err: errExecutionNoWork}
 	}
-	if status == http.StatusUnauthorized || status == http.StatusForbidden {
-		return executionLease{}, errAgentIdentityRejected
+	if status == http.StatusBadRequest || status == http.StatusUnauthorized || status == http.StatusForbidden {
+		return executionLease{}, &claimAdmissionError{class: claimAdmissionIdentityRejected, status: status, err: errAgentIdentityRejected}
 	}
 	if status != http.StatusOK || strings.TrimSpace(lease.ID) == "" {
-		return executionLease{}, errors.New("agent execution claim rejected")
+		return executionLease{}, &claimAdmissionError{class: claimAdmissionTransportFailed, status: status, err: errors.New("agent execution claim rejected")}
 	}
 	return lease, nil
 }
@@ -166,9 +171,10 @@ func submitExecutionResult(ctx context.Context, client *http.Client, agentURL st
 	return nil
 }
 
-func settleExecution(ctx context.Context, client *http.Client, agentURL string, lease executionLease, outcome, failureCode string) (executionSettlement, error) {
+func settleExecution(ctx context.Context, client *http.Client, agentURL string, journal executionJournal) (executionSettlement, error) {
 	var settlement executionSettlement
-	status, err := requestJSON(ctx, client, http.MethodPost, strings.TrimRight(agentURL, "/")+executionRenewPath+lease.ID+executionReceiptsSuffix, executionReceipt{FenceToken: lease.FenceToken, Outcome: outcome, FailureCode: failureCode, IntegritySHA256: leaseIntegrity(lease)}, &settlement)
+	receipt := executionReceipt{FenceToken: journal.Lease.FenceToken, Outcome: journal.Outcome, FailureCode: journal.FailureCode, FailureStage: journal.FailureStage, FailureClass: journal.FailureClass, DiagnosticSummary: journal.FailureSummary, IntegritySHA256: leaseIntegrity(journal.Lease)}
+	status, err := requestJSON(ctx, client, http.MethodPost, strings.TrimRight(agentURL, "/")+executionRenewPath+journal.Lease.ID+executionReceiptsSuffix, receipt, &settlement)
 	if err != nil {
 		return executionSettlement{}, err
 	}
@@ -241,7 +247,7 @@ func prepareExecutionJournal(stateDir string, lease executionLease) (executionJo
 	if journal.Phase != executionJournalRunning {
 		return journal, false, nil
 	}
-	journal.Phase, journal.Outcome, journal.FailureCode = executionJournalTerminal, "needs_attention", failureInterrupted
+	journal.Phase, journal.Outcome, journal.FailureCode, journal.FailureClass = executionJournalTerminal, "needs_attention", failureInterrupted, string(moduleapi.ExecutionFailureClassUnknown)
 	return journal, true, saveExecutionJournal(stateDir, journal)
 }
 
@@ -285,6 +291,7 @@ func completeProviderOperation(ctx context.Context, client *http.Client, c confi
 		}
 	}
 	journal.Lease, journal.Phase, journal.Outcome, journal.FailureCode = lease, executionJournalTerminal, result.Outcome, result.FailureCode
+	journal.FailureStage, journal.FailureClass, journal.FailureSummary = result.FailureStage, string(result.FailureClass), result.FailureSummary
 	if err := saveExecutionJournal(c.StateDir, journal); err != nil {
 		return err
 	}
@@ -306,7 +313,7 @@ func settleObservedCancellation(ctx context.Context, client *http.Client, c conf
 }
 
 func replayTerminalExecution(ctx context.Context, client *http.Client, c config, journal executionJournal) error {
-	if _, err := settleExecution(ctx, client, c.AgentURL, journal.Lease, journal.Outcome, journal.FailureCode); err != nil {
+	if _, err := settleExecution(ctx, client, c.AgentURL, journal); err != nil {
 		return err
 	}
 	return removeExecutionJournal(c.StateDir, journal.Lease.ID)
@@ -365,17 +372,17 @@ func requestJSON(ctx context.Context, client *http.Client, method, endpoint stri
 	return response.StatusCode, nil
 }
 
-func runExecutionLoop(ctx context.Context, c config, state persistedState) error {
+func runExecutionLoop(ctx context.Context, c config, state persistedState, tracker *admissionTracker) error {
 	for {
-		state = runExecutionCycle(ctx, c, state)
+		state = runExecutionCycle(ctx, c, state, tracker)
 		if err := waitExecutionPoll(ctx, c.PollInterval); err != nil {
 			return err
 		}
 	}
 }
 
-func runExecutionCycle(ctx context.Context, c config, state persistedState) persistedState {
-	refreshed, ready := ensureExecutionIdentity(ctx, c, state)
+func runExecutionCycle(ctx context.Context, c config, state persistedState, tracker *admissionTracker) persistedState {
+	refreshed, ready := ensureExecutionIdentity(ctx, c, state, tracker)
 	if !ready {
 		return state
 	}
@@ -389,21 +396,21 @@ func runExecutionCycle(ctx context.Context, c config, state persistedState) pers
 		}
 		return refreshed
 	}
-	return pollExecutionCapabilities(ctx, client, c, refreshed)
+	return pollExecutionCapabilities(ctx, client, c, refreshed, tracker)
 }
 
-func ensureExecutionIdentity(ctx context.Context, c config, state persistedState) (persistedState, bool) {
+func ensureExecutionIdentity(ctx context.Context, c config, state persistedState, tracker *admissionTracker) (persistedState, bool) {
 	if state.CertificatePEM != "" && !state.ExpiresAt.Before(time.Now().UTC().Add(c.RenewBefore)) {
 		return state, true
 	}
-	refreshed, err := enrollAndReconnect(ctx, c)
+	refreshed, err := enrollAndReconnect(ctx, c, tracker)
 	if err != nil {
 		return state, false
 	}
 	return refreshed, true
 }
 
-func pollExecutionCapabilities(ctx context.Context, client *http.Client, c config, state persistedState) persistedState {
+func pollExecutionCapabilities(ctx context.Context, client *http.Client, c config, state persistedState, tracker *admissionTracker) persistedState {
 	type claimResult struct {
 		lease executionLease
 		err   error
@@ -424,7 +431,12 @@ func pollExecutionCapabilities(ctx context.Context, client *http.Client, c confi
 	}()
 	var executions sync.WaitGroup
 	var identityRejected atomic.Bool
+	var admitted bool
 	for result := range results {
+		var admission *claimAdmissionError
+		if errors.As(result.err, &admission) {
+			tracker.observe(admission.class, admission.status)
+		}
 		if errors.Is(result.err, errAgentIdentityRejected) {
 			identityRejected.Store(true)
 			continue
@@ -432,6 +444,7 @@ func pollExecutionCapabilities(ctx context.Context, client *http.Client, c confi
 		if result.err != nil {
 			continue
 		}
+		admitted = true
 		executions.Add(1)
 		go func(lease executionLease) {
 			defer executions.Done()
@@ -441,10 +454,35 @@ func pollExecutionCapabilities(ctx context.Context, client *http.Client, c confi
 		}(result.lease)
 	}
 	executions.Wait()
+	if admitted {
+		tracker.clear()
+	}
+	reportAdmissionTelemetry(ctx, client, c, tracker)
 	if identityRejected.Load() {
 		return persistedState{}
 	}
 	return state
+}
+
+// reportAdmissionTelemetry 在领取结论变化时提交一次受限遥测；
+// 去重与最小上报间隔保证 admission 状态不会跟随轮询节奏刷屏，
+// 提交成功才推进去重状态，失败时下一轮按间隔重试。
+func reportAdmissionTelemetry(ctx context.Context, client *http.Client, c config, tracker *admissionTracker) {
+	if tracker == nil {
+		return
+	}
+	admission, report := tracker.shouldReport()
+	if !report {
+		return
+	}
+	snapshot, err := fetchLedgerSnapshot(ctx, client, c.AgentURL)
+	if err != nil {
+		return
+	}
+	if err := submitTelemetry(ctx, client, c.AgentURL, snapshot, string(admission.Class)); err != nil {
+		return
+	}
+	tracker.commitReport(admission)
 }
 
 func recoverExecutionJournals(ctx context.Context, client *http.Client, c config) error {
@@ -477,11 +515,47 @@ func healthcheck(configPath string) error {
 		return err
 	}
 	state, err := loadState(c.StateDir)
-	if err != nil || state.CertificatePEM == "" || state.Generation < 1 || state.TargetID != c.TargetID || state.AgentID != c.AgentID || state.Identity != stableSPIFFE(c.TargetID, c.AgentID) || state.ExpiresAt.Before(time.Now().UTC().Add(c.RenewBefore)) {
+	if !runtimeAgentIdentityReady(c, state, err) {
 		return fmt.Errorf("runtime agent is not ready")
 	}
 	if !stateTrustBundleMatches(c.TrustBundle, c.StateDir) {
 		return fmt.Errorf("runtime agent trust bundle is stale")
 	}
+	return reportHealthcheckAdmission(c, time.Now().UTC())
+}
+
+// runtimeAgentIdentityReady 判断本地证书身份是否满足 readiness 基线。
+func runtimeAgentIdentityReady(c config, state persistedState, loadErr error) bool {
+	if loadErr != nil || state.CertificatePEM == "" || state.Generation < 1 {
+		return false
+	}
+	return state.TargetID == c.TargetID && state.AgentID == c.AgentID &&
+		state.Identity == stableSPIFFE(c.TargetID, c.AgentID) &&
+		!state.ExpiresAt.Before(time.Now().UTC().Add(c.RenewBefore))
+}
+
+// reportHealthcheckAdmission 把领取结论写入 readiness 结论；持续身份拒绝使 healthcheck 失败。
+func reportHealthcheckAdmission(c config, now time.Time) error {
+	admission, ready, err := admissionReadiness(c.StateDir, now)
+	if err != nil {
+		return fmt.Errorf("runtime agent admission state is unreadable")
+	}
+	if !ready {
+		return fmt.Errorf("runtime agent claim admission is %s", describeClaimAdmission(admission))
+	}
+	if admission.Class != "" {
+		_, _ = fmt.Fprintf(os.Stdout, "graft-docker-runtime-agent: last claim admission %s\n", describeClaimAdmission(admission))
+	}
 	return nil
+}
+
+// describeClaimAdmission 生成单行、无路径与凭据的 admission 可观察描述。
+func describeClaimAdmission(admission claimAdmission) string {
+	if admission.HTTPStatus > 0 {
+		return fmt.Sprintf("%s (HTTP %d at %s)", admission.Class, admission.HTTPStatus, admission.At.UTC().Format(time.RFC3339))
+	}
+	if admission.At.IsZero() {
+		return string(admission.Class)
+	}
+	return fmt.Sprintf("%s (at %s)", admission.Class, admission.At.UTC().Format(time.RFC3339))
 }

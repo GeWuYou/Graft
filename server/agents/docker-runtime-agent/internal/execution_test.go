@@ -261,7 +261,7 @@ func TestExecutionLoopRetriesTransientClientFailureUntilCancellation(t *testing.
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
 	defer cancel()
 	state := persistedState{CertificatePEM: "certificate", ExpiresAt: time.Now().Add(time.Hour)}
-	err := runExecutionLoop(ctx, config{StateDir: t.TempDir(), PollInterval: time.Millisecond, RenewBefore: time.Minute}, state)
+	err := runExecutionLoop(ctx, config{StateDir: t.TempDir(), PollInterval: time.Millisecond, RenewBefore: time.Minute}, state, newAdmissionTracker(t.TempDir()))
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("execution loop error=%v", err)
 	}
@@ -314,25 +314,32 @@ func TestPollExecutionCapabilitiesClaimsWithoutSequentialStarvation(t *testing.T
 	claims := 0
 	allClaims := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != executionClaimPath {
-			t.Fatalf("unexpected path %s", r.URL.Path)
-		}
-		mu.Lock()
-		claims++
-		if claims == 3 {
-			close(allClaims)
-		}
-		mu.Unlock()
-		select {
-		case <-allClaims:
+		switch r.URL.Path {
+		case executionClaimPath:
+			mu.Lock()
+			claims++
+			if claims == 3 {
+				close(allClaims)
+			}
+			mu.Unlock()
+			select {
+			case <-allClaims:
+				w.WriteHeader(http.StatusNoContent)
+			case <-r.Context().Done():
+			}
+		case ledgerSnapshotPath:
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(ledgerSnapshot{Generation: 1, SnapshotID: strings.Repeat("a", 64), SnapshotDigest: strings.Repeat("b", 64), ExpiresAt: time.Now().Add(time.Minute), ObservedAt: time.Now()})
+		case telemetryPath:
 			w.WriteHeader(http.StatusNoContent)
-		case <-r.Context().Done():
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
 		}
 	}))
 	defer server.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	pollExecutionCapabilities(ctx, server.Client(), config{AgentURL: server.URL, ProviderID: "docker", CapabilityVersion: "docker/v1", Capabilities: []string{"oci-build", "compose_execution", "container_execution"}}, persistedState{})
+	pollExecutionCapabilities(ctx, server.Client(), config{AgentURL: server.URL, ProviderID: "docker", CapabilityVersion: "docker/v1", Capabilities: []string{"oci-build", "compose_execution", "container_execution"}}, persistedState{}, newAdmissionTracker(t.TempDir()))
 	mu.Lock()
 	defer mu.Unlock()
 	if claims != 3 {
