@@ -190,7 +190,8 @@ class GovernanceWorkflowTests(unittest.TestCase):
         env = cross["env"]
         self.assertEqual(env["RUN_ID"], "${{ github.run_id }}")
         self.assertEqual(env["RUN_ATTEMPT"], "${{ github.run_attempt }}")
-        self.assertEqual(env["HEAD_SHA"], "${{ github.sha }}")
+        # github.sha is the pull_request merge commit; the jobs API reports the PR head.
+        self.assertEqual(env["HEAD_SHA"], "${{ github.event.pull_request.head.sha || github.sha }}")
         self.assertEqual(env["EVENT_NAME"], "${{ github.event_name }}")
         self.assertEqual(env["GITHUB_TOKEN"], "${{ secrets.GITHUB_TOKEN }}")
         program = "\n".join(cross["run"].splitlines()[1:-1])
