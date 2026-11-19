@@ -45,6 +45,7 @@
   注释/测试/设计文档。稳定 code/key 对应展示文案由模块 locales 本地化；未知项临时回退须遵守根兼容规则。
 - 使用主题 token（--td-*、chartColors、品牌主题）、字体 token 和语义状态色，覆盖明暗模式。数据图表用 ECharts
   或已批准方案，不在页面手绘 SVG/path/坐标轴/tooltip。图表随 mode/brand/locale/尺寸同步并有直接测试。
+- 管理列表用 ManagementListPage / ManagementPagedTable 统一页面骨架和分页。实体卡片通过 ManagementEntityCard 消费表格列定义，页面声明摘要字段优先级与业务动作。
 - 列表空态用 t-empty/table slot，保留 header/body/footer 和分页；筛选空态提供 clear filters，只读页不伪造创建。
 - 滚动容器统一 graft-scrollbar，native scrollbar 样式仅受登记 allowlist 约束；新增/修改滚动面同步治理测试和
   check-scrollbar-governance。禁止 alert/confirm/prompt，统一 TDesign Dialog；默认位置由 TConfigProvider 持有。

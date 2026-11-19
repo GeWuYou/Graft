@@ -12,7 +12,7 @@ vi.mock('@/shared/composables', () => ({
 const ContainerResourceTableStub = defineComponent({
   name: 'ContainerResourceTableStub',
   setup(_, { slots }) {
-    return () => h('section', { 'data-testid': 'resource-table' }, slots.cards?.());
+    return () => h('section', { 'data-testid': 'resource-table' }, slots.cards?.({ columns: [] }));
   },
 });
 

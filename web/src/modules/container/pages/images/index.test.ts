@@ -94,7 +94,7 @@ function mountSelectionPage() {
           setup:
             (_, { slots }) =>
             () =>
-              h('section', slots.cards?.()),
+              h('section', slots.cards?.({ columns: [] })),
         }),
         'resource-detail-layout': true,
         'tag-manager-drawer': true,
@@ -160,7 +160,8 @@ describe('docker image list page', () => {
   });
 
   it('uses detail actions instead of opening compact cards outside selection mode', () => {
-    expect(sourceText).toContain('<template #cards>');
+    expect(sourceText).toContain('<template #cards="{ columns: cardColumns }">');
+    expect(sourceText).toContain('<management-entity-card');
     expect(sourceText).toContain('class="docker-images-card"');
     expect(sourceText).toContain('formatBytes(image.size_bytes)');
     expect(sourceText).toContain("t('container.images.fields.containers')");

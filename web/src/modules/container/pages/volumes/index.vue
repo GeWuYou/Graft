@@ -73,7 +73,7 @@
           :message="t('container.volume.metrics.abnormalNotice', { count: abnormalCount })"
         />
       </template>
-      <template #cards>
+      <template #cards="{ columns: cardColumns }">
         <t-empty
           v-if="!rows.length && !loading"
           :title="hasActiveFilters ? t('container.volume.pagination.empty') : t('container.volume.empty.title')"
@@ -88,45 +88,38 @@
           </template>
         </t-empty>
         <div v-else class="docker-volume-page__cards">
-          <article v-for="row in rows" :key="row.name" class="docker-volume-page__card">
-            <header class="docker-volume-page__card-header">
-              <t-tag :theme="relationshipPresentation(row.relationship_status).theme" size="small" variant="light">
-                {{ relationshipPresentation(row.relationship_status).label }}
-              </t-tag>
-              <t-tooltip :content="row.name">
-                <strong>{{ middleEllipsis(row.name, 31) }}</strong>
-              </t-tooltip>
-            </header>
-            <dl class="docker-volume-page__card-primary">
-              <div>
-                <dt>{{ t('container.volume.columns.size') }}</dt>
-                <dd>{{ formatBytes(row.size_bytes, t('container.volume.notCollected')) }}</dd>
-              </div>
-              <div>
-                <dt>{{ t('container.volume.columns.mountedContainers') }}</dt>
-                <dd>
-                  {{ t('container.volume.card.containerCount', { count: row.container_references?.length ?? 0 }) }}
-                </dd>
-              </div>
-            </dl>
-            <dl class="docker-volume-page__card-secondary">
-              <div>
-                <dt>{{ t('container.volume.columns.driver') }}</dt>
-                <dd>{{ row.driver }}</dd>
-              </div>
-              <div>
-                <dt>{{ t('container.volume.columns.createdAt') }}</dt>
-                <dd>{{ formatCardDate(row.created_at) }}</dd>
-              </div>
-            </dl>
-            <docker-resource-card-actions
-              :detail-label="t('container.volume.actions.detail')"
-              :more-actions="canRemove ? volumeCardOverflowOptions() : []"
-              :more-label="t('container.list.actions.more')"
-              @detail="openDetailPage(row)"
-              @action="handleVolumeRowAction($event, row)"
-            />
-          </article>
+          <management-entity-card
+            v-for="row in rows"
+            :key="row.name"
+            :columns="cardColumns"
+            :fields="['size', 'references', 'driver', 'created_at']"
+            :row="row"
+          >
+            <template #header>
+              <header class="docker-volume-page__card-header">
+                <t-tag :theme="relationshipPresentation(row.relationship_status).theme" size="small" variant="light">
+                  {{ relationshipPresentation(row.relationship_status).label }}
+                </t-tag>
+                <t-tooltip :content="row.name">
+                  <strong>{{ middleEllipsis(row.name, 31) }}</strong>
+                </t-tooltip>
+              </header>
+            </template>
+            <template #field-size>{{ formatBytes(row.size_bytes, t('container.volume.notCollected')) }}</template>
+            <template #field-references>
+              {{ t('container.volume.card.containerCount', { count: row.container_references?.length ?? 0 }) }}
+            </template>
+            <template #field-created_at>{{ formatCardDate(row.created_at) }}</template>
+            <template #actions>
+              <docker-resource-card-actions
+                :detail-label="t('container.volume.actions.detail')"
+                :more-actions="canRemove ? volumeCardOverflowOptions() : []"
+                :more-label="t('container.list.actions.more')"
+                @detail="openDetailPage(row)"
+                @action="handleVolumeRowAction($event, row)"
+              />
+            </template>
+          </management-entity-card>
         </div>
       </template>
       <template #name="{ row }">
@@ -173,128 +166,133 @@
         </t-empty>
       </template>
     </management-paged-table>
-  </management-list-page>
-  <t-dialog
-    v-model:visible="cleanup.visible.value"
-    :header="t('container.volume.cleanup.title')"
-    width="760px"
-    @confirm="confirmCleanupRemoval"
-  >
-    <docker-cleanup-loading-host
-      :empty="!cleanup.loading.value && !cleanup.items.value.length"
-      :loading="cleanup.loading.value"
+    <t-dialog
+      v-model:visible="cleanup.visible.value"
+      :header="t('container.volume.cleanup.title')"
+      width="760px"
+      @confirm="confirmCleanupRemoval"
     >
-      <t-card v-if="cleanup.items.value.length" :bordered="false">
-        <div class="docker-volume-cleanup-summary">
-          <span>{{ t('container.volume.cleanup.candidateCount', { count: cleanup.items.value.length }) }}</span>
-          <strong>{{ formatBytes(cleanup.totalSize.value, t('container.volume.notCollected')) }}</strong>
-        </div>
-      </t-card>
-      <t-alert
-        v-if="cleanup.items.value.length"
-        class="docker-volume-cleanup-warning"
-        theme="warning"
-        :message="t('container.volume.cleanup.warning')"
-      />
-      <section v-if="cleanup.items.value.length" class="docker-volume-cleanup-preview">
-        <div class="docker-volume-cleanup-section-head">
-          <strong>{{
-            t('container.volume.cleanup.selectedCount', { count: cleanup.selectedIds.value.length })
-          }}</strong>
-          <t-button v-if="cleanup.selectedIds.value.length" size="small" variant="text" @click="cleanup.clearSelection">
-            {{ t('container.volume.cleanup.clearSelection') }}
-          </t-button>
-        </div>
-        <t-table
-          :columns="cleanupColumns"
-          :data="cleanup.previewItems.value"
-          row-key="name"
-          size="small"
-          table-layout="fixed"
-          :selected-row-keys="cleanup.selectedIds.value"
-          @select-change="cleanup.select"
-        >
-          <template #name="{ row }">
-            <t-tooltip :content="row.name"
-              ><span>{{ middleEllipsis(row.name, 31) }}</span></t-tooltip
-            >
-          </template>
-          <template #size="{ row }">{{ formatBytes(row.size_bytes, t('container.volume.notCollected')) }}</template>
-        </t-table>
-        <div v-if="cleanup.pageCount.value > 1" class="docker-volume-cleanup-pager">
-          <t-button
-            size="small"
-            variant="text"
-            :disabled="cleanup.previewPage.value === 1"
-            @click="cleanup.previousPage"
-          >
-            {{ t('container.volume.cleanup.previousPage') }}
-          </t-button>
-          <span>{{ cleanup.previewPage.value }} / {{ cleanup.pageCount.value }}</span>
-          <t-button
-            size="small"
-            variant="text"
-            :disabled="cleanup.previewPage.value === cleanup.pageCount.value"
-            @click="cleanup.nextPage"
-          >
-            {{ t('container.volume.cleanup.nextPage') }}
-          </t-button>
-        </div>
-      </section>
-      <t-empty
-        v-if="!cleanup.loading.value && !cleanup.items.value.length"
-        :title="t('container.volume.cleanup.empty')"
-      />
-    </docker-cleanup-loading-host>
-    <template #footer>
-      <t-space>
-        <t-button size="medium" variant="outline" @click="cleanup.visible.value = false">{{
-          t('container.volume.cleanup.cancel')
-        }}</t-button>
-        <t-button
-          size="medium"
-          theme="danger"
-          :disabled="!cleanup.selectedIds.value.length"
-          @click="confirmCleanupRemoval"
-        >
-          {{ t('container.volume.cleanup.removeSelected', { count: cleanup.selectedIds.value.length }) }}
-        </t-button>
-      </t-space>
-    </template>
-  </t-dialog>
-  <resource-detail-layout
-    v-model:visible="detailDrawerVisible"
-    :title="selectedVolume?.name || t('container.volume.detail.title')"
-    :back-label="t('container.detail.back')"
-    size="compact"
-  >
-    <template v-if="selectedVolume" #actions>
-      <t-tag :theme="relationshipPresentation(selectedVolume.relationship_status).theme" size="small" variant="light">
-        {{ relationshipPresentation(selectedVolume.relationship_status).label }}
-      </t-tag>
-    </template>
-    <div class="docker-volume-page__detail-loading-host">
-      <div v-if="detailLoading" class="docker-volume-page__detail-loading-host__indicator">
-        <t-loading :loading="true" size="large" />
-      </div>
-      <t-alert v-else-if="detailError" theme="error" :message="detailError" />
-      <volume-detail-content
-        v-else-if="selectedVolume"
-        :can-remove="canRemove"
-        surface="drawer"
-        :volume="selectedVolume"
-        @open-container="openContainerReference"
-        @remove="confirmRemove(selectedVolume)"
-      />
-      <div v-else-if="!detailLoading" class="docker-volume-page__detail-state">
-        <t-empty
-          size="small"
-          :title="t('container.volume.detail.emptyTitle')"
-          :description="t('container.volume.detail.emptyDescription')"
+      <docker-cleanup-loading-host
+        :empty="!cleanup.loading.value && !cleanup.items.value.length"
+        :loading="cleanup.loading.value"
+      >
+        <t-card v-if="cleanup.items.value.length" :bordered="false">
+          <div class="docker-volume-cleanup-summary">
+            <span>{{ t('container.volume.cleanup.candidateCount', { count: cleanup.items.value.length }) }}</span>
+            <strong>{{ formatBytes(cleanup.totalSize.value, t('container.volume.notCollected')) }}</strong>
+          </div>
+        </t-card>
+        <t-alert
+          v-if="cleanup.items.value.length"
+          class="docker-volume-cleanup-warning"
+          theme="warning"
+          :message="t('container.volume.cleanup.warning')"
         />
+        <section v-if="cleanup.items.value.length" class="docker-volume-cleanup-preview">
+          <div class="docker-volume-cleanup-section-head">
+            <strong>{{
+              t('container.volume.cleanup.selectedCount', { count: cleanup.selectedIds.value.length })
+            }}</strong>
+            <t-button
+              v-if="cleanup.selectedIds.value.length"
+              size="small"
+              variant="text"
+              @click="cleanup.clearSelection"
+            >
+              {{ t('container.volume.cleanup.clearSelection') }}
+            </t-button>
+          </div>
+          <t-table
+            :columns="cleanupColumns"
+            :data="cleanup.previewItems.value"
+            row-key="name"
+            size="small"
+            table-layout="fixed"
+            :selected-row-keys="cleanup.selectedIds.value"
+            @select-change="cleanup.select"
+          >
+            <template #name="{ row }">
+              <t-tooltip :content="row.name"
+                ><span>{{ middleEllipsis(row.name, 31) }}</span></t-tooltip
+              >
+            </template>
+            <template #size="{ row }">{{ formatBytes(row.size_bytes, t('container.volume.notCollected')) }}</template>
+          </t-table>
+          <div v-if="cleanup.pageCount.value > 1" class="docker-volume-cleanup-pager">
+            <t-button
+              size="small"
+              variant="text"
+              :disabled="cleanup.previewPage.value === 1"
+              @click="cleanup.previousPage"
+            >
+              {{ t('container.volume.cleanup.previousPage') }}
+            </t-button>
+            <span>{{ cleanup.previewPage.value }} / {{ cleanup.pageCount.value }}</span>
+            <t-button
+              size="small"
+              variant="text"
+              :disabled="cleanup.previewPage.value === cleanup.pageCount.value"
+              @click="cleanup.nextPage"
+            >
+              {{ t('container.volume.cleanup.nextPage') }}
+            </t-button>
+          </div>
+        </section>
+        <t-empty
+          v-if="!cleanup.loading.value && !cleanup.items.value.length"
+          :title="t('container.volume.cleanup.empty')"
+        />
+      </docker-cleanup-loading-host>
+      <template #footer>
+        <t-space>
+          <t-button size="medium" variant="outline" @click="cleanup.visible.value = false">{{
+            t('container.volume.cleanup.cancel')
+          }}</t-button>
+          <t-button
+            size="medium"
+            theme="danger"
+            :disabled="!cleanup.selectedIds.value.length"
+            @click="confirmCleanupRemoval"
+          >
+            {{ t('container.volume.cleanup.removeSelected', { count: cleanup.selectedIds.value.length }) }}
+          </t-button>
+        </t-space>
+      </template>
+    </t-dialog>
+    <resource-detail-layout
+      v-model:visible="detailDrawerVisible"
+      :title="selectedVolume?.name || t('container.volume.detail.title')"
+      :back-label="t('container.detail.back')"
+      size="compact"
+    >
+      <template v-if="selectedVolume" #actions>
+        <t-tag :theme="relationshipPresentation(selectedVolume.relationship_status).theme" size="small" variant="light">
+          {{ relationshipPresentation(selectedVolume.relationship_status).label }}
+        </t-tag>
+      </template>
+      <div class="docker-volume-page__detail-loading-host">
+        <div v-if="detailLoading" class="docker-volume-page__detail-loading-host__indicator">
+          <t-loading :loading="true" size="large" />
+        </div>
+        <t-alert v-else-if="detailError" theme="error" :message="detailError" />
+        <volume-detail-content
+          v-else-if="selectedVolume"
+          :can-remove="canRemove"
+          surface="drawer"
+          :volume="selectedVolume"
+          @open-container="openContainerReference"
+          @remove="confirmRemove(selectedVolume)"
+        />
+        <div v-else-if="!detailLoading" class="docker-volume-page__detail-state">
+          <t-empty
+            size="small"
+            :title="t('container.volume.detail.emptyTitle')"
+            :description="t('container.volume.detail.emptyDescription')"
+          />
+        </div>
       </div>
-    </div>
-  </resource-detail-layout>
+    </resource-detail-layout>
+  </management-list-page>
 </template>
 <script setup lang="ts">
 // 数据卷页负责 Docker 数据卷查询与操作，清理流程通过现有批量删除契约执行未使用候选。
@@ -308,6 +306,7 @@ import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/contain
 import type { components } from '@/contracts/openapi/generated/schema';
 import {
   ManagementBatchBar,
+  ManagementEntityCard,
   ManagementListPage,
   type ManagementStatisticItem,
   TableActionMenu,
@@ -787,19 +786,6 @@ function confirmRemove(row: VolumeRow) {
   gap: var(--graft-density-gap-10);
 }
 
-.docker-volume-page__card {
-  background: var(--td-bg-color-container);
-  block-size: 10rem;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-small);
-  display: grid;
-  gap: var(--graft-density-gap-4);
-  grid-template-rows: 1.5rem 2.25rem 1.5rem 1fr;
-  min-width: 0;
-  overflow: hidden;
-  padding: var(--graft-density-gap-8) var(--graft-density-gap-10);
-}
-
 .docker-volume-page__card-header {
   align-items: center;
   display: grid;
@@ -812,46 +798,6 @@ function confirmRemove(row: VolumeRow) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.docker-volume-page__card-primary,
-.docker-volume-page__card-secondary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: 0;
-}
-
-.docker-volume-page__card-primary {
-  gap: var(--graft-density-gap-12);
-}
-
-.docker-volume-page__card-secondary {
-  gap: var(--graft-density-gap-8);
-}
-
-.docker-volume-page__card dt {
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
-.docker-volume-page__card dd {
-  font-variant-numeric: tabular-nums;
-  margin: var(--graft-density-gap-2) 0 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.docker-volume-page__card-secondary > div {
-  align-items: baseline;
-  display: flex;
-  gap: var(--graft-density-gap-4);
-  min-width: 0;
-}
-
-.docker-volume-page__card-primary > div,
-.docker-volume-page__card-secondary > div {
-  min-width: 0;
 }
 
 @container (width < 768px) {

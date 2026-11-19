@@ -82,9 +82,10 @@ assets:
     type: "frontend-component-suite"
     path: "web/src/shared/components/management"
     owner: "web/shared"
-    purpose: "Reusable management page table surfaces, pagination, row action menus, compact entity-card selection, narrow-screen batch-action dropdowns, column helpers, and compact timestamp helpers. Management pagination uses page sizes 10, 20, 50, and 100 only."
+    purpose: "Reusable management page frames, table surfaces, column-driven entity cards, pagination, row action menus, narrow-screen batch-action dropdowns, and compact timestamp helpers. Management pagination uses page sizes 10, 20, 50, and 100 only."
     use_when:
       - "Building module management list pages with TDesign tables, entity cards, row actions, batch actions, or pagination."
+      - "The same table columns must label a compact card summary with module-owned fields and actions."
       - "A narrow management list must collapse batch actions into one labeled dropdown while retaining selection summary and cancellation."
     do_not_use_when:
       - "The surface is not a management/list page or carries module-private business semantics."

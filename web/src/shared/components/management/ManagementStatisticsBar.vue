@@ -2,11 +2,7 @@
   <section :class="['management-statistics-bar', `management-statistics-bar--${layout}`]" :aria-label="label">
     <template v-if="layout === 'summary'">
       <div class="management-statistics-bar__summary-content">
-        <article
-          v-for="(item, index) in items"
-          :key="`${item.label}-${index}`"
-          :class="['management-statistics-bar__item', item.tone ? `management-statistics-bar__item--${item.tone}` : '']"
-        >
+        <article v-for="(item, index) in items" :key="`${item.label}-${index}`" :class="itemClass(item)">
           <span class="management-statistics-bar__label">
             <span v-if="item.marker" class="management-statistics-bar__marker" aria-hidden="true">{{
               item.marker
@@ -21,7 +17,7 @@
       <div class="management-statistics-bar__content">
         <template v-for="(item, index) in items" :key="`${item.label}-${index}`">
           <t-divider v-if="index > 0" layout="vertical" />
-          <span class="management-statistics-bar__item">
+          <span :class="itemClass(item)">
             <span v-if="item.marker" class="management-statistics-bar__marker" aria-hidden="true">{{
               item.marker
             }}</span>
@@ -34,7 +30,7 @@
         <span
           v-for="(item, index) in compactItems.length ? compactItems : items"
           :key="`${item.label}-${index}`"
-          class="management-statistics-bar__item"
+          :class="itemClass(item)"
         >
           <span v-if="item.marker" class="management-statistics-bar__marker" aria-hidden="true">{{ item.marker }}</span>
           <strong class="management-statistics-bar__value">{{ item.value }}</strong>
@@ -61,6 +57,9 @@ withDefaults(
     compactItems: () => [],
   },
 );
+function itemClass(item: ManagementStatisticItem) {
+  return ['management-statistics-bar__item', item.tone && `management-statistics-bar__item--${item.tone}`];
+}
 </script>
 <style scoped lang="less">
 @import './card-surface.less';
@@ -143,28 +142,24 @@ withDefaults(
   line-height: 1.1;
 }
 
-.management-statistics-bar__summary-content
-  .management-statistics-bar__item--success
-  .management-statistics-bar__value {
+.management-statistics-bar__item--success .management-statistics-bar__value {
   color: var(--td-success-color);
 }
 
-.management-statistics-bar__summary-content
-  .management-statistics-bar__item--warning
-  .management-statistics-bar__value {
+.management-statistics-bar__item--warning .management-statistics-bar__value {
   color: var(--td-warning-color);
 }
 
-.management-statistics-bar__summary-content .management-statistics-bar__item--danger .management-statistics-bar__value {
+.management-statistics-bar__item--danger .management-statistics-bar__value {
   color: var(--td-error-color);
 }
 
-.management-statistics-bar__summary-content .management-statistics-bar__item--muted .management-statistics-bar__value {
+.management-statistics-bar__item--muted .management-statistics-bar__value {
   color: var(--td-text-color-secondary);
 }
 
-.management-statistics-bar__summary-content .management-statistics-bar__item--muted .management-statistics-bar__label {
-  color: var(--td-text-color-placeholder);
+.management-statistics-bar__item--muted .management-statistics-bar__label {
+  color: var(--td-text-color-secondary);
 }
 
 .management-statistics-bar__summary-content .management-statistics-bar__marker {

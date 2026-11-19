@@ -80,7 +80,7 @@
           </t-button>
         </management-batch-bar>
       </template>
-      <template #cards>
+      <template #cards="{ columns: cardColumns }">
         <t-empty
           v-if="!images.length && !query.isFetching.value"
           :title="t('container.images.emptyTitle')"
@@ -95,9 +95,13 @@
           </template>
         </t-empty>
         <div v-else class="docker-images-card-list">
-          <article
+          <management-entity-card
             v-for="image in images"
             :key="image.id"
+            :columns="cardColumns"
+            :fields="['containers', 'created_at']"
+            :row="image"
+            stacked
             class="docker-images-card"
             :class="{
               'docker-images-card--selected': isImageSelected(image),
@@ -111,60 +115,56 @@
             @keydown.enter="handleCardKeydown($event, image)"
             @keydown.space="handleCardKeydown($event, image)"
           >
-            <header class="docker-images-card__header">
-              <div class="docker-images-card__identity">
-                <strong>{{ imageReference(imageTags(image)[0] ?? '').repository || shortId(image.id) }}</strong>
-                <t-space v-if="imageTags(image).length" size="small" break-line>
-                  <t-tag v-for="tag in imageTags(image)" :key="tag" size="small" variant="light-outline">
-                    {{ imageReference(tag).tag }}
-                  </t-tag>
-                </t-space>
-                <span v-else class="docker-images-muted">{{ t('container.images.untagged') }}</span>
-              </div>
-              <t-checkbox
-                v-if="cardSelectionMode"
-                :checked="isImageSelected(image)"
-                :aria-label="t('container.images.selection.toggle', { image: shortId(image.id) })"
-                @click.stop
-                @change="toggleCardSelection(image, $event)"
-              />
-            </header>
-            <div class="docker-images-card__primary">
-              <strong>{{ formatBytes(image.size_bytes) }}</strong>
-              <t-tag :theme="imageStatus(image).theme" size="small" variant="light-outline">
-                {{ imageStatus(image).label }}
-              </t-tag>
-            </div>
-            <dl class="docker-images-card__details">
-              <div>
-                <dt>{{ t('container.images.fields.containers') }}</dt>
-                <dd>
-                  <t-space v-if="image.container_references?.length" size="small" break-line>
-                    <t-tag
-                      v-for="container in image.container_references"
-                      :key="container.id"
-                      size="small"
-                      variant="light-outline"
-                    >
-                      {{ container.name }}
+            <template #header>
+              <header class="docker-images-card__header">
+                <div class="docker-images-card__identity">
+                  <strong>{{ imageReference(imageTags(image)[0] ?? '').repository || shortId(image.id) }}</strong>
+                  <t-space v-if="imageTags(image).length" size="small" break-line>
+                    <t-tag v-for="tag in imageTags(image)" :key="tag" size="small" variant="light-outline">
+                      {{ imageReference(tag).tag }}
                     </t-tag>
                   </t-space>
-                  <span v-else>{{ t('container.images.unused') }}</span>
-                </dd>
+                  <span v-else class="docker-images-muted">{{ t('container.images.untagged') }}</span>
+                </div>
+                <t-checkbox
+                  v-if="cardSelectionMode"
+                  :checked="isImageSelected(image)"
+                  :aria-label="t('container.images.selection.toggle', { image: shortId(image.id) })"
+                  @click.stop
+                  @change="toggleCardSelection(image, $event)"
+                />
+              </header>
+              <div class="docker-images-card__primary">
+                <strong>{{ formatBytes(image.size_bytes) }}</strong>
+                <t-tag :theme="imageStatus(image).theme" size="small" variant="light-outline">
+                  {{ imageStatus(image).label }}
+                </t-tag>
               </div>
-              <div>
-                <dt>{{ t('container.images.fields.createdAt') }}</dt>
-                <dd>{{ formatLocaleDateTime(image.created_at, locale) }}</dd>
-              </div>
-            </dl>
-            <docker-resource-card-actions
-              :detail-label="t('container.images.actions.detail')"
-              :more-actions="cardMoreActions"
-              :more-label="t('container.images.actions.more')"
-              @detail="openDetail(image)"
-              @action="handleCardAction($event, image)"
-            />
-          </article>
+            </template>
+            <template #field-containers>
+              <t-space v-if="image.container_references?.length" size="small" break-line>
+                <t-tag
+                  v-for="container in image.container_references"
+                  :key="container.id"
+                  size="small"
+                  variant="light-outline"
+                >
+                  {{ container.name }}
+                </t-tag>
+              </t-space>
+              <span v-else>{{ t('container.images.unused') }}</span>
+            </template>
+            <template #field-created_at>{{ formatLocaleDateTime(image.created_at, locale) }}</template>
+            <template #actions>
+              <docker-resource-card-actions
+                :detail-label="t('container.images.actions.detail')"
+                :more-actions="cardMoreActions"
+                :more-label="t('container.images.actions.more')"
+                @detail="openDetail(image)"
+                @action="handleCardAction($event, image)"
+              />
+            </template>
+          </management-entity-card>
         </div>
       </template>
       <template #feedback>
@@ -234,435 +234,441 @@
         />
       </template>
     </management-paged-table>
-  </management-list-page>
 
-  <resource-detail-layout
-    v-model:visible="detailDrawerVisible"
-    :title="
-      selectedImage
-        ? imageReference(imageTags(selectedImage)[0] ?? '').repository || t('container.images.detail.title')
-        : t('container.images.detail.title')
-    "
-    :back-label="t('container.detail.back')"
-    size="medium"
-  >
-    <div class="docker-images-detail-loading-host">
-      <div v-if="detailLoading" class="docker-images-detail-loading-host__indicator">
-        <t-loading :loading="true" size="large" />
-      </div>
-      <div v-else-if="detailError" class="docker-images-detail-error">
-        <t-alert theme="error" :message="detailError" />
-      </div>
-      <div v-else-if="selectedImage" class="docker-images-detail">
-        <section class="docker-images-detail__section">
-          <h3>{{ t('container.images.detail.overview') }}</h3>
-          <div class="docker-images-detail__identity">
-            <div>
-              <span class="docker-images-detail__label">{{ t('container.images.fields.repository') }}</span>
-              <t-tooltip
-                :content="imageReference(imageTags(selectedImage)[0] ?? '').repository || '-'"
-                placement="top-left"
-              >
-                <strong>{{
-                  middleEllipsis(imageReference(imageTags(selectedImage)[0] ?? '').repository || '-', 44)
-                }}</strong>
-              </t-tooltip>
-            </div>
-            <t-tag :theme="imageStatus(selectedImage).theme" size="small" variant="light-outline">
-              {{ imageStatus(selectedImage).label }}
-            </t-tag>
-          </div>
-          <div class="docker-images-detail__value">
-            <span class="docker-images-detail__label">{{ t('container.images.fields.tags') }}</span>
-            <t-space v-if="imageTags(selectedImage).length" size="small" break-line>
-              <t-tooltip v-for="tag in imageTags(selectedImage)" :key="tag" :content="tag">
-                <t-tag size="small" variant="light-outline">{{ imageReference(tag).tag }}</t-tag>
-              </t-tooltip>
-            </t-space>
-            <span v-else>{{ t('container.images.untagged') }}</span>
-          </div>
-        </section>
-
-        <section class="docker-images-detail__section">
-          <h3>{{ t('container.images.detail.basicInfo') }}</h3>
-          <dl class="docker-images-detail__grid">
-            <div>
-              <dt>{{ t('container.images.fields.size') }}</dt>
-              <dd>{{ formatBytes(selectedImage.size_bytes) }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('container.images.fields.createdAt') }}</dt>
-              <dd>{{ formatLocaleDateTime(selectedImage.created_at, locale) }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('container.images.fields.platform') }}</dt>
-              <dd>{{ selectedImage.operating_system || '-' }} / {{ selectedImage.architecture || '-' }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('container.images.fields.containers') }}</dt>
-              <dd>{{ selectedImage.container_references?.length || t('container.images.unused') }}</dd>
-            </div>
-          </dl>
-        </section>
-
-        <section class="docker-images-detail__section">
-          <h3>{{ t('container.images.detail.metadata') }}</h3>
-          <dl class="docker-images-detail__metadata">
-            <div>
-              <dt>{{ t('container.images.fields.id') }}</dt>
-              <dd>
-                <t-tooltip :content="selectedImage.id"
-                  ><span class="docker-images-code">{{ middleEllipsis(selectedImage.id) }}</span></t-tooltip
+    <resource-detail-layout
+      v-model:visible="detailDrawerVisible"
+      :title="
+        selectedImage
+          ? imageReference(imageTags(selectedImage)[0] ?? '').repository || t('container.images.detail.title')
+          : t('container.images.detail.title')
+      "
+      :back-label="t('container.detail.back')"
+      size="medium"
+    >
+      <div class="docker-images-detail-loading-host">
+        <div v-if="detailLoading" class="docker-images-detail-loading-host__indicator">
+          <t-loading :loading="true" size="large" />
+        </div>
+        <div v-else-if="detailError" class="docker-images-detail-error">
+          <t-alert theme="error" :message="detailError" />
+        </div>
+        <div v-else-if="selectedImage" class="docker-images-detail">
+          <section class="docker-images-detail__section">
+            <h3>{{ t('container.images.detail.overview') }}</h3>
+            <div class="docker-images-detail__identity">
+              <div>
+                <span class="docker-images-detail__label">{{ t('container.images.fields.repository') }}</span>
+                <t-tooltip
+                  :content="imageReference(imageTags(selectedImage)[0] ?? '').repository || '-'"
+                  placement="top-left"
                 >
-              </dd>
+                  <strong>{{
+                    middleEllipsis(imageReference(imageTags(selectedImage)[0] ?? '').repository || '-', 44)
+                  }}</strong>
+                </t-tooltip>
+              </div>
+              <t-tag :theme="imageStatus(selectedImage).theme" size="small" variant="light-outline">
+                {{ imageStatus(selectedImage).label }}
+              </t-tag>
             </div>
-            <div>
-              <dt>{{ t('container.images.fields.digests') }}</dt>
-              <dd v-if="selectedImage.repository_digests?.length">
-                <t-tooltip :content="(selectedImage.repository_digests ?? []).join(', ')"
-                  ><span class="docker-images-code">{{
-                    middleEllipsis((selectedImage.repository_digests ?? []).join(', '), 44)
-                  }}</span></t-tooltip
-                >
-              </dd>
-              <dd v-else>-</dd>
+            <div class="docker-images-detail__value">
+              <span class="docker-images-detail__label">{{ t('container.images.fields.tags') }}</span>
+              <t-space v-if="imageTags(selectedImage).length" size="small" break-line>
+                <t-tooltip v-for="tag in imageTags(selectedImage)" :key="tag" :content="tag">
+                  <t-tag size="small" variant="light-outline">{{ imageReference(tag).tag }}</t-tag>
+                </t-tooltip>
+              </t-space>
+              <span v-else>{{ t('container.images.untagged') }}</span>
             </div>
-            <div>
-              <dt>{{ t('container.images.fields.labels') }}</dt>
-              <dd v-if="Object.keys(selectedImage.labels ?? {}).length">
-                <t-space direction="vertical" size="small">
-                  <t-tooltip v-for="(value, key) in selectedImage.labels" :key="key" :content="`${key}=${value}`">
-                    <span class="docker-images-code">{{ middleEllipsis(`${key}=${value}`, 44) }}</span>
-                  </t-tooltip>
-                </t-space>
-              </dd>
-              <dd v-else>-</dd>
-            </div>
-          </dl>
-        </section>
-      </div>
-      <div v-else-if="!detailLoading" class="docker-images-detail-state">
-        <t-empty
-          size="small"
-          :title="t('container.images.detail.emptyTitle')"
-          :description="t('container.images.detail.emptyDescription')"
+          </section>
+
+          <section class="docker-images-detail__section">
+            <h3>{{ t('container.images.detail.basicInfo') }}</h3>
+            <dl class="docker-images-detail__grid">
+              <div>
+                <dt>{{ t('container.images.fields.size') }}</dt>
+                <dd>{{ formatBytes(selectedImage.size_bytes) }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('container.images.fields.createdAt') }}</dt>
+                <dd>{{ formatLocaleDateTime(selectedImage.created_at, locale) }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('container.images.fields.platform') }}</dt>
+                <dd>{{ selectedImage.operating_system || '-' }} / {{ selectedImage.architecture || '-' }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('container.images.fields.containers') }}</dt>
+                <dd>{{ selectedImage.container_references?.length || t('container.images.unused') }}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="docker-images-detail__section">
+            <h3>{{ t('container.images.detail.metadata') }}</h3>
+            <dl class="docker-images-detail__metadata">
+              <div>
+                <dt>{{ t('container.images.fields.id') }}</dt>
+                <dd>
+                  <t-tooltip :content="selectedImage.id"
+                    ><span class="docker-images-code">{{ middleEllipsis(selectedImage.id) }}</span></t-tooltip
+                  >
+                </dd>
+              </div>
+              <div>
+                <dt>{{ t('container.images.fields.digests') }}</dt>
+                <dd v-if="selectedImage.repository_digests?.length">
+                  <t-tooltip :content="(selectedImage.repository_digests ?? []).join(', ')"
+                    ><span class="docker-images-code">{{
+                      middleEllipsis((selectedImage.repository_digests ?? []).join(', '), 44)
+                    }}</span></t-tooltip
+                  >
+                </dd>
+                <dd v-else>-</dd>
+              </div>
+              <div>
+                <dt>{{ t('container.images.fields.labels') }}</dt>
+                <dd v-if="Object.keys(selectedImage.labels ?? {}).length">
+                  <t-space direction="vertical" size="small">
+                    <t-tooltip v-for="(value, key) in selectedImage.labels" :key="key" :content="`${key}=${value}`">
+                      <span class="docker-images-code">{{ middleEllipsis(`${key}=${value}`, 44) }}</span>
+                    </t-tooltip>
+                  </t-space>
+                </dd>
+                <dd v-else>-</dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+        <div v-else-if="!detailLoading" class="docker-images-detail-state">
+          <t-empty
+            size="small"
+            :title="t('container.images.detail.emptyTitle')"
+            :description="t('container.images.detail.emptyDescription')"
+          />
+        </div>
+        <t-alert
+          v-if="selectedImage && imageTags(selectedImage).length > 1"
+          class="docker-images-delete-preflight"
+          theme="info"
+          :message="t('container.images.remove.multipleTagsPreflight', { count: imageTags(selectedImage).length })"
+        >
+          <template #operation>
+            <t-button size="small" variant="text" @click="openTagManager(selectedImage)">{{
+              t('container.images.actions.manageTags')
+            }}</t-button>
+          </template>
+        </t-alert>
+        <container-danger-zone
+          v-if="selectedImage && canRemove"
+          :action-label="t('container.images.actions.remove')"
+          :description="t('container.images.remove.risk')"
+          @action="openRemove(selectedImage)"
         />
       </div>
-      <t-alert
-        v-if="selectedImage && imageTags(selectedImage).length > 1"
-        class="docker-images-delete-preflight"
-        theme="info"
-        :message="t('container.images.remove.multipleTagsPreflight', { count: imageTags(selectedImage).length })"
-      >
-        <template #operation>
-          <t-button size="small" variant="text" @click="openTagManager(selectedImage)">{{
+      <template #footer>
+        <t-space v-if="selectedImage">
+          <t-button variant="outline" @click="openTagManager(selectedImage)">{{
             t('container.images.actions.manageTags')
           }}</t-button>
-        </template>
-      </t-alert>
-      <container-danger-zone
-        v-if="selectedImage && canRemove"
-        :action-label="t('container.images.actions.remove')"
-        :description="t('container.images.remove.risk')"
-        @action="openRemove(selectedImage)"
-      />
-    </div>
-    <template #footer>
-      <t-space v-if="selectedImage">
-        <t-button variant="outline" @click="openTagManager(selectedImage)">{{
-          t('container.images.actions.manageTags')
-        }}</t-button>
-      </t-space>
-    </template>
-  </resource-detail-layout>
-
-  <tag-manager-drawer
-    :visible="tagManagerVisible"
-    :image-id="tagManagerImageId"
-    @update:visible="handleTagManagerVisibleChange"
-    @refreshed="handleTagManagerRefreshed"
-  />
-
-  <t-dialog
-    v-model:visible="tagDialogVisible"
-    :header="t('container.images.tag.title')"
-    :confirm-btn="t('container.images.actions.tag')"
-    :confirm-loading="tagging"
-    @confirm="submitTag"
-  >
-    <t-form label-align="top">
-      <t-form-item :label="t('container.images.tag.repository')"><t-input v-model="tagForm.repository" /></t-form-item>
-      <t-form-item :label="t('container.images.tag.tag')"><t-input v-model="tagForm.tag" /></t-form-item>
-    </t-form>
-  </t-dialog>
-
-  <t-dialog
-    v-model:visible="multiTagFailureDialogVisible"
-    theme="warning"
-    :header="t('container.images.remove.multipleTagsTitle')"
-    :confirm-btn="t('container.images.actions.manageTags')"
-    @confirm="openFailedImageTagManager"
-  >
-    <p>{{ t('container.images.remove.multipleTagsFailed') }}</p>
-  </t-dialog>
-
-  <t-dialog
-    v-model:visible="removeDialogVisible"
-    theme="danger"
-    :header="t('container.images.remove.title')"
-    :confirm-btn="removeConfirmButton"
-    :confirm-loading="removing || batchRemoving"
-    @confirm="submitRemove"
-  >
-    <p v-if="selectedImage">{{ t('container.images.remove.confirm', { image: shortId(selectedImage.id) }) }}</p>
-    <template v-else>
-      <p>{{ t('container.images.batch.confirm', { count: selectedRowKeys.length }) }}</p>
-      <p class="docker-images-risk">{{ t('container.images.batch.riskIntro') }}</p>
-      <ul class="docker-images-risk-list">
-        <li>{{ t('container.images.batch.riskMultipleTags') }}</li>
-        <li>{{ t('container.images.batch.riskContainerReference') }}</li>
-      </ul>
-      <p class="docker-images-risk">{{ t('container.images.batch.normalRemovalOnly') }}</p>
-      <template v-if="selectedBatchReferences.length">
-        <p class="docker-images-risk">{{ t('container.images.batch.inUse') }}</p>
-        <t-space size="small" break-line>
-          <t-tooltip v-for="container in selectedBatchReferences" :key="container.id" :content="container.id">
-            <t-tag size="small" variant="light-outline">{{ container.name }}</t-tag>
-          </t-tooltip>
         </t-space>
-        <t-checkbox v-model="forceRemove">{{ t('container.images.remove.force') }}</t-checkbox>
       </template>
-    </template>
-    <p v-if="selectedImage?.container_references?.length" class="docker-images-risk">
-      {{ t('container.images.remove.inUse') }}
-    </p>
-    <t-checkbox v-if="selectedImage?.container_references?.length" v-model="forceRemove">{{
-      t('container.images.remove.force')
-    }}</t-checkbox>
-  </t-dialog>
+    </resource-detail-layout>
 
-  <t-dialog
-    v-model:visible="batchResultDialogVisible"
-    dialog-class-name="docker-images-result-dialog"
-    :header="t('container.images.batch.resultTitle')"
-    width="640px"
-    :confirm-btn="t('container.images.batch.confirmDetails')"
-    :cancel-btn="null"
-    @confirm="batchResultDialogVisible = false"
-  >
-    <template v-if="batchResultUnknown">
-      <p class="docker-images-result__global-message">{{ t('container.images.batch.resultUnknown') }}</p>
-    </template>
-    <template v-else>
-      <div class="docker-images-result-summary">
-        <div>
-          <span>{{ t('container.images.batch.resultSuccess') }}</span><strong>{{ batchResultSuccessCount }}</strong>
+    <tag-manager-drawer
+      :visible="tagManagerVisible"
+      :image-id="tagManagerImageId"
+      @update:visible="handleTagManagerVisibleChange"
+      @refreshed="handleTagManagerRefreshed"
+    />
+
+    <t-dialog
+      v-model:visible="tagDialogVisible"
+      :header="t('container.images.tag.title')"
+      :confirm-btn="t('container.images.actions.tag')"
+      :confirm-loading="tagging"
+      @confirm="submitTag"
+    >
+      <t-form label-align="top">
+        <t-form-item :label="t('container.images.tag.repository')"
+          ><t-input v-model="tagForm.repository"
+        /></t-form-item>
+        <t-form-item :label="t('container.images.tag.tag')"><t-input v-model="tagForm.tag" /></t-form-item>
+      </t-form>
+    </t-dialog>
+
+    <t-dialog
+      v-model:visible="multiTagFailureDialogVisible"
+      theme="warning"
+      :header="t('container.images.remove.multipleTagsTitle')"
+      :confirm-btn="t('container.images.actions.manageTags')"
+      @confirm="openFailedImageTagManager"
+    >
+      <p>{{ t('container.images.remove.multipleTagsFailed') }}</p>
+    </t-dialog>
+
+    <t-dialog
+      v-model:visible="removeDialogVisible"
+      theme="danger"
+      :header="t('container.images.remove.title')"
+      :confirm-btn="removeConfirmButton"
+      :confirm-loading="removing || batchRemoving"
+      @confirm="submitRemove"
+    >
+      <p v-if="selectedImage">{{ t('container.images.remove.confirm', { image: shortId(selectedImage.id) }) }}</p>
+      <template v-else>
+        <p>{{ t('container.images.batch.confirm', { count: selectedRowKeys.length }) }}</p>
+        <p class="docker-images-risk">{{ t('container.images.batch.riskIntro') }}</p>
+        <ul class="docker-images-risk-list">
+          <li>{{ t('container.images.batch.riskMultipleTags') }}</li>
+          <li>{{ t('container.images.batch.riskContainerReference') }}</li>
+        </ul>
+        <p class="docker-images-risk">{{ t('container.images.batch.normalRemovalOnly') }}</p>
+        <template v-if="selectedBatchReferences.length">
+          <p class="docker-images-risk">{{ t('container.images.batch.inUse') }}</p>
+          <t-space size="small" break-line>
+            <t-tooltip v-for="container in selectedBatchReferences" :key="container.id" :content="container.id">
+              <t-tag size="small" variant="light-outline">{{ container.name }}</t-tag>
+            </t-tooltip>
+          </t-space>
+          <t-checkbox v-model="forceRemove">{{ t('container.images.remove.force') }}</t-checkbox>
+        </template>
+      </template>
+      <p v-if="selectedImage?.container_references?.length" class="docker-images-risk">
+        {{ t('container.images.remove.inUse') }}
+      </p>
+      <t-checkbox v-if="selectedImage?.container_references?.length" v-model="forceRemove">{{
+        t('container.images.remove.force')
+      }}</t-checkbox>
+    </t-dialog>
+
+    <t-dialog
+      v-model:visible="batchResultDialogVisible"
+      dialog-class-name="docker-images-result-dialog"
+      :header="t('container.images.batch.resultTitle')"
+      width="640px"
+      :confirm-btn="t('container.images.batch.confirmDetails')"
+      :cancel-btn="null"
+      @confirm="batchResultDialogVisible = false"
+    >
+      <template v-if="batchResultUnknown">
+        <p class="docker-images-result__global-message">{{ t('container.images.batch.resultUnknown') }}</p>
+      </template>
+      <template v-else>
+        <div class="docker-images-result-summary">
+          <div>
+            <span>{{ t('container.images.batch.resultSuccess') }}</span><strong>{{ batchResultSuccessCount }}</strong>
+          </div>
+          <div>
+            <span>{{ t('container.images.batch.resultFailure') }}</span><strong>{{
+              batchFailureDetails.length
+            }}</strong>
+          </div>
         </div>
-        <div>
-          <span>{{ t('container.images.batch.resultFailure') }}</span><strong>{{ batchFailureDetails.length }}</strong>
-        </div>
-      </div>
-      <div class="docker-images-failure-list">
-        <section v-for="group in batchFailureGroups" :key="group.code" class="docker-images-failure-group">
-          <header class="docker-images-failure-group__header">
-            <div>
-              <h3>{{ group.title }}</h3>
-              <p>{{ group.description }}</p>
-            </div>
-            <t-tag theme="danger" variant="light-outline">{{ group.items.length }}</t-tag>
-          </header>
-          <div v-for="failure in group.items" :key="failure.id" class="docker-images-failure-item">
-            <div class="docker-images-failure-item__header">
-              <div class="docker-images-failure-item__identity">
-                <t-tag theme="danger" variant="light-outline" size="small">{{ shortId(failure.id) }}</t-tag>
-                <span class="docker-images-failure-item__name">{{ failure.name }}</span>
+        <div class="docker-images-failure-list">
+          <section v-for="group in batchFailureGroups" :key="group.code" class="docker-images-failure-group">
+            <header class="docker-images-failure-group__header">
+              <div>
+                <h3>{{ group.title }}</h3>
+                <p>{{ group.description }}</p>
               </div>
-              <t-button
-                v-if="failure.code === DOCKER_IMAGE_REMOVE_ERROR_CODES.IMAGE_REFERENCED_BY_MULTIPLE_TAGS"
-                class="docker-images-failure-item__manage-tags"
-                size="small"
-                variant="outline"
-                @click="openBatchFailureTagManager(failure.id)"
-              >
-                {{ t('container.images.actions.manageTags') }}
-              </t-button>
-            </div>
-            <t-collapse v-if="failure.tags.length" borderless expand-icon-placement="right">
-              <t-collapse-panel
-                :value="`tags-${failure.id}`"
-                :header="t('container.images.batch.tagCount', { count: failure.tags.length })"
-              >
-                <t-space size="small" break-line>
-                  <t-tag v-for="tag in failure.tags" :key="tag" size="small" variant="light-outline">{{ tag }}</t-tag>
-                </t-space>
-              </t-collapse-panel>
-            </t-collapse>
-          </div>
-        </section>
-      </div>
-    </template>
-  </t-dialog>
-
-  <t-dialog
-    v-model:visible="cleanupDialogVisible"
-    dialog-class-name="docker-images-cleanup-dialog"
-    :dialog-style="cleanupDialogStyle"
-    :header="false"
-    width="760px"
-    @confirm="submitCleanup"
-  >
-    <div class="docker-images-cleanup graft-scrollbar">
-      <header class="docker-images-cleanup__header">
-        <div class="docker-images-cleanup__header-icon"><delete-icon /></div>
-        <div>
-          <h2>{{ t('container.images.cleanup.title') }}</h2>
-          <p>{{ t('container.images.cleanup.subtitle') }}</p>
-        </div>
-      </header>
-
-      <docker-cleanup-loading-host :empty="!cleanupLoading && !cleanupImages.length" :loading="cleanupLoading">
-        <t-card v-if="cleanupImages.length" class="docker-images-cleanup-summary" :bordered="false">
-          <div class="docker-images-cleanup-summary__stats">
-            <div>
-              <span class="docker-images-cleanup-summary__label">{{
-                t('container.images.cleanup.candidateCount')
-              }}</span>
-              <strong>{{ cleanupImages.length }}</strong>
-              <span>{{ t('container.images.cleanup.imageUnit') }}</span>
-            </div>
-            <div>
-              <span class="docker-images-cleanup-summary__label">{{ t('container.images.cleanup.releaseSize') }}</span>
-              <strong>{{ formatBytes(cleanupTotalSize) }}</strong>
-            </div>
-            <div>
-              <span class="docker-images-cleanup-summary__label">{{ t('container.images.cleanup.source') }}</span>
-              <strong>{{ t('container.images.cleanup.sourceValue') }}</strong>
-            </div>
-          </div>
-        </t-card>
-
-        <t-alert
-          v-if="cleanupImages.length"
-          class="docker-images-cleanup-warning"
-          theme="warning"
-          :message="t('container.images.cleanup.warning')"
-        />
-
-        <section v-if="cleanupImages.length" class="docker-images-cleanup-preview">
-          <div class="docker-images-cleanup-section-head">
-            <h3>{{ t('container.images.cleanup.candidateTitle', { count: cleanupImages.length }) }}</h3>
-            <t-space size="small">
-              <span>{{ t('container.images.cleanup.selectedCount', { count: cleanupSelectedIds.length }) }}</span>
-              <t-button v-if="cleanupSelectedIds.length" size="small" variant="text" @click="clearCleanupSelection">
-                {{ t('container.images.cleanup.clearSelection') }}
-              </t-button>
-            </t-space>
-          </div>
-
-          <div class="docker-images-cleanup-preview-body">
-            <t-table
-              class="docker-images-cleanup-table"
-              :columns="cleanupColumns"
-              :data="cleanupPreviewImages"
-              row-key="id"
-              size="small"
-              table-layout="fixed"
-              :selected-row-keys="cleanupSelectedIds"
-              @select-change="handleCleanupSelectChange"
-            >
-              <template #image="{ row }">
-                <div class="docker-images-cleanup-image">
-                  <image-icon class="docker-images-cleanup-image__icon" />
-                  <span class="docker-images-cleanup-image__name">{{
-                    imageTags(row).join(', ') || shortId(row.id)
-                  }}</span>
+              <t-tag theme="danger" variant="light-outline">{{ group.items.length }}</t-tag>
+            </header>
+            <div v-for="failure in group.items" :key="failure.id" class="docker-images-failure-item">
+              <div class="docker-images-failure-item__header">
+                <div class="docker-images-failure-item__identity">
+                  <t-tag theme="danger" variant="light-outline" size="small">{{ shortId(failure.id) }}</t-tag>
+                  <span class="docker-images-failure-item__name">{{ failure.name }}</span>
                 </div>
-              </template>
-              <template #status>
-                <t-tag size="small" variant="light-outline">{{ t('container.images.unused') }}</t-tag>
-              </template>
-              <template #size="{ row }">{{ formatBytes(row.size_bytes) }}</template>
-            </t-table>
-
-            <div v-if="cleanupPreviewPageCount > 1" class="docker-images-cleanup-pager">
-              <t-tooltip :content="t('container.images.cleanup.previousPage')">
                 <t-button
+                  v-if="failure.code === DOCKER_IMAGE_REMOVE_ERROR_CODES.IMAGE_REFERENCED_BY_MULTIPLE_TAGS"
+                  class="docker-images-failure-item__manage-tags"
                   size="small"
-                  variant="text"
-                  shape="circle"
-                  :disabled="cleanupPreviewPage === 1"
-                  :aria-label="t('container.images.cleanup.previousPage')"
-                  @click="previousCleanupPage"
+                  variant="outline"
+                  @click="openBatchFailureTagManager(failure.id)"
                 >
-                  <arrow-up-icon />
+                  {{ t('container.images.actions.manageTags') }}
                 </t-button>
-              </t-tooltip>
-              <span>{{ cleanupPreviewPage }} / {{ cleanupPreviewPageCount }}</span>
-              <t-tooltip :content="t('container.images.cleanup.nextPage')">
-                <t-button
-                  size="small"
-                  variant="text"
-                  shape="circle"
-                  :disabled="cleanupPreviewPage === cleanupPreviewPageCount"
-                  :aria-label="t('container.images.cleanup.nextPage')"
-                  @click="nextCleanupPage"
+              </div>
+              <t-collapse v-if="failure.tags.length" borderless expand-icon-placement="right">
+                <t-collapse-panel
+                  :value="`tags-${failure.id}`"
+                  :header="t('container.images.batch.tagCount', { count: failure.tags.length })"
                 >
-                  <arrow-down-icon />
-                </t-button>
-              </t-tooltip>
+                  <t-space size="small" break-line>
+                    <t-tag v-for="tag in failure.tags" :key="tag" size="small" variant="light-outline">{{ tag }}</t-tag>
+                  </t-space>
+                </t-collapse-panel>
+              </t-collapse>
             </div>
-          </div>
-        </section>
-        <t-empty v-if="!cleanupLoading && !cleanupImages.length" :title="t('container.images.cleanup.empty')" />
-      </docker-cleanup-loading-host>
-    </div>
-    <template #footer>
-      <div class="docker-images-cleanup-footer">
-        <div>
-          <span>{{ t('container.images.cleanup.footerRelease') }}</span>
-          <strong>{{ formatBytes(cleanupSelectedSize) }}</strong>
+          </section>
         </div>
-        <t-space size="small">
-          <t-button variant="outline" @click="cleanupDialogVisible = false">
-            {{ t('container.images.cleanup.cancel') }}
-          </t-button>
-          <t-button
-            theme="danger"
-            :disabled="!cleanupSelectedIds.length"
-            :loading="batchRemoving"
-            @click="submitCleanup"
-          >
-            {{ t('container.images.cleanup.removeSelected', { count: cleanupSelectedIds.length }) }}
-          </t-button>
-        </t-space>
+      </template>
+    </t-dialog>
+
+    <t-dialog
+      v-model:visible="cleanupDialogVisible"
+      dialog-class-name="docker-images-cleanup-dialog"
+      :dialog-style="cleanupDialogStyle"
+      :header="false"
+      width="760px"
+      @confirm="submitCleanup"
+    >
+      <div class="docker-images-cleanup graft-scrollbar">
+        <header class="docker-images-cleanup__header">
+          <div class="docker-images-cleanup__header-icon"><delete-icon /></div>
+          <div>
+            <h2>{{ t('container.images.cleanup.title') }}</h2>
+            <p>{{ t('container.images.cleanup.subtitle') }}</p>
+          </div>
+        </header>
+
+        <docker-cleanup-loading-host :empty="!cleanupLoading && !cleanupImages.length" :loading="cleanupLoading">
+          <t-card v-if="cleanupImages.length" class="docker-images-cleanup-summary" :bordered="false">
+            <div class="docker-images-cleanup-summary__stats">
+              <div>
+                <span class="docker-images-cleanup-summary__label">{{
+                  t('container.images.cleanup.candidateCount')
+                }}</span>
+                <strong>{{ cleanupImages.length }}</strong>
+                <span>{{ t('container.images.cleanup.imageUnit') }}</span>
+              </div>
+              <div>
+                <span class="docker-images-cleanup-summary__label">{{
+                  t('container.images.cleanup.releaseSize')
+                }}</span>
+                <strong>{{ formatBytes(cleanupTotalSize) }}</strong>
+              </div>
+              <div>
+                <span class="docker-images-cleanup-summary__label">{{ t('container.images.cleanup.source') }}</span>
+                <strong>{{ t('container.images.cleanup.sourceValue') }}</strong>
+              </div>
+            </div>
+          </t-card>
+
+          <t-alert
+            v-if="cleanupImages.length"
+            class="docker-images-cleanup-warning"
+            theme="warning"
+            :message="t('container.images.cleanup.warning')"
+          />
+
+          <section v-if="cleanupImages.length" class="docker-images-cleanup-preview">
+            <div class="docker-images-cleanup-section-head">
+              <h3>{{ t('container.images.cleanup.candidateTitle', { count: cleanupImages.length }) }}</h3>
+              <t-space size="small">
+                <span>{{ t('container.images.cleanup.selectedCount', { count: cleanupSelectedIds.length }) }}</span>
+                <t-button v-if="cleanupSelectedIds.length" size="small" variant="text" @click="clearCleanupSelection">
+                  {{ t('container.images.cleanup.clearSelection') }}
+                </t-button>
+              </t-space>
+            </div>
+
+            <div class="docker-images-cleanup-preview-body">
+              <t-table
+                class="docker-images-cleanup-table"
+                :columns="cleanupColumns"
+                :data="cleanupPreviewImages"
+                row-key="id"
+                size="small"
+                table-layout="fixed"
+                :selected-row-keys="cleanupSelectedIds"
+                @select-change="handleCleanupSelectChange"
+              >
+                <template #image="{ row }">
+                  <div class="docker-images-cleanup-image">
+                    <image-icon class="docker-images-cleanup-image__icon" />
+                    <span class="docker-images-cleanup-image__name">{{
+                      imageTags(row).join(', ') || shortId(row.id)
+                    }}</span>
+                  </div>
+                </template>
+                <template #status>
+                  <t-tag size="small" variant="light-outline">{{ t('container.images.unused') }}</t-tag>
+                </template>
+                <template #size="{ row }">{{ formatBytes(row.size_bytes) }}</template>
+              </t-table>
+
+              <div v-if="cleanupPreviewPageCount > 1" class="docker-images-cleanup-pager">
+                <t-tooltip :content="t('container.images.cleanup.previousPage')">
+                  <t-button
+                    size="small"
+                    variant="text"
+                    shape="circle"
+                    :disabled="cleanupPreviewPage === 1"
+                    :aria-label="t('container.images.cleanup.previousPage')"
+                    @click="previousCleanupPage"
+                  >
+                    <arrow-up-icon />
+                  </t-button>
+                </t-tooltip>
+                <span>{{ cleanupPreviewPage }} / {{ cleanupPreviewPageCount }}</span>
+                <t-tooltip :content="t('container.images.cleanup.nextPage')">
+                  <t-button
+                    size="small"
+                    variant="text"
+                    shape="circle"
+                    :disabled="cleanupPreviewPage === cleanupPreviewPageCount"
+                    :aria-label="t('container.images.cleanup.nextPage')"
+                    @click="nextCleanupPage"
+                  >
+                    <arrow-down-icon />
+                  </t-button>
+                </t-tooltip>
+              </div>
+            </div>
+          </section>
+          <t-empty v-if="!cleanupLoading && !cleanupImages.length" :title="t('container.images.cleanup.empty')" />
+        </docker-cleanup-loading-host>
       </div>
-    </template>
-  </t-dialog>
+      <template #footer>
+        <div class="docker-images-cleanup-footer">
+          <div>
+            <span>{{ t('container.images.cleanup.footerRelease') }}</span>
+            <strong>{{ formatBytes(cleanupSelectedSize) }}</strong>
+          </div>
+          <t-space size="small">
+            <t-button variant="outline" @click="cleanupDialogVisible = false">
+              {{ t('container.images.cleanup.cancel') }}
+            </t-button>
+            <t-button
+              theme="danger"
+              :disabled="!cleanupSelectedIds.length"
+              :loading="batchRemoving"
+              @click="submitCleanup"
+            >
+              {{ t('container.images.cleanup.removeSelected', { count: cleanupSelectedIds.length }) }}
+            </t-button>
+          </t-space>
+        </div>
+      </template>
+    </t-dialog>
 
-  <t-drawer
-    v-model:visible="pullDrawerVisible"
-    :header="t('container.images.pull.title')"
-    size="720px"
-    placement="right"
-  >
-    <t-form label-align="top" @submit.prevent="startPull">
-      <t-form-item :label="t('container.images.pull.reference')">
-        <t-input v-model="pullReference" :disabled="pulling" :placeholder="t('container.images.pull.placeholder')" />
-      </t-form-item>
-      <t-space>
-        <t-button theme="primary" :loading="pulling" @click="startPull">{{
-          t('container.images.actions.pull')
-        }}</t-button>
-      </t-space>
-    </t-form>
-  </t-drawer>
+    <t-drawer
+      v-model:visible="pullDrawerVisible"
+      :header="t('container.images.pull.title')"
+      size="720px"
+      placement="right"
+    >
+      <t-form label-align="top" @submit.prevent="startPull">
+        <t-form-item :label="t('container.images.pull.reference')">
+          <t-input v-model="pullReference" :disabled="pulling" :placeholder="t('container.images.pull.placeholder')" />
+        </t-form-item>
+        <t-space>
+          <t-button theme="primary" :loading="pulling" @click="startPull">{{
+            t('container.images.actions.pull')
+          }}</t-button>
+        </t-space>
+      </t-form>
+    </t-drawer>
 
-  <task-detail-drawer
-    :visible="pullTaskDrawerVisible"
-    :task-id="pullTaskId"
-    :resolve-task-type="resolveTaskType"
-    @update:visible="pullTaskDrawerVisible = $event"
-  />
+    <task-detail-drawer
+      :visible="pullTaskDrawerVisible"
+      :task-id="pullTaskId"
+      :resolve-task-type="resolveTaskType"
+      @update:visible="pullTaskDrawerVisible = $event"
+    />
+  </management-list-page>
 </template>
 <script setup lang="ts">
 // 镜像页面只管理当前 Docker runtime 的镜像快照；批量删除按服务端上限分块，结构化拒绝直接展示稳定错误，网络结果未知时才通过详情查询对账。
@@ -679,6 +685,7 @@ import {
 } from '@/contracts/generated/modules/container';
 import {
   ManagementBatchBar,
+  ManagementEntityCard,
   ManagementListPage,
   TableActionMenu,
   TableViewToolbar,
@@ -1256,17 +1263,6 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-.docker-images-card {
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  display: flex;
-  flex-direction: column;
-  gap: var(--graft-density-gap-14);
-  min-width: 0;
-  padding: var(--graft-density-gap-16);
-}
-
 .docker-images-card--selection-mode {
   cursor: pointer;
 }
@@ -1306,37 +1302,6 @@ onUnmounted(() => {
 .docker-images-card__primary > strong {
   color: var(--td-text-color-primary);
   font: var(--td-font-title-small);
-}
-
-.docker-images-card__details {
-  display: grid;
-  gap: var(--graft-density-gap-10);
-  margin: 0;
-}
-
-.docker-images-card__details > div {
-  align-items: baseline;
-  display: grid;
-  gap: var(--graft-density-gap-8);
-  grid-template-columns: minmax(72px, auto) minmax(0, 1fr);
-  min-width: 0;
-}
-
-.docker-images-card__details dt,
-.docker-images-card__details dd {
-  margin: 0;
-  min-width: 0;
-}
-
-.docker-images-card__details dt {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-}
-
-.docker-images-card__details dd {
-  color: var(--td-text-color-primary);
-  font: var(--td-font-body-small);
-  overflow-wrap: anywhere;
 }
 
 .docker-images-detail {

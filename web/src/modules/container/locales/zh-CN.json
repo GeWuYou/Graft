@@ -707,8 +707,9 @@
         "subnetPlaceholder": "例如 172.28.0.0/16",
         "gateway": "IPv4 网关",
         "gatewayPlaceholder": "例如 172.28.0.1",
-        "subnetTip": "留空则由 Docker 自动分配子网。",
-        "gatewayTip": "留空则由 Docker 自动分配网关。",
+        "subnetTip": "子网和网关都留空时，由 Docker 自动分配。",
+        "gatewayTip": "网关可留空。填写时，网关必须位于所填子网内。",
+        "subnetRequired": "填写网关时，请先填写 IPv4 子网。",
         "sectionBasic": "基础信息",
         "sectionIpam": "IPAM 配置"
       }

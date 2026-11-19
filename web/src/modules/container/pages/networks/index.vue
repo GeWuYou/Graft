@@ -131,41 +131,46 @@
           }}</t-button>
         </t-space>
       </template>
-      <template #cards>
+      <template #cards="{ columns: cardColumns }">
         <t-loading :loading="networkQuery.isFetching.value">
           <responsive-card-list v-if="networks.length" class="docker-network-page__mobile-list">
-            <article v-for="row in networks" :key="row.id" class="docker-network-page__mobile-card">
-              <header class="docker-network-page__mobile-card-head">
-                <strong class="docker-network-page__mobile-card-name">{{ row.name }}</strong>
-                <t-tag :theme="relationshipPresentation(row.relationship_status).theme" size="small" variant="light">
-                  {{ relationshipPresentation(row.relationship_status).label }}
-                </t-tag>
-              </header>
-              <dl class="docker-network-page__mobile-card-details">
-                <div>
-                  <dt>{{ t('container.resourceContext.source') }}</dt>
-                  <dd>{{ sourceDescription(row) }}</dd>
+            <management-entity-card
+              v-for="row in networks"
+              :key="row.id"
+              :columns="cardColumns"
+              :fields="['context', 'containers']"
+              :row="row"
+              stacked
+            >
+              <template #header>
+                <header class="docker-network-page__mobile-card-head">
+                  <strong class="docker-network-page__mobile-card-name">{{ row.name }}</strong>
+                  <t-tag :theme="relationshipPresentation(row.relationship_status).theme" size="small" variant="light">
+                    {{ relationshipPresentation(row.relationship_status).label }}
+                  </t-tag>
+                </header>
+              </template>
+              <template #field-context>{{ sourceDescription(row) }}</template>
+              <template #field-containers>
+                <div v-if="row.container_references?.length" class="docker-network-page__container-list">
+                  <container-reference-list
+                    :references="row.container_references"
+                    :title="t('container.networks.connectedContainers')"
+                    @open="openContainerReference"
+                  />
                 </div>
-                <div>
-                  <dt>{{ t('container.resourceContext.containers') }}</dt>
-                  <dd v-if="row.container_references?.length" class="docker-network-page__container-list">
-                    <container-reference-list
-                      :references="row.container_references"
-                      :title="t('container.networks.connectedContainers')"
-                      @open="openContainerReference"
-                    />
-                  </dd>
-                  <dd v-else class="docker-network-page__muted">{{ relationEmptyLabel(row.relationship_status) }}</dd>
-                </div>
-              </dl>
-              <docker-resource-card-actions
-                :detail-label="t('container.networks.detail')"
-                :more-actions="networkActionOptions"
-                :more-label="t('container.list.actions.more')"
-                @detail="openDetail(row.id)"
-                @action="handleNetworkAction(row, $event)"
-              />
-            </article>
+                <span v-else class="docker-network-page__muted">{{ relationEmptyLabel(row.relationship_status) }}</span>
+              </template>
+              <template #actions>
+                <docker-resource-card-actions
+                  :detail-label="t('container.networks.detail')"
+                  :more-actions="networkActionOptions"
+                  :more-label="t('container.list.actions.more')"
+                  @detail="openDetail(row.id)"
+                  @action="handleNetworkAction(row, $event)"
+                />
+              </template>
+            </management-entity-card>
           </responsive-card-list>
           <t-empty
             v-else-if="!networkQuery.isFetching.value"
@@ -275,8 +280,15 @@
             :help="t('container.networks.form.subnetTip')"
             :label="t('container.networks.form.subnet')"
             name="subnet"
+            :required="Boolean(createForm.gateway.trim())"
+            :status="missingCreateSubnet ? 'error' : undefined"
+            :tips="missingCreateSubnet ? t('container.networks.form.subnetRequired') : undefined"
           >
-            <t-input v-model="createForm.subnet" :placeholder="t('container.networks.form.subnetPlaceholder')" />
+            <t-input
+              ref="createSubnetInput"
+              v-model="createForm.subnet"
+              :placeholder="t('container.networks.form.subnetPlaceholder')"
+            />
           </t-form-item>
           <t-form-item
             :help="t('container.networks.form.gatewayTip')"
@@ -458,6 +470,7 @@ import { CONTAINER_PERMISSION_CODE } from '@/contracts/generated/modules/contain
 import type { components } from '@/contracts/openapi/generated/schema';
 import {
   ManagementBatchBar,
+  ManagementEntityCard,
   ManagementListPage,
   type ManagementStatisticItem,
   TableViewToolbar,
@@ -565,6 +578,8 @@ const createForm = reactive({
   subnet: '',
   gateway: '',
 });
+const createSubnetInput = ref<{ focus: () => void } | null>(null);
+const missingCreateSubnet = computed(() => Boolean(createForm.gateway.trim() && !createForm.subnet.trim()));
 const queryConfig = computed<ResourceQueryConfig>(() => ({
   resource: 'docker-network.list',
   search: true,
@@ -822,10 +837,12 @@ async function submitCreate() {
     MessagePlugin.warning(t('container.networks.form.nameRequired'));
     return;
   }
-  const ipam =
-    createForm.subnet.trim() || createForm.gateway.trim()
-      ? { subnet: createForm.subnet.trim() || undefined, gateway: createForm.gateway.trim() || undefined }
-      : undefined;
+  if (missingCreateSubnet.value) {
+    createSubnetInput.value?.focus();
+    return;
+  }
+  const subnet = createForm.subnet.trim();
+  const ipam = subnet ? { subnet, gateway: createForm.gateway.trim() || undefined } : undefined;
   const body: DockerNetworkCreateRequest = {
     name: createForm.name.trim(),
     driver: createForm.driver,
@@ -1039,17 +1056,6 @@ async function submitBatchRemove() {
   font: var(--td-font-body-small);
 }
 
-.docker-network-page__mobile-card {
-  background: var(--td-bg-color-container);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  box-shadow: var(--td-shadow-1);
-  display: grid;
-  gap: var(--graft-density-gap-16);
-  min-width: 0;
-  padding: var(--graft-density-gap-16);
-}
-
 .docker-network-page__mobile-card-head {
   align-items: flex-start;
   display: flex;
@@ -1066,29 +1072,6 @@ async function submitBatchRemove() {
 
 .docker-network-page__mobile-card-head :deep(.t-tag) {
   flex: 0 0 auto;
-}
-
-.docker-network-page__mobile-card-details {
-  display: grid;
-  gap: var(--graft-density-gap-16);
-  margin: 0;
-}
-
-.docker-network-page__mobile-card-details > div {
-  display: grid;
-  gap: var(--graft-density-gap-4);
-}
-
-.docker-network-page__mobile-card-details dt {
-  color: var(--td-text-color-secondary);
-  font: var(--td-font-body-small);
-}
-
-.docker-network-page__mobile-card-details dd {
-  color: var(--td-text-color-primary);
-  margin: 0;
-  min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 @media (width < 768px) {

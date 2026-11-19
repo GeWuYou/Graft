@@ -1,5 +1,12 @@
 # Responsive Architecture Governance Trace
 
+## 2026-11-19 B6-column-driven-table-card-conversion
+
+- ManagementPagedTable 的卡片槽提供原始列定义，ManagementEntityCard 以语义列键排序并复用表头文案。Docker 四页保留自身的字段格式、详情、选择与权限动作。
+- 容器列表使用共享统计条，窄端空态复用现有筛选清除动作。保留桌面表格或卡片偏好。
+- 镜像、卷、容器列表的抽屉及警告归入页面根节点。网络表单关联子网和网关，填写网关时标记并聚焦必填子网。
+- 主检出区负责浏览器宽度与路由过渡验收。
+
 ## 2026-11-19 B5-docker-list-page-convergence
 
 - 新增 `web/src/shared/components/management/ManagementListPage.vue`：Docker 列表页共享骨架，只收敛 header、统计条、筛选面板、反馈与内容槽的顺序和节奏；列定义、查询状态、分页语义与业务操作仍由页面拥有。

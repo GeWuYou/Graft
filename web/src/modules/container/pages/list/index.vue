@@ -7,10 +7,10 @@
     :description="t('container.list.description')"
     description-key="container.list.description"
     :source="{ labelKey: 'container.list.eyebrow', fallback: t('container.list.eyebrow') }"
+    :stats-items="containerStatistics"
+    :stats-label="t('container.list.tableSummary', { count: listTotal })"
+    stats-layout="chips"
   >
-    <template #statistics>
-      <container-stats :items="containerStatistics" :label="t('container.list.tableSummary', { count: listTotal })" />
-    </template>
     <template #filters>
       <resource-query-panel
         v-model="resourceQueryState"
@@ -161,44 +161,44 @@
         </t-button>
       </template>
     </container-list>
+
+    <advanced-query-column-drawer
+      v-model:visible="columnDrawerVisible"
+      v-model:selected-keys="visibleColumnKeys"
+      :columns="columnSettingOptions"
+      :default-selected-keys="DEFAULT_VISIBLE_COLUMNS"
+      :disabled-keys="ALWAYS_VISIBLE_COLUMNS"
+      :reset-label="t('container.list.resetColumns')"
+      :title="t('container.list.columnSettings')"
+    />
+
+    <task-detail-drawer
+      :visible="lifecycleTaskDrawerVisible"
+      :task-id="lifecycleTaskId"
+      :resolve-task-type="resolveLifecycleTaskType"
+      @update:visible="lifecycleTaskDrawerVisible = $event"
+    />
+
+    <t-alert
+      v-if="batchTaskEntries.length"
+      class="container-batch-tasks"
+      theme="info"
+      :title="t('container.list.batch.tasksTitle')"
+    >
+      <div class="container-batch-tasks__list">
+        <t-button
+          v-for="entry in batchTaskEntries"
+          :key="entry.taskId"
+          class="container-batch-tasks__item"
+          variant="text"
+          theme="primary"
+          @click="openLifecycleTask(entry.taskId)"
+        >
+          {{ t('container.list.batch.taskEntry', { action: actionLabel(entry.action), id: entry.containerId }) }}
+        </t-button>
+      </div>
+    </t-alert>
   </management-list-page>
-
-  <advanced-query-column-drawer
-    v-model:visible="columnDrawerVisible"
-    v-model:selected-keys="visibleColumnKeys"
-    :columns="columnSettingOptions"
-    :default-selected-keys="DEFAULT_VISIBLE_COLUMNS"
-    :disabled-keys="ALWAYS_VISIBLE_COLUMNS"
-    :reset-label="t('container.list.resetColumns')"
-    :title="t('container.list.columnSettings')"
-  />
-
-  <task-detail-drawer
-    :visible="lifecycleTaskDrawerVisible"
-    :task-id="lifecycleTaskId"
-    :resolve-task-type="resolveLifecycleTaskType"
-    @update:visible="lifecycleTaskDrawerVisible = $event"
-  />
-
-  <t-alert
-    v-if="batchTaskEntries.length"
-    class="container-batch-tasks"
-    theme="info"
-    :title="t('container.list.batch.tasksTitle')"
-  >
-    <div class="container-batch-tasks__list">
-      <t-button
-        v-for="entry in batchTaskEntries"
-        :key="entry.taskId"
-        class="container-batch-tasks__item"
-        variant="text"
-        theme="primary"
-        @click="openLifecycleTask(entry.taskId)"
-      >
-        {{ t('container.list.batch.taskEntry', { action: actionLabel(entry.action), id: entry.containerId }) }}
-      </t-button>
-    </div>
-  </t-alert>
 </template>
 <script setup lang="ts">
 import type { DialogInstance } from 'tdesign-vue-next';
@@ -217,7 +217,12 @@ import { resolveComposeApplicationReferences } from '@/modules/project/contract/
 import { listRuntimeTargets, type RuntimeTarget } from '@/modules/runtime-target/api/runtime-target';
 import { isTerminalTaskStatus, observeTask, type TaskObserver } from '@/modules/task/contract/task-observer';
 import { TaskDetailDrawer } from '@/modules/task/contract/task-ui';
-import { ManagementBatchBar, ManagementListPage, TableViewToolbar } from '@/shared/components/management';
+import {
+  ManagementBatchBar,
+  ManagementListPage,
+  type ManagementStatisticItem,
+  TableViewToolbar,
+} from '@/shared/components/management';
 import {
   type ResourceQueryConfig,
   ResourceQueryPanel,
@@ -273,7 +278,6 @@ import type {
   ContainerSummaryRecord,
 } from '../../types/container';
 import ContainerList from './ContainerList.vue';
-import ContainerStats from './ContainerStats.vue';
 
 defineOptions({
   name: 'ContainerListIndex',
@@ -459,12 +463,12 @@ const runningCount = computed(() => listSummary.value?.running ?? 0);
 const stoppedCount = computed(() => listSummary.value?.stopped ?? 0);
 const errorCount = computed(() => listSummary.value?.error ?? 0);
 const unhealthyCount = computed(() => listSummary.value?.unhealthy ?? 0);
-const containerStatistics = computed(() => [
-  { label: t('container.list.totalLabel'), theme: 'default' as const, value: totalCount.value },
-  { label: t('container.list.runningLabel'), theme: 'success' as const, value: runningCount.value },
-  { label: t('container.list.stoppedLabel'), theme: 'warning' as const, value: stoppedCount.value },
-  { label: t('container.list.errorLabel'), theme: 'danger' as const, value: errorCount.value },
-  { label: t('container.list.unhealthyLabel'), theme: 'danger' as const, value: unhealthyCount.value },
+const containerStatistics = computed<ManagementStatisticItem[]>(() => [
+  { label: t('container.list.totalLabel'), tone: 'default', value: totalCount.value },
+  { label: t('container.list.runningLabel'), tone: 'success', value: runningCount.value },
+  { label: t('container.list.stoppedLabel'), tone: 'warning', value: stoppedCount.value },
+  { label: t('container.list.errorLabel'), tone: 'danger', value: errorCount.value },
+  { label: t('container.list.unhealthyLabel'), tone: 'danger', value: unhealthyCount.value },
 ]);
 const tableDensityLabel = computed(() =>
   tableDensity.value === 'medium' ? t('container.list.compactDensity') : t('container.list.defaultDensity'),
