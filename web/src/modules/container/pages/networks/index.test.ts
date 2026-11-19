@@ -36,6 +36,12 @@ describe('Docker network management page', () => {
     expect(sourceText).not.toContain('window.alert');
   });
 
+  it('keeps the create drawer within the viewport and above fixed navigation', () => {
+    const drawer = sourceText.match(/<t-drawer\s+v-model:visible="createDrawerVisible"[^>]*>/)?.[0];
+    expect(drawer).toContain('attach="body"');
+    expect(drawer).toContain('size="min(600px, 100vw)"');
+  });
+
   it('asks for the subnet before submitting an explicit gateway', () => {
     expect(sourceText).toContain('createForm.gateway.trim() && !createForm.subnet.trim()');
     expect(sourceText).toMatch(

@@ -247,7 +247,8 @@
     <t-drawer
       v-model:visible="createDrawerVisible"
       :header="t('container.networks.createTitle')"
-      size="600px"
+      attach="body"
+      size="min(600px, 100vw)"
       destroy-on-close
     >
       <t-form class="docker-network-page__create-form" :data="createForm" label-align="top">
