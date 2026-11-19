@@ -46,8 +46,8 @@ closeout:
 
 ## Current Recovery Point
 
-- Current batch: PR 3 implementation on branch `chore/validation-ci-discipline`, committed and awaiting lead integration.
-- Completed: evidence reuse slice, check suite + CI impact slice, workflow discipline slice, documentation update.
+- Current batch: PR 3 implementation plus correction 1 (CI contract governance P0 and Greptile findings) on branch `chore/validation-ci-discipline`, committed and awaiting lead integration.
+- Completed: evidence reuse, check suite + CI impact, workflow discipline, documentation, and the correction batch (gh api cross-check, restored check-governance, derived-test evidence binding, suite stdout/artifact hardening).
 - Pending: observe one real pull-request run with the extended summary verification after integration and push.
 - Risk: `kind: optimize` extends the ADR-003 v1 documented kind vocabulary; the ADR owner should reconcile the vocabulary in a later governance batch.
 
