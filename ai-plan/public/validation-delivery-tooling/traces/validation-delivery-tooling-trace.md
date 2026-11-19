@@ -9,19 +9,17 @@
 - Workflow: grouped jobs; `web-check` timeout; `Required checks passed` needs every other job and verifies every job of the current run/attempt/SHA via the Actions API with only the push-event Secret Scan skip allowed; job names unchanged; push runs never cancelled.
 - Commits (base 270c2fb3c): 2edcdc3f6, 7902543de, 2e0cc9734, c621ce40c. The lead pushes and integrates.
 
-## 2026-11-20 Correction 1 (contract governance P0 + Greptile findings)
+## 2026-11-20 Corrections 1-2 (cross-check hardening)
 
-- P0: cross-check step hard-coded an `Authorization` header literal; rewritten onto `gh api` with `GITHUB_TOKEN` from the environment. Branch-scoped scan (`GITHUB_BASE_REF=main`) reports scanned_files=7 with no active findings; tests forbid `Authorization`/`Bearer` literals and pin the gh path.
-- P1: restored the `check-governance` body an earlier edit had left empty, so `just check` keeps the validators, Python tests, and Turbo tests; list extended with the two new tool test modules.
-- P1: derived python/node consumer tests were omitted from digests/selection; now bound, with round-trip tests.
-- P2: `--json` keeps stdout as pure report JSON (progress/summary on stderr); external absolute `--artifacts-dir` no longer crashes report-path resolution.
-- Tooling note: just 1.57.0 swallows bare `var=...` lines in `[positional-arguments]` recipes; recipes use `"$1"` and `"${@:2}"`.
-- Commits: 8cb4d491c, 8bc145d60, d6b912342, 8977741a0. Validation: 100 tests across nine script modules OK; actionlint clean; scanner clean; plan/verify round trip green; `check-governance` runs its gates and stops only at this worktree's missing `node_modules` (`just setup`).
+- Correction 1: cross-check rewritten from a hard-coded `Authorization` header onto `gh api` with `GITHUB_TOKEN`; restored the emptied `check-governance` recipe; bound derived python/node consumer tests into digests/selection; fixed `--json` stdout purity and external `--artifacts-dir` resolution. Commits: 8cb4d491c, 8bc145d60, d6b912342, 8977741a0.
+- Correction 2: `gh api` with field flags defaults to POST and the jobs-list endpoint only supports GET, so the cross-check failed with HTTP 404 on run 44589471488; pinned `--method GET` with `-f` fields, semantics unchanged; regression test pins GET and forbids `-F`. Commit 56f7df274. Re-posted check-governance finding disposed `stale`.
+- Severity split, tooling notes and validation evidence: summarized in the tracking file, full text in this trace's git history.
 
-## 2026-11-20 Correction 2 (gh api method pin; stale finding disposition)
+## 2026-11-20 Correction 3 (PR head SHA binding)
 
-- Confirmed by CI: `gh api` switches to POST when field flags are present, and the Actions jobs-list endpoint only supports GET, so the cross-check failed with `gh: Not Found (HTTP 404)` on run 44589471488. Fixed by pinning `--method GET` with `-f` query fields; pagination, run/attempt/SHA binding, the push-event Secret Scan skip, and fail-closed behavior unchanged. Verified locally against the failed run: the old shape returns HTTP 404, the fixed shape returns the run's 14 jobs including the summary job with the correct head SHA. Regression test pins `--method GET`, forbids `-F` on this call, and asserts the query fields. Commit 56f7df274.
-- Disposition: `stale` — Greptile P1 re-posted "check-governance now has no commands" was already fixed in correction 1 (8bc145d60): `just -n check-governance` on HEAD shows the full body (three validators, the extended Python test bundle, and the Turbo tests), and the lead verified the restored recipe. No repair made; the Justfile is untouched by this correction.
+- Confirmed by CI: on pull_request events `github.sha` is the merge commit (3652e9e33) while every job's `head_sha` in the Actions jobs-list is the PR branch head (763b05fdd), so the `job.head_sha != HEAD_SHA` check failed for all 13 jobs (run 44592526857).
+- Fixed: `HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}` — PR head on pull_request events, `github.sha` otherwise; GET with `-f` fields, conclusion==success, push-only Secret Scan skip, fail-closed behavior and the summary-job exclusion unchanged. Regression test pins the binding and the fallback.
+- Disposition: fixed. Commit: ae83ae328 (fix). Validation: nine-module bundle 100 tests OK; actionlint clean; heredoc compile check clean.
 
 ## Next Steps
 

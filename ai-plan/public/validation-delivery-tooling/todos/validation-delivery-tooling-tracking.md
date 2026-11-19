@@ -46,9 +46,9 @@ closeout:
 
 ## Current Recovery Point
 
-- Current batch: PR 3 implementation plus correction 1 (CI contract governance P0 and Greptile findings) on branch `chore/validation-ci-discipline`, committed and awaiting lead integration.
-- Completed: evidence reuse, check suite + CI impact, workflow discipline, documentation, and the correction batch (gh api cross-check, restored check-governance, derived-test evidence binding, suite stdout/artifact hardening).
-- Pending: observe one real pull-request run with the extended summary verification after integration and push.
+- Current batch: correction 3 (PR head SHA binding in the summary cross-check) committed on `chore/validation-ci-discipline`, awaiting lead integration.
+- Completed: evidence reuse, check suite + CI impact, workflow discipline, documentation, and corrections 1-2 (cross-check hardening, GET pin).
+- Pending: observe one real pull-request run after integration and push.
 - Risk: `kind: optimize` extends the ADR-003 v1 documented kind vocabulary; the ADR owner should reconcile the vocabulary in a later governance batch.
 
 ## Task Checklist
@@ -70,3 +70,7 @@ closeout:
 - `scripts/ci_impact.py` forces FULL for unknown paths and shared surfaces and always includes hygiene and summary jobs in subsets.
 - The pull-request summary fails on any job that is not successful for the current run, attempt and SHA, except the documented push-event Secret Scan skip; required check names are unchanged.
 - `actionlint` passes on the modified workflow and unit tests cover the changed script behavior.
+
+## Correction Detail
+
+- Correction 1-2 specifics (severity split, just positional-args quirk, run 44589471488 repro, stale finding) live in trace history at 8977741a0/763b05fdd.
