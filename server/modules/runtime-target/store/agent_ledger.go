@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -15,9 +16,18 @@ const agentLedgerReceiptMaxLifetime = 5 * time.Minute
 const agentLedgerImplementationVersionMaxLength = 255
 const agentLedgerDiagnosticCodeMaxLength = 64
 
+// Agent 遥测回执的稳定 Diagnostic 分类；claim admission 三态与既有健康语义并存，
+// 且会被 Runtime Target 的就绪投影消费，故保持导出。
 const (
 	agentLedgerDiagnosticCodeUnavailable = "unavailable"
 	agentLedgerDiagnosticCodeDegraded    = "degraded"
+
+	// AgentLedgerDiagnosticNoWork 表示 Agent 存活但当前没有可领取的外部执行工作。
+	AgentLedgerDiagnosticNoWork = "no_work"
+	// AgentLedgerDiagnosticIdentityRejected 表示最近一次领取被目标绑定或身份校验拒绝。
+	AgentLedgerDiagnosticIdentityRejected = "identity_rejected"
+	// AgentLedgerDiagnosticTransportFailed 表示最近一次领取因网络、超时或服务端故障失败。
+	AgentLedgerDiagnosticTransportFailed = "transport_failed"
 )
 
 // AgentLedgerIdentity 是由 mTLS listener 提供并由 Runtime Target 再次核验的身份与证书证据。
@@ -110,7 +120,8 @@ func (r *SQLRepository) RecordAgentTelemetryReceipt(ctx context.Context, identit
 // ListActiveDockerAgentLedgerSnapshots projects only fresh, consumed ledger receipts
 // from the current active Docker Agent generation. It is the sole scheduling read
 // path for Builder telemetry; legacy telemetry rows and host/provider metrics stay
-// outside this boundary.
+// outside this boundary. An idle agent reports the bounded no_work admission class
+// and remains schedulable.
 //
 //nolint:cyclop // 动态账本投影必须在一个边界内限制目标集合、活动世代和每目标最新回执。
 func (r *SQLRepository) ListActiveDockerAgentLedgerSnapshots(ctx context.Context, targetIDs []int64, now time.Time) ([]AgentLedgerSnapshot, error) {
@@ -144,7 +155,7 @@ WHERE i.runtime_target_id IN (` + strings.Join(placeholders, ",") + `)
   AND i.provider_id = 'docker'
   AND g.status = 'active' AND g.expires_at > $` + fmt.Sprint(len(args)) + `
   AND s.consumed_at IS NOT NULL AND s.receipt_available = true
-  AND s.receipt_diagnostic = '' AND s.receipt_expires_at > $` + fmt.Sprint(len(args)) + `
+  AND s.receipt_diagnostic IN ('', '` + AgentLedgerDiagnosticNoWork + `') AND s.receipt_expires_at > $` + fmt.Sprint(len(args)) + `
   AND s.deleted_at = 0 AND g.deleted_at = 0 AND i.deleted_at = 0
 ORDER BY i.runtime_target_id ASC, s.sequence DESC`
 	rows, err := r.executor(ctx).QueryContext(ctx, query, args...)
@@ -178,6 +189,37 @@ ORDER BY i.runtime_target_id ASC, s.sequence DESC`
 func validAgentLedgerIdentity(identity AgentLedgerIdentity) bool {
 	return identity.TargetID > 0 && strings.TrimSpace(identity.AgentID) != "" && identity.Generation > 0 && strings.TrimSpace(identity.CertificateSerial) != "" && strings.TrimSpace(identity.PublicKeyFingerprint) != ""
 }
+
+// AgentLedgerReceiptDiagnostic 是最新新鲜回执的受限 claim admission 证据投影。
+type AgentLedgerReceiptDiagnostic struct {
+	Diagnostic string
+	ObservedAt time.Time
+}
+
+// ReadLatestAgentLedgerReceiptDiagnostic returns the most recent consumed receipt
+// diagnostic of the active Docker Agent generation for one target. The second
+// return value is false when no fresh receipt exists yet.
+func (r *SQLRepository) ReadLatestAgentLedgerReceiptDiagnostic(ctx context.Context, targetID int64, now time.Time) (AgentLedgerReceiptDiagnostic, bool, error) {
+	if r == nil || r.db == nil || targetID < 1 || now.IsZero() {
+		return AgentLedgerReceiptDiagnostic{}, false, nil
+	}
+	var receipt AgentLedgerReceiptDiagnostic
+	err := r.db.QueryRowContext(ctx, `SELECT s.receipt_diagnostic, s.receipt_observed_at
+FROM runtime_target_agent_ledger_snapshots s
+INNER JOIN runtime_target_agent_generations g ON g.id = s.generation_id
+INNER JOIN runtime_target_agent_identities i ON i.id = g.identity_id
+WHERE i.runtime_target_id = $1 AND i.provider_id = 'docker' AND g.status = 'active'
+  AND s.consumed_at IS NOT NULL AND s.receipt_expires_at > $2
+  AND s.deleted_at = 0 AND g.deleted_at = 0 AND i.deleted_at = 0
+ORDER BY s.sequence DESC LIMIT 1`, targetID, now.UTC()).Scan(&receipt.Diagnostic, &receipt.ObservedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return AgentLedgerReceiptDiagnostic{}, false, nil
+	}
+	if err != nil {
+		return AgentLedgerReceiptDiagnostic{}, false, fmt.Errorf("read latest agent ledger receipt diagnostic: %w", err)
+	}
+	return receipt, true, nil
+}
 func validAgentLedgerSnapshotID(value string) bool { return validSHA256Hex(value) }
 func validAgentTelemetryReceipt(receipt AgentTelemetryReceiptInput, now time.Time) bool {
 	return validAgentLedgerSnapshotID(receipt.SnapshotID) && validSHA256Hex(receipt.SnapshotDigest) && !receipt.ObservedAt.IsZero() && receipt.ExpiresAt.After(receipt.ObservedAt) && receipt.ExpiresAt.After(now) && !receipt.ExpiresAt.After(now.Add(agentLedgerReceiptMaxLifetime)) && len(strings.TrimSpace(receipt.ImplementationVersion)) <= agentLedgerImplementationVersionMaxLength && validAgentLedgerDiagnosticCode(receipt.Diagnostic)
@@ -189,7 +231,8 @@ func validAgentLedgerDiagnosticCode(value string) bool {
 		return false
 	}
 	switch value {
-	case "", agentLedgerDiagnosticCodeUnavailable, agentLedgerDiagnosticCodeDegraded:
+	case "", agentLedgerDiagnosticCodeUnavailable, agentLedgerDiagnosticCodeDegraded,
+		AgentLedgerDiagnosticNoWork, AgentLedgerDiagnosticIdentityRejected, AgentLedgerDiagnosticTransportFailed:
 		return true
 	default:
 		return false

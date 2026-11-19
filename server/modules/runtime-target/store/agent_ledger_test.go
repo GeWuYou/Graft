@@ -84,6 +84,47 @@ func TestAgentTelemetryReceiptRejectsArbitraryDiagnosticText(t *testing.T) {
 	if !validAgentTelemetryReceipt(receipt, now) {
 		t.Fatal("stable diagnostic code rejected")
 	}
+	for _, diagnostic := range []string{AgentLedgerDiagnosticNoWork, AgentLedgerDiagnosticIdentityRejected, AgentLedgerDiagnosticTransportFailed} {
+		receipt.Diagnostic = diagnostic
+		if !validAgentTelemetryReceipt(receipt, now) {
+			t.Fatalf("claim admission diagnostic %q rejected", diagnostic)
+		}
+	}
+}
+
+func TestReadLatestAgentLedgerReceiptDiagnosticReturnsFreshEvidence(t *testing.T) {
+	db := openAgentLedgerTestDB(t)
+	repository := NewSQLRepository(db)
+	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
+	identity := testAgentTrustIdentity()
+	if _, err := repository.CreatePendingAgentTrustGeneration(context.Background(), identity, testPendingAgentTrustGeneration(1, now.Add(time.Hour))); err != nil {
+		t.Fatalf("create generation: %v", err)
+	}
+	if err := repository.ActivateAgentTrustGeneration(context.Background(), identity.TargetID, identity.AgentID, 1, "vault", "serial-1", "sha256:key-1", 0, now); err != nil {
+		t.Fatalf("activate generation: %v", err)
+	}
+	if err := repository.EnsureBuilderAgentLedger(context.Background(), identity.TargetID, identity.AgentID, 2); err != nil {
+		t.Fatalf("ensure execution ledger: %v", err)
+	}
+	mtlsIdentity := AgentLedgerIdentity{IdentityID: identity.IdentityID, TargetID: identity.TargetID, AgentID: identity.AgentID, Generation: 1, CertificateSerial: "serial-1", PublicKeyFingerprint: "sha256:key-1"}
+	if _, found, err := repository.ReadLatestAgentLedgerReceiptDiagnostic(context.Background(), identity.TargetID, now); found || err != nil {
+		t.Fatalf("receipt before telemetry = found=%v err=%v", found, err)
+	}
+	snapshot, err := repository.IssueAgentLedgerSnapshot(context.Background(), mtlsIdentity, testAgentLedgerSnapshotID(), now, now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("issue ledger snapshot: %v", err)
+	}
+	receipt := AgentTelemetryReceiptInput{SnapshotID: snapshot.SnapshotID, SnapshotDigest: snapshot.SnapshotDigest, ObservedAt: now, ExpiresAt: now.Add(3 * time.Minute), Available: true, ImplementationVersion: "v1", Diagnostic: AgentLedgerDiagnosticIdentityRejected}
+	if err := repository.RecordAgentTelemetryReceipt(context.Background(), mtlsIdentity, receipt, now.Add(time.Second)); err != nil {
+		t.Fatalf("record identity-rejected receipt: %v", err)
+	}
+	projected, found, err := repository.ReadLatestAgentLedgerReceiptDiagnostic(context.Background(), identity.TargetID, now.Add(2*time.Second))
+	if err != nil || !found || projected.Diagnostic != AgentLedgerDiagnosticIdentityRejected || !projected.ObservedAt.Equal(now) {
+		t.Fatalf("latest receipt diagnostic = %#v found=%v err=%v", projected, found, err)
+	}
+	if _, found, err := repository.ReadLatestAgentLedgerReceiptDiagnostic(context.Background(), identity.TargetID, receipt.ExpiresAt.Add(time.Second)); found || err != nil {
+		t.Fatalf("expired receipt diagnostic = found=%v err=%v", found, err)
+	}
 }
 
 func testAgentLedgerSnapshotID() string {
