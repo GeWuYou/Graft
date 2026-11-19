@@ -100,6 +100,11 @@ ci-impact *args:
     python3 -B scripts/ci_impact.py "$@"
 
 check-governance:
+    python3 -B scripts/validate_ai_governance.py
+    python3 -B scripts/validate_ai_plan_structure.py
+    python3 -B scripts/validate_shared_asset_registries.py
+    python3 -B -m unittest scripts/test_local_validation.py scripts/test_governance_workflow.py scripts/test_ci_runtime_artifacts.py scripts/test_build_runtime_acceptance.py scripts/test_check_suite.py scripts/test_ci_impact.py
+    node --test scripts/test-turbo.mjs
 
 lint:
     just lint-server

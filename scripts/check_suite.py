@@ -18,6 +18,7 @@ import signal
 import subprocess
 import sys
 import time
+from typing import TextIO
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DEADLINE_SECONDS = 3600
@@ -48,7 +49,9 @@ GROUPS: dict[str, tuple[SuiteCheck, ...]] = {
                      "scripts/test_local_validation.py",
                      "scripts/test_governance_workflow.py",
                      "scripts/test_ci_runtime_artifacts.py",
-                     "scripts/test_build_runtime_acceptance.py"]),
+                     "scripts/test_build_runtime_acceptance.py",
+                     "scripts/test_check_suite.py",
+                     "scripts/test_ci_impact.py"]),
             group="governance",
         ),
         SuiteCheck("turbo-tests", ["node", "--test", "scripts/test-turbo.mjs"], group="governance"),
@@ -135,7 +138,9 @@ def run_checks(
     deadline_seconds: float,
     artifacts_dir: Path | None,
     requested_groups: list[str],
+    progress: TextIO | None = None,
 ) -> tuple[int, dict]:
+    progress = progress if progress is not None else sys.stdout
     started = time.monotonic()
     deadline_at = started + deadline_seconds
     results: list[dict] = []
@@ -161,7 +166,7 @@ def run_checks(
                 "name": check.name, "group": check.group, "status": "failed", "exit": None,
                 "seconds": 0.0, "reason": "suite deadline exceeded before the check started",
             })
-            print(f"DEADLINE {check.group}/{check.name}", flush=True)
+            print(f"DEADLINE {check.group}/{check.name}", file=progress, flush=True)
             continue
         dependency_failure = next(
             (name for name in check.requires if statuses.get(name) != "passed"),
@@ -173,9 +178,9 @@ def run_checks(
                 "name": check.name, "group": check.group, "status": "skipped", "exit": None,
                 "seconds": 0.0, "reason": f"dependency {dependency_failure} did not pass",
             })
-            print(f"SKIP {check.group}/{check.name} (dependency {dependency_failure})", flush=True)
+            print(f"SKIP {check.group}/{check.name} (dependency {dependency_failure})", file=progress, flush=True)
             continue
-        print(f"RUN {check.group}/{check.name}", flush=True)
+        print(f"RUN {check.group}/{check.name}", file=progress, flush=True)
         check_started = time.monotonic()
         status = "passed"
         reason = None
@@ -213,7 +218,7 @@ def run_checks(
             "seconds": round(seconds, 2), "reason": reason,
         })
         marker = "PASS" if status == "passed" else status.upper()
-        print(f"{marker} {check.group}/{check.name} seconds={seconds:.2f}", flush=True)
+        print(f"{marker} {check.group}/{check.name} seconds={seconds:.2f}", file=progress, flush=True)
 
     failed = [item for item in results if item["status"] in ("failed", "timeout")]
     code = 1 if failed else 0
@@ -254,17 +259,19 @@ def write_gitignore(directory: Path) -> None:
         marker.write_text("*\n", encoding="utf-8")
 
 
-def print_summary(report: dict) -> None:
+def print_summary(report: dict, progress: TextIO | None = None) -> None:
+    progress = progress if progress is not None else sys.stdout
     summary = report["summary"]
     print(
         f"SUITE {summary['passed']} passed, {summary['failed']} failed, "
         f"{summary['skipped']} skipped, {summary['total']} total, "
         f"elapsed {report['elapsed_seconds']}s",
-        flush=True,
+        file=progress, flush=True,
     )
     for item in report["results"]:
         if item["status"] != "passed":
-            print(f"  {item['status'].upper()} {item['group']}/{item['name']}: {item['reason']}", flush=True)
+            print(f"  {item['status'].upper()} {item['group']}/{item['name']}: {item['reason']}",
+                  file=progress, flush=True)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -309,13 +316,17 @@ def main(argv: list[str] | None = None) -> int:
         artifacts_dir = Path(args.artifacts_dir)
         if not artifacts_dir.is_absolute():
             artifacts_dir = ROOT / artifacts_dir
+    progress = sys.stderr if args.json else sys.stdout
     code, report = run_checks(checks, ROOT, args.deadline_seconds, artifacts_dir,
-                              group_names or list(GROUPS))
+                              group_names or list(GROUPS), progress=progress)
     if artifacts_dir is not None:
         report_path = artifacts_dir / "suite-report.json"
         report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-        report["report"] = str(report_path.relative_to(ROOT))
-    print_summary(report)
+        try:
+            report["report"] = str(report_path.relative_to(ROOT))
+        except ValueError:
+            report["report"] = str(report_path)
+    print_summary(report, progress)
     if args.json:
         print(json.dumps(report, indent=2))
     return code

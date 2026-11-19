@@ -1,11 +1,14 @@
+import contextlib
+import io
 import json
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
-from scripts.check_suite import GROUPS, SuiteCheck, resolve_checks, run_checks
+from scripts.check_suite import GROUPS, SuiteCheck, main, print_summary, resolve_checks, run_checks
 
 
 class CheckSuiteTests(unittest.TestCase):
@@ -14,8 +17,8 @@ class CheckSuiteTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
 
-    def run_small_suite(self, checks, deadline=60.0, artifacts=None):
-        return run_checks(checks, self.root, deadline, artifacts, ["probe"])
+    def run_small_suite(self, checks, deadline=60.0, artifacts=None, **kwargs):
+        return run_checks(checks, self.root, deadline, artifacts, ["probe"], **kwargs)
 
     def test_all_groups_resolve_and_unknown_group_fails(self):
         checks = resolve_checks(list(GROUPS))
@@ -106,6 +109,40 @@ class CheckSuiteTests(unittest.TestCase):
             self.assertTrue(log.is_file())
             self.assertIn("hello-from-check", log.read_text())
             self.assertTrue((Path(artifacts) / ".gitignore").is_file())
+
+    def test_progress_lines_go_to_the_given_stream(self):
+        stream = io.StringIO()
+        code, report = self.run_small_suite(
+            [SuiteCheck("ok", ["true"], group="probe")], progress=stream,
+        )
+        self.assertEqual(code, 0)
+        self.assertIn("RUN probe/ok", stream.getvalue())
+        self.assertIn("PASS probe/ok", stream.getvalue())
+        print_summary(report, stream)
+        self.assertIn("SUITE 1 passed", stream.getvalue())
+
+    def test_main_json_stdout_is_pure_report_and_accepts_external_artifacts_dir(self):
+        with tempfile.TemporaryDirectory() as artifacts:
+            canned = {
+                "suite": "graft-check-suite",
+                "groups": ["governance"], "deadline_seconds": 10.0, "elapsed_seconds": 0.1,
+                "checks": [], "results": [], "logs": {},
+                "summary": {"passed": 1, "failed": 0, "skipped": 0, "total": 1},
+            }
+            with patch("scripts.check_suite.run_checks", return_value=(0, canned)) as run:
+                stdout = io.StringIO()
+                stderr = io.StringIO()
+                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                    code = main(["--groups", "governance", "--json",
+                                 "--artifacts-dir", artifacts, "--deadline-seconds", "10"])
+            self.assertEqual(code, 0)
+            parsed = json.loads(stdout.getvalue())
+            self.assertEqual(parsed["summary"]["total"], 1)
+            self.assertEqual(parsed["report"], str(Path(artifacts) / "suite-report.json"))
+            self.assertTrue((Path(artifacts) / "suite-report.json").is_file())
+            self.assertIn("SUITE 1 passed", stderr.getvalue())
+            self.assertNotIn("SUITE", stdout.getvalue())
+            self.assertIsNotNone(run.call_args.kwargs.get("progress"))
 
     def test_dry_run_main_lists_plan_without_executing(self):
         from scripts.check_suite import main
