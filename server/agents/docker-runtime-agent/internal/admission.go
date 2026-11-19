@@ -24,8 +24,14 @@ const (
 const (
 	admissionStateFile           = "admission.json"
 	admissionTelemetryMinSpacing = 30 * time.Second
+	// admissionTelemetryRefreshInterval 重报同值结论的间隔；必须小于后端回执的最长新鲜窗口，
+	// 否则持续的传输失败会在回执过期后被误读为就绪。
+	admissionTelemetryRefreshInterval = 2 * time.Minute
+	// admissionPersistenceInterval 是持续结论刷新本地状态文件时间戳的有界间隔；
+	// 必须小于 admissionHealthcheckWindow，持续拒绝才会一直让本地 readiness 失败。
+	admissionPersistenceInterval = 30 * time.Second
 	// admissionHealthcheckWindow 决定 identity_rejected 是否仍代表当前状态；
-	// 默认轮询远小于该窗口，持续被拒的 Agent 会不断刷新时间戳。
+	// 持续被拒的 Agent 按 admissionPersistenceInterval 刷新时间戳。
 	admissionHealthcheckWindow = time.Minute
 )
 
@@ -49,11 +55,13 @@ func (e *claimAdmissionError) Unwrap() error { return e.err }
 // admissionTracker 保存进程内最近领取状态，并在变化时持久化到 Agent 私有状态目录，
 // 使 healthcheck 与离线诊断可以读取同一份 admission 事实。
 type admissionTracker struct {
-	mu        sync.Mutex
+	mu sync.Mutex
+	// dir 为空表示禁用持久化；current/reported/lastSent 仍按进程内语义工作。
 	dir       string
 	current   claimAdmission
 	reported  claimAdmission
 	lastSent  time.Time
+	persisted time.Time
 	validNow  func() time.Time
 	loadError error
 }
@@ -62,25 +70,30 @@ func newAdmissionTracker(dir string) *admissionTracker {
 	tracker := &admissionTracker{dir: dir, validNow: time.Now}
 	if admission, err := loadAdmissionState(dir); err == nil {
 		tracker.current = admission
+		tracker.persisted = admission.At
 	} else {
 		tracker.loadError = err
 	}
 	return tracker
 }
 
-// observe 记录最近一次领取结论；分类或状态变化时写入 admission 状态文件。
+// observe 记录最近一次领取结论。分类或状态变化立即落盘；持续存在的非空结论按
+// 有界间隔刷新落盘时间戳，保证本地 healthcheck 不会把持续拒绝误读为过期状态。
 func (t *admissionTracker) observe(class claimAdmissionClass, status int) {
 	if t == nil {
 		return
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	next := claimAdmission{Class: class, HTTPStatus: status, At: t.validNow().UTC()}
+	now := t.validNow().UTC()
+	next := claimAdmission{Class: class, HTTPStatus: status, At: now}
 	unchanged := t.current.Class == next.Class && t.current.HTTPStatus == next.HTTPStatus
 	t.current = next
-	if unchanged {
+	if unchanged && (class == "" || now.Sub(t.persisted) < admissionPersistenceInterval) {
+		// 空结论没有可刷新的本地事实；未变化的拒绝结论等待有界刷新间隔。
 		return
 	}
+	t.persisted = now
 	if err := saveAdmissionState(t.dir, next); err != nil {
 		t.loadError = err
 	}
@@ -94,12 +107,14 @@ func (t *admissionTracker) clear() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.current = claimAdmission{}
+	t.persisted = time.Time{}
 	if err := removeAdmissionState(t.dir); err != nil {
 		t.loadError = err
 	}
 }
 
-// shouldReport 预览当前 admission 是否应当随遥测上报；同值去重并限制最小上报间隔。
+// shouldReport 预览当前 admission 是否应当随遥测上报。变化结论使用最短上报间隔防抖；
+// 同值结论按更长的刷新间隔重报，让后端在旧回执过期前拿到新鲜证据。
 // 拒绝状态恢复为空时同样上报一次，让后端的新鲜回执尽快替换过期拒绝证据。
 // 去重状态只在遥测成功后由 commitReport 推进，失败的提交会在下一轮重试。
 func (t *admissionTracker) shouldReport() (claimAdmission, bool) {
@@ -109,10 +124,11 @@ func (t *admissionTracker) shouldReport() (claimAdmission, bool) {
 	if t.current.Class == "" {
 		return claimAdmission{}, t.reported.Class != ""
 	}
+	minSpacing := admissionTelemetryMinSpacing
 	if t.reported.Class == t.current.Class && t.reported.HTTPStatus == t.current.HTTPStatus {
-		return claimAdmission{}, false
+		minSpacing = admissionTelemetryRefreshInterval
 	}
-	if !t.lastSent.IsZero() && now.Sub(t.lastSent) < admissionTelemetryMinSpacing {
+	if !t.lastSent.IsZero() && now.Sub(t.lastSent) < minSpacing {
 		return claimAdmission{}, false
 	}
 	return t.current, true

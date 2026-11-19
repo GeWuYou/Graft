@@ -410,11 +410,12 @@ func ensureExecutionIdentity(ctx context.Context, c config, state persistedState
 	return refreshed, true
 }
 
+type claimResult struct {
+	lease executionLease
+	err   error
+}
+
 func pollExecutionCapabilities(ctx context.Context, client *http.Client, c config, state persistedState, tracker *admissionTracker) persistedState {
-	type claimResult struct {
-		lease executionLease
-		err   error
-	}
 	results := make(chan claimResult, len(c.Capabilities))
 	var claims sync.WaitGroup
 	for _, capability := range c.Capabilities {
@@ -429,13 +430,31 @@ func pollExecutionCapabilities(ctx context.Context, client *http.Client, c confi
 		claims.Wait()
 		close(results)
 	}()
+	cycle, admitted, identityRejected := collectClaimResults(ctx, client, c, results)
+	// 拒绝或传输失败优先记录；无工作不算失败，只要本轮证明过领取成功就清空遗留结论。
+	if claimAdmissionRank(cycle.Class) >= claimAdmissionBlockedRank || !admitted {
+		tracker.observe(cycle.Class, cycle.HTTPStatus)
+	} else {
+		tracker.clear()
+	}
+	reportAdmissionTelemetry(ctx, client, c, tracker)
+	if identityRejected.Load() {
+		return persistedState{}
+	}
+	return state
+}
+
+// collectClaimResults 汇合同一轮的并发领取结论，并启动已领取租约的执行。
+// 结论按拒绝 > 传输失败 > 无工作合并，避免后到的 204 掩盖已被拒绝的能力。
+func collectClaimResults(ctx context.Context, client *http.Client, c config, results <-chan claimResult) (claimAdmission, bool, *atomic.Bool) {
 	var executions sync.WaitGroup
 	var identityRejected atomic.Bool
+	var cycle claimAdmission
 	var admitted bool
 	for result := range results {
 		var admission *claimAdmissionError
-		if errors.As(result.err, &admission) {
-			tracker.observe(admission.class, admission.status)
+		if errors.As(result.err, &admission) && claimAdmissionRank(admission.class) > claimAdmissionRank(cycle.Class) {
+			cycle = claimAdmission{Class: admission.class, HTTPStatus: admission.status}
 		}
 		if errors.Is(result.err, errAgentIdentityRejected) {
 			identityRejected.Store(true)
@@ -454,14 +473,31 @@ func pollExecutionCapabilities(ctx context.Context, client *http.Client, c confi
 		}(result.lease)
 	}
 	executions.Wait()
-	if admitted {
-		tracker.clear()
+	return cycle, admitted, &identityRejected
+}
+
+const (
+	claimAdmissionRankUnset            = 0
+	claimAdmissionRankNoWork           = 1
+	claimAdmissionRankTransportFailed  = 2
+	claimAdmissionRankIdentityRejected = 3
+)
+
+// claimAdmissionBlockedRank 标记会阻断领取的结论等级；无工作不属于阻断状态。
+const claimAdmissionBlockedRank = claimAdmissionRankTransportFailed
+
+// claimAdmissionRank 决定同一轮并发领取结论的合并优先级。
+func claimAdmissionRank(class claimAdmissionClass) int {
+	switch class {
+	case claimAdmissionIdentityRejected:
+		return claimAdmissionRankIdentityRejected
+	case claimAdmissionTransportFailed:
+		return claimAdmissionRankTransportFailed
+	case claimAdmissionNoWork:
+		return claimAdmissionRankNoWork
+	default:
+		return claimAdmissionRankUnset
 	}
-	reportAdmissionTelemetry(ctx, client, c, tracker)
-	if identityRejected.Load() {
-		return persistedState{}
-	}
-	return state
 }
 
 // reportAdmissionTelemetry 在领取结论变化时提交一次受限遥测；

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -56,7 +57,7 @@ func TestClaimExecutionLeaseTransportFailureIsClassified(t *testing.T) {
 	}
 }
 
-func TestAdmissionTrackerDedupesAndRateLimitsReports(t *testing.T) {
+func TestAdmissionTrackerRateLimitsChangedAdmissionReports(t *testing.T) {
 	tracker := newAdmissionTracker(t.TempDir())
 	now := time.Now()
 	tracker.validNow = func() time.Time { return now }
@@ -67,9 +68,6 @@ func TestAdmissionTrackerDedupesAndRateLimitsReports(t *testing.T) {
 		t.Fatalf("first observation report = %#v %v", admission, report)
 	}
 	tracker.commitReport(admission)
-	if _, report := tracker.shouldReport(); report {
-		t.Fatal("unchanged admission was reported again")
-	}
 	now = now.Add(10 * time.Second)
 	tracker.observe(claimAdmissionIdentityRejected, http.StatusForbidden)
 	if _, report := tracker.shouldReport(); report {
@@ -90,6 +88,29 @@ func TestAdmissionTrackerDedupesAndRateLimitsReports(t *testing.T) {
 	if _, report := tracker.shouldReport(); !report {
 		t.Fatal("rate limit window did not release the next report")
 	}
+}
+
+func TestAdmissionTrackerRefreshesUnchangedEvidenceAndRecovery(t *testing.T) {
+	tracker := newAdmissionTracker(t.TempDir())
+	now := time.Now()
+	tracker.validNow = func() time.Time { return now }
+
+	tracker.observe(claimAdmissionTransportFailed, http.StatusInternalServerError)
+	admission, report := tracker.shouldReport()
+	if !report || admission.Class != claimAdmissionTransportFailed {
+		t.Fatalf("first observation report = %#v %v", admission, report)
+	}
+	tracker.commitReport(admission)
+	now = now.Add(10 * time.Second)
+	if _, report := tracker.shouldReport(); report {
+		t.Fatal("unchanged transport failure was reported inside the refresh interval")
+	}
+	now = now.Add(admissionTelemetryRefreshInterval)
+	admission, report = tracker.shouldReport()
+	if !report || admission.Class != claimAdmissionTransportFailed {
+		t.Fatalf("unchanged evidence was not refreshed before receipt expiry: %#v %v", admission, report)
+	}
+	tracker.commitReport(admission)
 	tracker.clear()
 	admission, report = tracker.shouldReport()
 	if !report || admission.Class != "" {
@@ -118,6 +139,32 @@ func TestAdmissionTrackerPersistsStateForHealthcheck(t *testing.T) {
 	tracker.clear()
 	if _, err := os.Stat(filepath.Join(dir, admissionStateFile)); !os.IsNotExist(err) {
 		t.Fatalf("cleared admission state file err=%v", err)
+	}
+}
+
+func TestAdmissionTrackerRefreshesPersistedRejectionTimestamp(t *testing.T) {
+	dir := t.TempDir()
+	tracker := newAdmissionTracker(dir)
+	now := time.Now().UTC()
+	tracker.validNow = func() time.Time { return now }
+
+	tracker.observe(claimAdmissionIdentityRejected, http.StatusForbidden)
+	// 窗口内的未变化结论不重复写盘，避免每次轮询都产生状态文件写入。
+	now = now.Add(10 * time.Second)
+	tracker.observe(claimAdmissionIdentityRejected, http.StatusForbidden)
+	persisted, err := loadAdmissionState(dir)
+	if err != nil || !persisted.At.Equal(now.Add(-10*time.Second)) {
+		t.Fatalf("unchanged rejection refreshed the state file too early = %#v err=%v", persisted, err)
+	}
+	// 达到有界刷新间隔后持续拒绝必须刷新落盘时间戳，否则本地 healthcheck 会把它误读为过期状态。
+	now = now.Add(25 * time.Second)
+	tracker.observe(claimAdmissionIdentityRejected, http.StatusForbidden)
+	persisted, err = loadAdmissionState(dir)
+	if err != nil || !persisted.At.Equal(now) {
+		t.Fatalf("ongoing rejection did not refresh the persisted timestamp = %#v err=%v", persisted, err)
+	}
+	if _, ready, err := admissionReadiness(dir, now.Add(5*time.Second)); err != nil || ready {
+		t.Fatalf("ongoing rejection passed readiness: err=%v ready=%v", err, ready)
 	}
 }
 
@@ -156,6 +203,68 @@ func TestPollExecutionCapabilitiesClearsAdmissionAfterSuccessfulClaim(t *testing
 	pollExecutionCapabilities(context.Background(), server.Client(), config{AgentURL: server.URL, ProviderID: "docker", CapabilityVersion: "docker/v1", Capabilities: []string{"compose_execution"}}, persistedState{CertificatePEM: "certificate", ExpiresAt: time.Now().Add(time.Hour)}, tracker)
 	if class := tracker.currentAdmissionClass(); class != "" {
 		t.Fatalf("admission class after successful claim = %s", class)
+	}
+}
+
+// mixedClaimServer 为按 capability 定制的混合领取结果提供完整传输桩；
+// 已领取租约的后续续租在混合结果场景中无关紧要，失败即可终止执行。
+func mixedClaimServer(responses map[string]int) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case executionClaimPath:
+			var request executionClaimRequest
+			_ = json.NewDecoder(r.Body).Decode(&request)
+			status, handled := responses[request.Capability]
+			if !handled {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"lease_id":"lease-mixed"}`))
+				return
+			}
+			w.WriteHeader(status)
+		case ledgerSnapshotPath:
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(ledgerSnapshot{Generation: 1, SnapshotID: strings.Repeat("a", 64), SnapshotDigest: strings.Repeat("b", 64), ExpiresAt: time.Now().Add(time.Minute), ObservedAt: time.Now()})
+		case telemetryPath:
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+}
+
+func pollMixedResults(t *testing.T, responses map[string]int) (*admissionTracker, claimAdmissionClass) {
+	t.Helper()
+	dir := t.TempDir()
+	tracker := newAdmissionTracker(dir)
+	tracker.observe(claimAdmissionTransportFailed, http.StatusInternalServerError)
+	server := mixedClaimServer(responses)
+	defer server.Close()
+	pollExecutionCapabilities(context.Background(), server.Client(), config{AgentURL: server.URL, ProviderID: "docker", CapabilityVersion: "docker/v1", Capabilities: []string{"compose_execution", "container_execution"}}, persistedState{CertificatePEM: "certificate", ExpiresAt: time.Now().Add(time.Hour)}, tracker)
+	persisted, err := loadAdmissionState(dir)
+	if err != nil {
+		t.Fatalf("load persisted admission: %v", err)
+	}
+	return tracker, persisted.Class
+}
+
+func TestPollExecutionCapabilitiesKeepsRejectionAcrossMixedResults(t *testing.T) {
+	_, class := pollMixedResults(t, map[string]int{"compose_execution": http.StatusForbidden, "container_execution": http.StatusNoContent})
+	if class != claimAdmissionIdentityRejected {
+		t.Fatalf("rejection was hidden by a concurrent no-work result: %s", class)
+	}
+	_, class = pollMixedResults(t, map[string]int{"compose_execution": http.StatusForbidden})
+	if class != claimAdmissionIdentityRejected {
+		t.Fatalf("rejection was cleared by a concurrent successful claim: %s", class)
+	}
+}
+
+func TestPollExecutionCapabilitiesClearsStaleEvidenceAfterHealthyCycle(t *testing.T) {
+	tracker, class := pollMixedResults(t, map[string]int{"compose_execution": http.StatusNoContent})
+	if class != "" {
+		t.Fatalf("healthy cycle left stale admission behind: %s", class)
+	}
+	if tracker.currentAdmissionClass() != "" {
+		t.Fatalf("in-memory admission survived a healthy cycle: %s", tracker.currentAdmissionClass())
 	}
 }
 
