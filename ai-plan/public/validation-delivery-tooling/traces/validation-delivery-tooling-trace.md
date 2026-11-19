@@ -2,26 +2,27 @@
 
 ## 2026-11-20 Intake and PR 3 implementation batch
 
-- Long-running `optimize` work, `docs/automation`; active topic only (no design, roadmap, or ADR). `kind: optimize` extends the ADR-003 v1 vocabulary; left for the ADR owner to reconcile.
-- Evidence reuse: plans bind head SHA and SHA-256 digests with per-file reasons and coverage; plan mode fails on empty selection, missing tests, or coverage gaps; `--compare-report` verifies previous reports fail-closed; `--report-out` persists executed reports; `just check-local-verify` verifies then executes.
-- Check suite: six groups from Justfile/workflow reality; cross-group `requires=` with auto-include and cycle/unknown rejection; independent failures; process-level deadline with process-group kill; JSON + terminal summary; self-ignored logs under `.artifacts/checks/<group>/`.
-- CI impact: conservative path-to-job mapping; unknown/workflow/script/toolchain/image surfaces force FULL; subsets always include hygiene and summary jobs. Advisory only.
-- Workflow: grouped jobs; `web-check` timeout; `Required checks passed` needs every other job and verifies every job of the current run/attempt/SHA via the Actions API with only the push-event Secret Scan skip allowed; job names unchanged; push runs never cancelled.
-- Commits (base 270c2fb3c): 2edcdc3f6, 7902543de, 2e0cc9734, c621ce40c. The lead pushes and integrates.
+- Long-running `optimize` work, `docs/automation`; active topic only. `kind: optimize` extends the ADR-003 v1 vocabulary; left for the ADR owner.
+- Evidence reuse: plans bind head SHA + per-file SHA-256 digests; plan mode fails on empty selection, missing tests or gaps; `--compare-report` fail-closed; `--report-out` persists reports; `just check-local-verify` verifies then executes.
+- Check suite: six groups; cross-group `requires=` with auto-include and cycle/unknown rejection; independent failures; process-level deadline; JSON summary; self-ignored logs.
+- CI impact: conservative mapping; unknown/shared surfaces force FULL; hygiene and summary always included. Advisory only.
+- Workflow: grouped jobs; `Required checks passed` needs every job and verifies every job of run/attempt/SHA via the Actions API (push-only Secret Scan skip); names unchanged; push runs never cancelled.
+- Commits (base 270c2fb3c): 2edcdc3f6, 7902543de, 2e0cc9734, c621ce40c; corrections 8cb4d491c, 8bc145d60, d6b912342, 8977741a0 (gh api GET, stdout purity, consumer-test binding), 56f7df274 (GET pin), ae83ae328 (PR head SHA binding). Full correction detail in this trace's git history; findings `fixed`, stale re-post `stale`.
 
-## 2026-11-20 Corrections 1-2 (cross-check hardening)
+## 2026-11-20 PR 5 batch (preview lifecycle + deployment consistency + release candidates)
 
-- Correction 1: cross-check rewritten from a hard-coded `Authorization` header onto `gh api` with `GITHUB_TOKEN`; restored the emptied `check-governance` recipe; bound derived python/node consumer tests into digests/selection; fixed `--json` stdout purity and external `--artifacts-dir` resolution. Commits: 8cb4d491c, 8bc145d60, d6b912342, 8977741a0.
-- Correction 2: `gh api` with field flags defaults to POST and the jobs-list endpoint only supports GET, so the cross-check failed with HTTP 404 on run 44589471488; pinned `--method GET` with `-f` fields, semantics unchanged; regression test pins GET and forbids `-F`. Commit 56f7df274. Re-posted check-governance finding disposed `stale`.
-- Severity split, tooling notes and validation evidence: summarized in the tracking file, full text in this trace's git history.
-
-## 2026-11-20 Correction 3 (PR head SHA binding)
-
-- Confirmed by CI: on pull_request events `github.sha` is the merge commit (3652e9e33) while every job's `head_sha` in the Actions jobs-list is the PR branch head (763b05fdd), so the `job.head_sha != HEAD_SHA` check failed for all 13 jobs (run 44592526857).
-- Fixed: `HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}` — PR head on pull_request events, `github.sha` otherwise; GET with `-f` fields, conclusion==success, push-only Secret Scan skip, fail-closed behavior and the summary-job exclusion unchanged. Regression test pins the binding and the fallback.
-- Disposition: fixed. Commit: ae83ae328 (fix). Validation: nine-module bundle 100 tests OK; actionlint clean; heredoc compile check clean.
+- Branch `chore/preview-release-consistency` (base 65bf4c6c0); task class `docs/automation`; recovery source this topic.
+- `preview.py`: deterministic identity (checkout path + task id, digest suffix); registry, instance dirs and archives in the git common directory; port conflicts (foreign or registered) refused, never silently skipped; `PREVIEW_MAX_RUNNING` cap; `stop` retains data; `destroy` requires exact `--confirm-instance` and archives SHA-256 cleanup evidence; status JSON binds URLs, health, logs and source digests.
+- `preview_recovery.py`: read-only dry run; anomalies exit 1; destroy suggestions gated on ownership proof (registered checkout, or identity+task claim only on a repository-bound registry, fail-closed); archive verification covers manifest SHA-256, inner evidence digest, unlisted and missing records; healthy running instances never suggested.
+- `check_deployment_consistency.py`: entry HTML + all JS/CSS/modulepreload assets; default contract "no acceptable 5xx (503 included)", explicit `--acceptable-status` opt-in, 4xx never; Content-Type bindings per kind; pages without entry assets fail; revision/source-digest markers fail closed when expectations exist (web entry does not yet declare markers — documented).
+- `release-candidate.yml`: versioned server linking + web release build; pinned trivy v0.36.0 scan (HIGH,CRITICAL; unfixed recorded); ghcr `candidate-v<version>-<sha>` push; `release.json` bound to run/attempt/SHA/version/channel/digests; summary replicates the PR #374 discipline then verifies the record and creates `rc-v<version>[-beta]` idempotently (same SHA success, different SHA hard fail). Candidate tags avoid `v*` so publish.yml stays out.
+- Justfile gained a separate preview/release section; docs added in `docs/development/preview-lifecycle.md` and `docs/operations/release-deployment-consistency.md` (new directory).
+- Validation: 27+16+18 unit tests via `python3 -B -m unittest` OK (in-process HTTP fixtures, tree-snapshot read-only proof); actionlint clean; YAML parse clean; 4 workflow heredocs compile; `git diff --check` clean; `just -n` parses the whole file.
+- Commits: 25613647d, 69a9123d0, 30a0617d7, 3d8a622ab, 68dcd57c7. The lead pushes and integrates.
 
 ## Next Steps
 
-- Observe a real pull-request run with the fixed cross-check after the lead pushes.
-- Later batch: evaluate gating workflow jobs with `scripts/ci_impact.py` output; that changes CI behavior and needs its own scope and acceptance.
+- After lead integration: observe a real pull-request run with the fixed cross-check and one release-candidate dispatch; record results here.
+- Primary-checkout follow-ups (commands in the docs): preview smoke, deployment consistency run with `--expect-revision` once web declares markers.
+- Later batch: gating workflow jobs with `scripts/ci_impact.py` output; needs its own scope.
+- ADR owner: reconcile the `kind: optimize` vocabulary.

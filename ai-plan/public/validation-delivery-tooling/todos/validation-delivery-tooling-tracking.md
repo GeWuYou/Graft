@@ -6,17 +6,13 @@ Validation Delivery Tooling
 
 ## Scope
 
-Make scoped local validation evidence reusable and SHA-bound, run grouped check suites with dependencies and a deadline, map changed paths to CI jobs conservatively, and discipline the pull-request validation workflow with grouping, timeouts, and a complete summary gate. Preserve required check names and existing blocking gates.
+Scoped validation evidence reuse (SHA-bound), grouped suites with a deadline, conservative CI impact mapping, a fully verified pull-request summary gate, and the same discipline for preview lifecycle, deployment consistency and release candidates.
 
 ## Repository Truth
 
-- `AGENTS.md`
-- `docs/development/validation.md`
-- `scripts/local_validation.py`
-- `scripts/check_suite.py`
-- `scripts/ci_impact.py`
-- `.github/workflows/pull-request-validation.yml`
-- `Justfile`
+- `AGENTS.md`; `docs/development/validation.md`, `preview-lifecycle.md`; `docs/operations/release-deployment-consistency.md`
+- `scripts/`: `local_validation.py`, `check_suite.py`, `ci_impact.py`, `preview.py`, `preview_recovery.py`, `check_deployment_consistency.py`
+- `.github/workflows/pull-request-validation.yml`, `release-candidate.yml`; `Justfile`
 
 ## Work Contract
 
@@ -24,7 +20,7 @@ Make scoped local validation evidence reusable and SHA-bound, run grouped check 
 version: 1
 kind: optimize
 scope: long-running
-authority_summary: Scoped validation tooling owns evidence reuse semantics; the grouped suite runner and CI impact mapper own their selection rules; the pull-request workflow owns job orchestration and the run summary gate.
+authority_summary: Validation tooling scripts own scoped evidence, suite, impact, preview lifecycle, recovery and deployment-consistency semantics; the pull-request and release-candidate workflows own their job orchestration, summary gates and tagging discipline.
 requires:
   design: false
   topic: true
@@ -46,31 +42,28 @@ closeout:
 
 ## Current Recovery Point
 
-- Current batch: correction 3 (PR head SHA binding in the summary cross-check) committed on `chore/validation-ci-discipline`, awaiting lead integration.
-- Completed: evidence reuse, check suite + CI impact, workflow discipline, documentation, and corrections 1-2 (cross-check hardening, GET pin).
-- Pending: observe one real pull-request run after integration and push.
-- Risk: `kind: optimize` extends the ADR-003 v1 documented kind vocabulary; the ADR owner should reconcile the vocabulary in a later governance batch.
+- Current batch: PR 5 (preview lifecycle + deployment consistency + release candidate flow) committed on `chore/preview-release-consistency`, awaiting lead integration. Commits: 25613647d, 69a9123d0, 30a0617d7, 3d8a622ab, 68dcd57c7.
+- Completed: evidence reuse, suite + impact, workflow discipline, corrections 1-3, PR 5 slices.
+- Pending: observe a real pull-request run and one release-candidate dispatch after integration; primary-checkout preview smoke and deployment consistency runs (commands in the docs).
+- Risk: `kind: optimize` extends the ADR-003 v1 kind vocabulary; ADR owner reconciles later.
 
 ## Task Checklist
 
-- [x] Bind scoped validation plans to head SHA and selected file digests with per-file reasons and coverage.
-- [x] Add `--compare-report` evidence verification and `--report-out` executed check reports; plan mode fails on gaps.
-- [x] Add `scripts/check_suite.py` grouped runner with requires, deadline, JSON summary and artifact logs.
-- [x] Add `scripts/ci_impact.py` conservative path-to-job mapping with FULL-forcing shared surfaces.
-- [x] Regroup pull-request-validation jobs, add missing timeout, extend summary needs to every job, add the run/attempt/SHA API cross-check.
-- [x] Update `docs/development/validation.md` for evidence reuse, suite, impact and summary semantics.
-- [ ] Observe a real pull-request run after integration and record the evidence in the trace.
-- [ ] Decide whether CI impact selection should later gate workflow job paths (separate batch, requires roadmap consideration).
+- [x] Evidence reuse, check suite, CI impact and workflow regroup (PR 3); corrections 1-3 (trace git history).
+- [x] PR 5: `preview.py` identity, common-dir registry, port refusal, `PREVIEW_MAX_RUNNING`, guarded destroy with SHA-256 evidence archives.
+- [x] PR 5: `preview_recovery.py` read-only reconciliation with ownership-proof-gated suggestions and evidence verification.
+- [x] PR 5: `check_deployment_consistency.py` no-acceptable-5xx contract, fail-closed revision markers.
+- [x] PR 5: release-candidate workflow with artifact binding and idempotent `rc-` tagging.
+- [x] PR 5: Justfile preview/release section, preview and release docs.
+- [ ] Observe a real pull-request run after integration; record evidence in the trace.
+- [ ] Primary-checkout follow-ups: preview smoke, deployment consistency run, one release dispatch.
+- [ ] Later: whether CI impact gates workflow job paths (separate batch).
 
 ## Acceptance Conditions
 
-- `just check-local-plan` exits nonzero on empty selection, missing consumer tests, or coverage gaps, and never falls back to full gates.
-- `--compare-report` fails with per-file reasons when the recorded head moved, selected files changed, or the current selection is uncovered.
-- `scripts/check_suite.py` resolves groups and dependencies with cycle and unknown-name rejection, aggregates independent failures, kills timed-out checks at the process level, and exits nonzero on any failure or deadline overrun.
-- `scripts/ci_impact.py` forces FULL for unknown paths and shared surfaces and always includes hygiene and summary jobs in subsets.
-- The pull-request summary fails on any job that is not successful for the current run, attempt and SHA, except the documented push-event Secret Scan skip; required check names are unchanged.
-- `actionlint` passes on the modified workflow and unit tests cover the changed script behavior.
-
-## Correction Detail
-
-- Correction 1-2 specifics (severity split, just positional-args quirk, run 44589471488 repro, stale finding) live in trace history at 8977741a0/763b05fdd.
+- Scoped validation and comparisons fail closed; check suite resolves dependencies, aggregates failures and enforces a process-level deadline; CI impact stays conservative and advisory.
+- PR summary verifies every job of the current run/attempt/SHA except documented skips; required check names unchanged.
+- Preview: deterministic identity, common-dir registry, port refusal, cap enforcement, guarded destroy with evidence archives, read-only recovery suggesting destroy only with proven ownership.
+- Deployment check fails on asset 404, wrong content type, 5xx without `--acceptable-status`, and revision expectations without declared markers.
+- Release-candidate summary verifies run/attempt/SHA/version/channel/digests; `rc-` tags idempotent on same SHA, hard-fail on a different SHA; `v*` stays semantic-release-owned.
+- actionlint passes on both workflows; script unit tests cover the changed behavior.
