@@ -20,10 +20,10 @@
         </div>
 
         <t-alert
-          v-if="task.failure_code || task.failure_message"
+          v-if="taskFailureDetail"
           theme="error"
           :title="t('task.detail.failure')"
-          :message="taskFailureMessage(task.failure_code, task.failure_message)"
+          :message="taskFailureDetail"
         />
 
         <t-descriptions bordered :column="detailDescriptionColumns" size="small" :title="t('task.detail.summary')">
@@ -114,7 +114,7 @@ import {
   parseTaskRealtimeNotification,
 } from '../contract/realtime';
 import { resolveTaskFailureMessage } from '../shared/failure-copy';
-import { taskStageExecutionLabel, taskStatusTheme } from '../shared/presentation';
+import { taskFailureAttribution, taskStageExecutionLabel, taskStatusTheme } from '../shared/presentation';
 import { TaskRealtimeRefreshScheduler } from '../shared/realtime-refresh-scheduler';
 import { TaskLogRealtimeBatcher } from '../shared/task-log-realtime-batcher';
 import { type TaskDetail, type TaskStage, type TaskStageStatus } from '../types/task';
@@ -167,6 +167,16 @@ const stageOptions = computed<StepItemProps[]>(() =>
 );
 const detailDescriptionColumns = computed(() => (detailVariant.value.density === 'compact' ? 1 : 2));
 const retryableStages = computed(() => (task.value?.stages ?? []).filter(canRetryStage));
+// taskFailureDetail 把稳定失败码、脱敏诊断与有界阶段/分类归因组合成同一段失败摘要。
+const taskFailureDetail = computed(() => {
+  if (!task.value) return '';
+  return [
+    taskFailureMessage(task.value.failure_code, task.value.failure_message),
+    taskFailureAttribution(task.value, t),
+  ]
+    .filter(Boolean)
+    .join(' · ');
+});
 const durationLabel = computed(() => {
   if (!task.value?.duration_ms) return '-';
   return t('task.detail.durationValue', { seconds: Math.max(1, Math.round(task.value.duration_ms / 1000)) });
@@ -394,7 +404,10 @@ function stageStepStatus(status: TaskStageStatus): StepItemProps['status'] {
 }
 
 function stageDescription(stage: TaskStage) {
-  if (stage.failure_code || stage.failure_message) return taskFailureMessage(stage.failure_code, stage.failure_message);
+  const attribution = taskFailureAttribution(stage, t);
+  if (stage.failure_code || stage.failure_message || attribution) {
+    return [taskFailureMessage(stage.failure_code, stage.failure_message), attribution].filter(Boolean).join(' · ');
+  }
   if (stage.duration_ms)
     return t('task.detail.durationValue', { seconds: Math.max(1, Math.round(stage.duration_ms / 1000)) });
   return t(`task.stageStatus.${stage.status}`);
