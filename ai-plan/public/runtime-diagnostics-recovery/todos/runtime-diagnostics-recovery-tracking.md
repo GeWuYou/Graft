@@ -70,8 +70,15 @@ closeout:
 ```json
 {
   "loop_mode": "single-worker-bounded-topic",
-  "completed_batches": [],
-  "active_batch": "contract-backend-settlement",
+  "completed_batches": [
+    "contract-backend-settlement",
+    "agent-claim-admission",
+    "provider-error-boundary",
+    "runtime-target-readiness",
+    "web-presentation",
+    "openapi-closure"
+  ],
+  "active_batch": null,
   "worker": "track1-diagnostics"
 }
 ```
