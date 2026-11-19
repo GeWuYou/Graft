@@ -21,3 +21,19 @@
   with `class` (`no_work` / `identity_rejected` / `transport_failed`) and `observed_at`. Tri-state distinguishability
   is preserved without opening the approved-breaking ledger.
 - `just openapi-breaking` reports 0 findings after the change; recorded here as the topic's contract-shape precedent.
+
+## 2026-11-20 Delivery Round (worker track1-diagnostics)
+
+- Implemented the full bounded surface on branch `feature/runtime-diagnostics-projection` in six logical commits:
+  docs(ai-plan) topic creation, feat(task) receipt settlement diagnostics, feat(runtime) agent claim admission,
+  feat(contract) additive schema closure, feat(runtime-target) readiness projection, feat(web) presentation.
+- Validation evidence at the committed content: `just openapi-check` exit 0; `just openapi-breaking` exit 0 with 0
+  findings; `cd server && go run ./cmd/graft validate backend` exit 0 (migration gate, OpenAPI, lint guards,
+  golangci-lint production + test configs, go test ./..., build); `cd web && bun run check` exit 0 (315 test files,
+  2202 tests).
+- Environment note: the local golangci-lint binary was stale (v2.12.2, go1.26 build) and could not load the go1.27.4
+  target; the repo-pinned v2.15.0 was installed into the user Go bin directory to run the mandated blocking lint.
+- Remaining known gaps: the migration has not been applied to a live database (numbered worktree forbids live
+  migrations; bootstrap container check passed); the Runtime Target projection adds one bounded per-target read in
+  the list path, consistent with the existing per-target agent trust reads; the identity-rejection re-enrollment loop
+  cadence is pre-existing platform behavior and out of this topic's scope.
