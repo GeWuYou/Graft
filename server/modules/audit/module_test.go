@@ -1092,8 +1092,9 @@ func TestAuditLogDetailRouteReturnsNotFound(t *testing.T) {
 	}
 }
 
-func TestAuditLogDetailRouteRejectsZeroID(t *testing.T) {
+func TestAuditLogDetailRouteRejectsInvalidID(t *testing.T) {
 	assertAuditReadRouteRejectsInvalidArgument(t, "/api/audit/logs/0", "id")
+	assertAuditReadRouteRejectsInvalidArgument(t, "/api/audit/logs/invalid", "id")
 }
 
 func TestAuditLogsRouteAcceptsRegisteredDrilldownScopes(t *testing.T) {
@@ -1424,8 +1425,15 @@ func TestAuditIncidentEndpointReturnsAuditOwnedIncident(t *testing.T) {
 	}
 }
 
-func TestAuditIncidentRouteRejectsZeroEventID(t *testing.T) {
+func TestAuditIncidentRouteRejectsInvalidEventID(t *testing.T) {
 	assertAuditReadRouteRejectsInvalidArgument(t, "/api/audit/incidents/0", "event_id")
+	assertAuditReadRouteRejectsInvalidArgument(t, "/api/audit/incidents/invalid", "event_id")
+}
+
+func TestDeleteAuditVisibilityOverrideReportsMissingField(t *testing.T) {
+	const route = "/api/audit/policies/visibility/overrides"
+	assertAuditRouteRejectsInvalidArgument(t, http.MethodDelete, route+"?source=business", "action_key")
+	assertAuditRouteRejectsInvalidArgument(t, http.MethodDelete, route+"?action_key=delete", "source")
 }
 
 // TestRegisterSubscribesActiveAuditEvents 验证主动审计事件会通过 event bus
@@ -1786,11 +1794,16 @@ func assertAuditMenuItem(t *testing.T, item menu.Item, code string, path string,
 
 func assertAuditReadRouteRejectsInvalidArgument(t *testing.T, route string, field string) {
 	t.Helper()
+	assertAuditRouteRejectsInvalidArgument(t, http.MethodGet, route, field)
+}
+
+func assertAuditRouteRejectsInvalidArgument(t *testing.T, method, route, field string) {
+	t.Helper()
 
 	repo := &memoryAuditRepository{}
 	_, engine, _ := newModuleTestContext(t, repo)
 
-	request := httptest.NewRequest(http.MethodGet, route, nil)
+	request := httptest.NewRequest(method, route, nil)
 	request.Header.Set("Authorization", "Bearer token")
 	recorder := httptest.NewRecorder()
 	engine.ServeHTTP(recorder, request)

@@ -181,11 +181,15 @@ func (r routeRuntime) handleConnectivityCustomTargets(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, connectivityCustomTargetsResponse{Items: items})
 }
 
-func (r routeRuntime) handleCreateConnectivityCustomTarget(ginCtx *gin.Context) {
+func (r routeRuntime) handleCreateConnectivityCustomTarget(ginCtx *gin.Context, bound *networkopenapi.PostPlatformConnectivityCustomTargetJSONRequestBody) {
 	var request networkopenapi.PostPlatformConnectivityCustomTargetJSONRequestBody
-	if err := ginCtx.ShouldBindJSON(&request); err != nil {
-		r.badRequest(ginCtx)
-		return
+	if bound != nil {
+		request = *bound
+	} else {
+		if err := ginCtx.ShouldBindJSON(&request); err != nil {
+			r.badRequest(ginCtx)
+			return
+		}
 	}
 	actorID := currentUserID(ginCtx)
 	if actorID == nil {

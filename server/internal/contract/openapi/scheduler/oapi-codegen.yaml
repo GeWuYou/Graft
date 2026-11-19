@@ -1,0 +1,24 @@
+package: scheduleropenapi
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  include-operation-ids:
+    - deleteScheduledTask
+    - deleteScheduledTaskSavedView
+    - getScheduledTask
+    - getScheduledTaskJobDefinition
+    - getScheduledTaskJobDefinitions
+    - getScheduledTaskRun
+    - getScheduledTaskRuns
+    - getScheduledTaskSavedViews
+    - getScheduledTasks
+    - postScheduledTask
+    - postScheduledTaskAction
+    - postScheduledTaskDisable
+    - postScheduledTaskEnable
+    - postScheduledTaskRun
+    - postScheduledTaskSavedView
+    - putScheduledTask
+    - putScheduledTaskSavedView

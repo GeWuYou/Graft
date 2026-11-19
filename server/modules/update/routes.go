@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"graft/server/internal/contract/openapi/strictsupport"
+	updateopenapi "graft/server/internal/contract/openapi/update"
 	"net/http"
 	"strconv"
 	"strings"
@@ -40,23 +42,33 @@ func registerRoutes(ctx *module.Context, service *Service, rollout *RolloutServi
 		return errors.New("platform-update failure diagnostic store is unavailable")
 	}
 	handlers := updateRouteHandlers{localizer: ctx.I18n, auth: auth, rollout: rollout, diagnostics: diagnostics, appLogger: ctx.AppLogger, auditPublisher: ctx.EventPublisher}
-	group.GET(updatecontract.UpdateStatusRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), func(ginCtx *gin.Context) {
-		httpx.WriteSuccess(ginCtx, http.StatusOK, statusForUpdateViewer(ginCtx.Request.Context(), authorizer, service.Status()))
-	})
-	group.POST(updatecontract.UpdateCheckRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateCheckPermission.String()), func(ginCtx *gin.Context) {
-		httpx.WriteSuccess(ginCtx, http.StatusOK, statusForUpdateViewer(ginCtx.Request.Context(), authorizer, service.Check(ginCtx.Request.Context())))
-	})
+	status := func(c *gin.Context) {
+		httpx.WriteSuccess(c, http.StatusOK, statusForUpdateViewer(c.Request.Context(), authorizer, service.Status()))
+	}
+	check := func(c *gin.Context) {
+		httpx.WriteSuccess(c, http.StatusOK, statusForUpdateViewer(c.Request.Context(), authorizer, service.Check(c.Request.Context())))
+	}
+
 	if rollout == nil {
 		return errors.New("platform-update rollout service is unavailable")
 	}
-	group.GET(updatecontract.UpdateOperationCollectionRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), handlers.list)
-	group.GET(updatecontract.UpdateActiveOperationRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), handlers.getActive)
-	group.GET(updatecontract.UpdateFailureDiagnosticRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateManagePermission.String(), publisher), handlers.getFailureDiagnostic)
-	group.GET(updatecontract.UpdateOperationDiagnosticRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateManagePermission.String(), publisher), handlers.getOperationFailureDiagnostic)
-	group.GET(updatecontract.UpdateOperationEventsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), handlers.getEvents)
-	group.GET(updatecontract.UpdateOperationRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), handlers.get)
-	group.POST(updatecontract.UpdateOperationCollectionRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateManagePermission.String(), publisher), handlers.start)
-	group.POST(updatecontract.UpdateOperationRecoveryRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateManagePermission.String(), publisher), handlers.recover)
+	wrapper := updateopenapi.ServerInterfaceWrapper{
+		Handler: updateopenapi.NewStrictHandlerWithOptions(updateStrictServer{routes: handlers, status: status, check: check}, nil, updateopenapi.StrictGinServerOptions{
+			RequestErrorHandlerFunc: strictsupport.RequestErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String(), nil),
+			HandlerErrorFunc:        strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
+		}),
+		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
+	}
+	group.GET(updatecontract.UpdateStatusRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), strictsupport.Route(wrapper.GetPlatformUpdateStatus, nil))
+	group.POST(updatecontract.UpdateCheckRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateCheckPermission.String()), strictsupport.Route(wrapper.PostPlatformUpdateCheck, nil))
+	group.GET(updatecontract.UpdateOperationCollectionRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), strictsupport.Route(wrapper.GetPlatformUpdateOperations, handlers.list))
+	group.GET(updatecontract.UpdateActiveOperationRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), strictsupport.Route(wrapper.GetPlatformUpdateActiveOperation, nil))
+	group.GET(updatecontract.UpdateFailureDiagnosticRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateManagePermission.String(), publisher), strictsupport.Route(wrapper.GetPlatformUpdateFailureDiagnostic, handlers.getFailureDiagnostic))
+	group.GET(updatecontract.UpdateOperationDiagnosticRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateManagePermission.String(), publisher), strictsupport.Route(wrapper.GetPlatformUpdateOperationFailureDiagnostic, handlers.getOperationFailureDiagnostic))
+	group.GET(updatecontract.UpdateOperationEventsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), strictsupport.Route(wrapper.GetPlatformUpdateOperationEvents, handlers.getEvents))
+	group.GET(updatecontract.UpdateOperationRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateReadPermission.String()), strictsupport.Route(wrapper.GetPlatformUpdateOperation, handlers.get))
+	group.POST(updatecontract.UpdateOperationCollectionRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateManagePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostPlatformUpdateOperation, handlers.start))
+	group.POST(updatecontract.UpdateOperationRecoveryRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, updatecontract.UpdateManagePermission.String(), publisher), strictsupport.Route(wrapper.PostPlatformUpdateOperationRecovery, handlers.recover))
 	return nil
 }
 
@@ -176,7 +188,7 @@ func (h updateRouteHandlers) getEvents(c *gin.Context) {
 }
 
 func (h updateRouteHandlers) getFailureDiagnostic(c *gin.Context) {
-	requestID := strings.TrimSpace(c.Param("requestID"))
+	requestID := strings.TrimSpace(c.Param("requestId"))
 	if requestID == "" {
 		httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
 		return
@@ -222,6 +234,10 @@ func (h updateRouteHandlers) start(c *gin.Context) {
 		httpx.WriteLocalizedError(c, h.localizer, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
 		return
 	}
+	h.startRollout(c, request.TargetVersion, request.CandidateKey)
+}
+
+func (h updateRouteHandlers) startRollout(c *gin.Context, targetVersion, candidateKey string) {
 	actor, err := h.auth.CurrentUser(c.Request.Context())
 	if err != nil || actor == nil {
 		httpx.WriteLocalizedError(c, h.localizer, http.StatusUnauthorized, "auth.unauthenticated", nil)
@@ -233,11 +249,11 @@ func (h updateRouteHandlers) start(c *gin.Context) {
 	c.Request = c.Request.WithContext(httpx.WithRequestAuditContext(c.Request.Context(), requestAudit))
 	operation, err := h.rollout.Start(c.Request.Context(), StartRolloutInput{
 		RequestedBy:   actor.ID,
-		TargetVersion: request.TargetVersion,
-		CandidateKey:  request.CandidateKey,
+		TargetVersion: targetVersion,
+		CandidateKey:  candidateKey,
 	})
 	if err != nil {
-		h.writeStartFailure(c, actor.ID, request.TargetVersion, request.CandidateKey, err)
+		h.writeStartFailure(c, actor.ID, targetVersion, candidateKey, err)
 		return
 	}
 	httpx.WriteSuccess(c, http.StatusAccepted, OperationLaunchAcknowledgement{OperationID: operation.OperationID, RunnerID: operation.RunnerID})
@@ -396,4 +412,62 @@ func resolveAuthorizer(ctx *module.Context) (moduleapi.Authorizer, error) {
 		return nil, fmt.Errorf("resolved authorizer has unexpected type %T", value)
 	}
 	return service, nil
+}
+
+// updateStrictServer 将现有 HTTP 响应写入接入生成的请求契约。
+type updateStrictServer struct {
+	routes updateRouteHandlers
+	status gin.HandlerFunc
+	check  gin.HandlerFunc
+}
+
+var _ updateopenapi.StrictServerInterface = updateStrictServer{}
+
+func (s updateStrictServer) GetPlatformUpdateStatus(ctx context.Context, _ updateopenapi.GetPlatformUpdateStatusRequestObject) (updateopenapi.GetPlatformUpdateStatusResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.status)
+}
+
+func (s updateStrictServer) PostPlatformUpdateCheck(ctx context.Context, _ updateopenapi.PostPlatformUpdateCheckRequestObject) (updateopenapi.PostPlatformUpdateCheckResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.check)
+}
+
+func (s updateStrictServer) GetPlatformUpdateOperations(ctx context.Context, _ updateopenapi.GetPlatformUpdateOperationsRequestObject) (updateopenapi.GetPlatformUpdateOperationsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.list)
+}
+
+func (s updateStrictServer) GetPlatformUpdateActiveOperation(ctx context.Context, _ updateopenapi.GetPlatformUpdateActiveOperationRequestObject) (updateopenapi.GetPlatformUpdateActiveOperationResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.getActive)
+}
+
+func (s updateStrictServer) GetPlatformUpdateFailureDiagnostic(ctx context.Context, _ updateopenapi.GetPlatformUpdateFailureDiagnosticRequestObject) (updateopenapi.GetPlatformUpdateFailureDiagnosticResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.getFailureDiagnostic)
+}
+
+func (s updateStrictServer) GetPlatformUpdateOperationFailureDiagnostic(ctx context.Context, _ updateopenapi.GetPlatformUpdateOperationFailureDiagnosticRequestObject) (updateopenapi.GetPlatformUpdateOperationFailureDiagnosticResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.getOperationFailureDiagnostic)
+}
+
+func (s updateStrictServer) GetPlatformUpdateOperationEvents(ctx context.Context, _ updateopenapi.GetPlatformUpdateOperationEventsRequestObject) (updateopenapi.GetPlatformUpdateOperationEventsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.getEvents)
+}
+
+func (s updateStrictServer) GetPlatformUpdateOperation(ctx context.Context, _ updateopenapi.GetPlatformUpdateOperationRequestObject) (updateopenapi.GetPlatformUpdateOperationResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.get)
+}
+
+func (s updateStrictServer) PostPlatformUpdateOperation(ctx context.Context, req updateopenapi.PostPlatformUpdateOperationRequestObject) (updateopenapi.PostPlatformUpdateOperationResponseObject, error) {
+	if req.Body == nil {
+		return nil, strictsupport.ErrMissingRequestBody
+	}
+	return nil, strictsupport.Dispatch(ctx, func(c *gin.Context) {
+		candidate := ""
+		if req.Body.ComposeCandidateKey != nil {
+			candidate = *req.Body.ComposeCandidateKey
+		}
+		s.routes.startRollout(c, req.Body.TargetVersion, candidate)
+	})
+}
+
+func (s updateStrictServer) PostPlatformUpdateOperationRecovery(ctx context.Context, _ updateopenapi.PostPlatformUpdateOperationRecoveryRequestObject) (updateopenapi.PostPlatformUpdateOperationRecoveryResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.recover)
 }

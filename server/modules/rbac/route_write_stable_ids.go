@@ -20,11 +20,9 @@ import (
 func handleReplaceRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	handleStableIDsRoute(
 		ginCtx, ctx, moduleName,
-		generatedStableIDsRouteConfig[rbacopenapi.PostRolePermissionsReplaceJSONRequestBody, rbacopenapi.PostRolePermissionsReplaceParams]{
+		generatedStableIDsRouteConfig[rbacopenapi.PostRolePermissionsReplaceJSONRequestBody]{
 			invalidField: "permission_ids",
 			read:         readGeneratedRolePermissionReplaceRequest,
-			bindParams:   bindGeneratedRolePermissionReplaceParams,
-			record:       rbacWriteGeneratedHandler{}.PostRolePermissionsReplace,
 			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
 				return writer.ReplacePermissionsForRole(ctx, rbacstore.ReplacePermissionsForRoleInput{RoleID: targetID, PermissionIDs: ids})
 			},
@@ -37,11 +35,9 @@ func handleReplaceRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context,
 func handleAddRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	handleStableIDsRoute(
 		ginCtx, ctx, moduleName,
-		generatedStableIDsRouteConfig[rbacopenapi.PostRolePermissionsAddJSONRequestBody, rbacopenapi.PostRolePermissionsAddParams]{
+		generatedStableIDsRouteConfig[rbacopenapi.PostRolePermissionsAddJSONRequestBody]{
 			invalidField: "permission_ids",
 			read:         readGeneratedRolePermissionAddRequest,
-			bindParams:   bindGeneratedRolePermissionAddParams,
-			record:       rbacWriteGeneratedHandler{}.PostRolePermissionsAdd,
 			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
 				return writer.AddPermissionsToRole(ctx, rbacstore.AddPermissionsToRoleInput{RoleID: targetID, PermissionIDs: ids})
 			},
@@ -54,11 +50,9 @@ func handleAddRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, mod
 func handleRemoveRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	handleStableIDsRoute(
 		ginCtx, ctx, moduleName,
-		generatedStableIDsRouteConfig[rbacopenapi.DeleteRolePermissionsJSONRequestBody, rbacopenapi.DeleteRolePermissionsParams]{
+		generatedStableIDsRouteConfig[rbacopenapi.DeleteRolePermissionsJSONRequestBody]{
 			invalidField: "permission_ids",
 			read:         readGeneratedRolePermissionRemoveRequest,
-			bindParams:   bindGeneratedRolePermissionRemoveParams,
-			record:       rbacWriteGeneratedHandler{}.DeleteRolePermissions,
 			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
 				return writer.RemovePermissionsFromRole(ctx, rbacstore.RemovePermissionsFromRoleInput{RoleID: targetID, PermissionIDs: ids})
 			},
@@ -71,11 +65,9 @@ func handleRemoveRolePermissionsRoute(ginCtx *gin.Context, ctx *module.Context, 
 func handleReplaceUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	handleStableIDsRoute(
 		ginCtx, ctx, moduleName,
-		generatedStableIDsRouteConfig[rbacopenapi.PostUserRolesReplaceJSONRequestBody, rbacopenapi.PostUserRolesReplaceParams]{
+		generatedStableIDsRouteConfig[rbacopenapi.PostUserRolesReplaceJSONRequestBody]{
 			invalidField: "role_ids",
 			read:         readGeneratedUserRoleReplaceRequest,
-			bindParams:   bindGeneratedUserRoleReplaceParams,
-			record:       rbacWriteGeneratedHandler{}.PostUserRolesReplace,
 			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
 				return writer.ReplaceRolesForUser(ctx, rbacstore.ReplaceRolesForUserInput{UserID: targetID, RoleIDs: ids})
 			},
@@ -88,11 +80,9 @@ func handleReplaceUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, modul
 func handleAddUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	handleStableIDsRoute(
 		ginCtx, ctx, moduleName,
-		generatedStableIDsRouteConfig[rbacopenapi.PostUserRolesAddJSONRequestBody, rbacopenapi.PostUserRolesAddParams]{
+		generatedStableIDsRouteConfig[rbacopenapi.PostUserRolesAddJSONRequestBody]{
 			invalidField: "role_ids",
 			read:         readGeneratedUserRoleAddRequest,
-			bindParams:   bindGeneratedUserRoleAddParams,
-			record:       rbacWriteGeneratedHandler{}.PostUserRolesAdd,
 			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
 				return writer.AddRolesToUser(ctx, rbacstore.AddRolesToUserInput{UserID: targetID, RoleIDs: ids})
 			},
@@ -107,11 +97,9 @@ func handleAddUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleNam
 func handleRemoveUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	handleStableIDsRoute(
 		ginCtx, ctx, moduleName,
-		generatedStableIDsRouteConfig[rbacopenapi.DeleteUserRolesJSONRequestBody, rbacopenapi.DeleteUserRolesParams]{
+		generatedStableIDsRouteConfig[rbacopenapi.DeleteUserRolesJSONRequestBody]{
 			invalidField: "role_ids",
 			read:         readGeneratedUserRoleRemoveRequest,
-			bindParams:   bindGeneratedUserRoleRemoveParams,
-			record:       rbacWriteGeneratedHandler{}.DeleteUserRoles,
 			write: func(ctx context.Context, targetID uint64, ids []uint64) error {
 				return writer.RemoveRolesFromUser(ctx, rbacstore.RemoveRolesFromUserInput{UserID: targetID, RoleIDs: ids})
 			},
@@ -124,10 +112,8 @@ func handleRemoveUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, module
 func handleBatchReplaceUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	handleBatchStableIDsOperation(
 		ginCtx, ctx, moduleName,
-		batchGeneratedStableIDsRouteConfig[rbacopenapi.PostUsersRolesReplaceJSONRequestBody, rbacopenapi.PostUsersRolesReplaceParams]{
-			read:       readGeneratedBatchUserRoleReplaceRequest,
-			bindParams: bindGeneratedUsersRoleReplaceParams,
-			record:     rbacWriteGeneratedHandler{}.PostUsersRolesReplace,
+		batchGeneratedStableIDsRouteConfig[rbacopenapi.PostUsersRolesReplaceJSONRequestBody]{
+			read: readGeneratedBatchUserRoleReplaceRequest,
 			write: func(ctx context.Context, userIDs []uint64, roleIDs []uint64) error {
 				return writer.ReplaceRolesForUsers(ctx, rbacstore.BatchUserRoleMutationInput{UserIDs: userIDs, RoleIDs: roleIDs})
 			},
@@ -143,10 +129,8 @@ func handleBatchReplaceUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, 
 func handleBatchAddUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	handleBatchStableIDsOperation(
 		ginCtx, ctx, moduleName,
-		batchGeneratedStableIDsRouteConfig[rbacopenapi.PostUsersRolesAddJSONRequestBody, rbacopenapi.PostUsersRolesAddParams]{
-			read:       readGeneratedBatchUserRoleAddRequest,
-			bindParams: bindGeneratedUsersRoleAddParams,
-			record:     rbacWriteGeneratedHandler{}.PostUsersRolesAdd,
+		batchGeneratedStableIDsRouteConfig[rbacopenapi.PostUsersRolesAddJSONRequestBody]{
+			read: readGeneratedBatchUserRoleAddRequest,
 			write: func(ctx context.Context, userIDs []uint64, roleIDs []uint64) error {
 				return writer.AddRolesToUsers(ctx, rbacstore.BatchUserRoleMutationInput{UserIDs: userIDs, RoleIDs: roleIDs})
 			},
@@ -161,10 +145,8 @@ func handleBatchAddUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, modu
 func handleBatchRemoveUserRolesRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	handleBatchStableIDsOperation(
 		ginCtx, ctx, moduleName,
-		batchGeneratedStableIDsRouteConfig[rbacopenapi.DeleteUsersRolesJSONRequestBody, rbacopenapi.DeleteUsersRolesParams]{
-			read:       readGeneratedBatchUserRoleRemoveRequest,
-			bindParams: bindGeneratedUsersRoleRemoveParams,
-			record:     rbacWriteGeneratedHandler{}.DeleteUsersRoles,
+		batchGeneratedStableIDsRouteConfig[rbacopenapi.DeleteUsersRolesJSONRequestBody]{
+			read: readGeneratedBatchUserRoleRemoveRequest,
 			write: func(ctx context.Context, userIDs []uint64, roleIDs []uint64) error {
 				return writer.RemoveRolesFromUsers(ctx, rbacstore.BatchUserRoleMutationInput{UserIDs: userIDs, RoleIDs: roleIDs})
 			},
@@ -189,7 +171,7 @@ func handleReplaceStableIDsRoute(
 		return
 	}
 
-	ids, err := config.readAndBindGenerated(ginCtx, targetID)
+	ids, err := config.readAndBindGenerated(ginCtx)
 	if err != nil {
 		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{
 			"field": "body",
@@ -245,22 +227,20 @@ func handleBatchStableIDsRoute(
 	writeStableIDBatchResult(ginCtx, request.userIDs, config.resultStatus)
 }
 
-// handleStableIDsRoute 处理单实体稳定 ID 写入路由，并记录生成的操作。
-// 它先读取请求体并绑定参数，再将解析结果交给用户作用域的稳定 ID 写入流程。
-func handleStableIDsRoute[Body any, Params any](
+// handleStableIDsRoute 将单实体写入的请求体解析交给保留无符号 ID 语义的模块 binder。
+func handleStableIDsRoute[Body any](
 	ginCtx *gin.Context,
 	ctx *module.Context,
 	moduleName string,
-	config generatedStableIDsRouteConfig[Body, Params],
+	config generatedStableIDsRouteConfig[Body],
 ) {
 	handleReplaceStableIDsRoute(ginCtx, ctx, moduleName, replaceStableIDsHandlerConfig{
 		invalidField: config.invalidField,
-		readAndBindGenerated: func(ginCtx *gin.Context, targetID uint64) ([]uint64, error) {
-			body, ids, err := config.read(ginCtx)
+		readAndBindGenerated: func(ginCtx *gin.Context) ([]uint64, error) {
+			_, ids, err := config.read(ginCtx)
 			if err != nil {
 				return nil, err
 			}
-			config.record(targetID, config.bindParams(ginCtx), body)
 			return ids, nil
 		},
 		write:         config.write,
@@ -269,22 +249,20 @@ func handleStableIDsRoute[Body any, Params any](
 	})
 }
 
-// handleBatchStableIDsOperation 处理批量稳定 ID 写入操作，并记录对应的生成请求。
-// 它读取请求体与绑定参数，记录操作后，委托给批量稳定 ID 路由完成校验和写入。
-func handleBatchStableIDsOperation[Body any, Params any](
+// handleBatchStableIDsOperation 保持批量写入的请求解析与原子校验顺序。
+func handleBatchStableIDsOperation[Body any](
 	ginCtx *gin.Context,
 	ctx *module.Context,
 	moduleName string,
-	config batchGeneratedStableIDsRouteConfig[Body, Params],
+	config batchGeneratedStableIDsRouteConfig[Body],
 ) {
 	handleBatchStableIDsRoute(ginCtx, ctx, moduleName, batchStableIDsHandlerConfig{
 		invalidField: "role_ids",
 		readAndBindGenerated: func(ginCtx *gin.Context) (batchStableIDSet, error) {
-			body, request, err := config.read(ginCtx)
+			_, request, err := config.read(ginCtx)
 			if err != nil {
 				return batchStableIDSet{}, err
 			}
-			config.record(config.bindParams(ginCtx), body)
 			return request, nil
 		},
 		write:             config.write,

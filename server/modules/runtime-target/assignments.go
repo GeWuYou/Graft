@@ -96,13 +96,12 @@ func (m *Module) handleListAssignments(c *gin.Context) {
 	httpx.WriteSuccess(c, http.StatusOK, runtimeTargetAssignmentListHTTP{Items: response, Revision: revision})
 }
 
-func (m *Module) handleGrantAssignment(c *gin.Context) {
+func (m *Module) handleGrantAssignment(c *gin.Context, request runtimeTargetUserAssignmentRequestHTTP) {
 	target, ok := m.readTarget(c)
 	if !ok {
 		return
 	}
-	var request runtimeTargetUserAssignmentRequestHTTP
-	if err := c.ShouldBindJSON(&request); err != nil || request.UserID == 0 {
+	if request.UserID == 0 {
 		httpx.AbortLocalizedError(c, m.i18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
 		return
 	}
@@ -156,13 +155,12 @@ func (m *Module) handleAssignmentCandidates(c *gin.Context) {
 	httpx.WriteSuccess(c, http.StatusOK, runtimeTargetAssignmentCandidateListHTTP{Items: response, Total: total, Limit: query.Limit, Offset: query.Offset})
 }
 
-func (m *Module) handleReplaceAssignments(c *gin.Context) {
+func (m *Module) handleReplaceAssignments(c *gin.Context, request runtimeTargetUserAssignmentReplaceRequestHTTP) {
 	target, ok := m.readTarget(c)
 	if !ok {
 		return
 	}
-	var request runtimeTargetUserAssignmentReplaceRequestHTTP
-	if err := c.ShouldBindJSON(&request); err != nil || invalidAssignmentReplaceRequest(request) {
+	if invalidAssignmentReplaceRequest(request) {
 		httpx.AbortLocalizedError(c, m.i18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
 		return
 	}
@@ -194,9 +192,8 @@ func invalidAssignmentReplaceRequest(request runtimeTargetUserAssignmentReplaceR
 }
 
 //nolint:cyclop,gocognit,gocyclo // validates one bounded request before entering the shared transaction.
-func (m *Module) handleBatchAssignments(c *gin.Context) {
-	var request runtimeTargetAssignmentBatchRequestHTTP
-	if err := c.ShouldBindJSON(&request); err != nil || len(request.TargetIDs) == 0 || len(request.TargetIDs) > 1000 || len(request.UserIDs) == 0 || len(request.UserIDs) > 10000 || (request.Action != string(store.AssignmentBatchGrant) && request.Action != string(store.AssignmentBatchRevoke)) {
+func (m *Module) handleBatchAssignments(c *gin.Context, request runtimeTargetAssignmentBatchRequestHTTP) {
+	if len(request.TargetIDs) == 0 || len(request.TargetIDs) > 1000 || len(request.UserIDs) == 0 || len(request.UserIDs) > 10000 || (request.Action != string(store.AssignmentBatchGrant) && request.Action != string(store.AssignmentBatchRevoke)) {
 		httpx.AbortLocalizedError(c, m.i18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
 		return
 	}

@@ -4,7 +4,16 @@
 package authopenapi
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/oapi-codegen/runtime"
 )
 
 // Defines values for GetAuthBootstrap200JSONResponseBodyDataMenusKind.
@@ -993,3 +1002,3959 @@ type PostAuthLoginJSONRequestBody PostAuthLoginJSONBody
 
 // PostAuthPersonalAccessTokensJSONRequestBody defines body for PostAuthPersonalAccessTokens for application/json ContentType.
 type PostAuthPersonalAccessTokensJSONRequestBody PostAuthPersonalAccessTokensJSONBody
+
+// ServerInterface represents all server handlers.
+type ServerInterface interface {
+	// GetAuthBootstrap Read current authenticated bootstrap payload
+	// (GET /api/auth/bootstrap)
+	GetAuthBootstrap(c *gin.Context, params GetAuthBootstrapParams)
+	// PostAuthChangePassword Change current user password
+	// (POST /api/auth/change-password)
+	PostAuthChangePassword(c *gin.Context, params PostAuthChangePasswordParams)
+	// PostAuthCompleteRequiredPasswordChange Complete required password change
+	// (POST /api/auth/complete-required-password-change)
+	PostAuthCompleteRequiredPasswordChange(c *gin.Context, params PostAuthCompleteRequiredPasswordChangeParams)
+	// PostAuthLogin Login with username and password
+	// (POST /api/auth/login)
+	PostAuthLogin(c *gin.Context, params PostAuthLoginParams)
+	// PostAuthLogout Logout current refresh session
+	// (POST /api/auth/logout)
+	PostAuthLogout(c *gin.Context, params PostAuthLogoutParams)
+	// GetAuthPersonalAccessTokens List current user personal API tokens
+	// (GET /api/auth/personal-access-tokens)
+	GetAuthPersonalAccessTokens(c *gin.Context, params GetAuthPersonalAccessTokensParams)
+	// PostAuthPersonalAccessTokens Create current user personal API token
+	// (POST /api/auth/personal-access-tokens)
+	PostAuthPersonalAccessTokens(c *gin.Context, params PostAuthPersonalAccessTokensParams)
+	// PostAuthPersonalAccessTokenRevoke Revoke current user personal API token
+	// (POST /api/auth/personal-access-tokens/{tokenID}/revoke)
+	PostAuthPersonalAccessTokenRevoke(c *gin.Context, tokenID int64, params PostAuthPersonalAccessTokenRevokeParams)
+	// PostAuthRefresh Rotate refresh session and issue a new access token
+	// (POST /api/auth/refresh)
+	PostAuthRefresh(c *gin.Context, params PostAuthRefreshParams)
+	// GetAuthSessions List current user sessions
+	// (GET /api/auth/sessions)
+	GetAuthSessions(c *gin.Context, params GetAuthSessionsParams)
+	// PostAuthSessionsRevokeAll Revoke all current user sessions
+	// (POST /api/auth/sessions/revoke-all)
+	PostAuthSessionsRevokeAll(c *gin.Context, params PostAuthSessionsRevokeAllParams)
+	// PostAuthSessionsRevokeOthers Revoke other current user sessions
+	// (POST /api/auth/sessions/revoke-others)
+	PostAuthSessionsRevokeOthers(c *gin.Context, params PostAuthSessionsRevokeOthersParams)
+	// PostAuthSessionRevoke Revoke one current user session
+	// (POST /api/auth/sessions/{sessionID}/revoke)
+	PostAuthSessionRevoke(c *gin.Context, sessionID string, params PostAuthSessionRevokeParams)
+}
+
+// ServerInterfaceWrapper converts contexts to parameters.
+type ServerInterfaceWrapper struct {
+	Handler            ServerInterface
+	HandlerMiddlewares []MiddlewareFunc
+	ErrorHandler       func(*gin.Context, error, int)
+}
+
+type MiddlewareFunc func(c *gin.Context)
+
+// GetAuthBootstrap operation middleware
+func (siw *ServerInterfaceWrapper) GetAuthBootstrap(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAuthBootstrapParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAuthBootstrap(c, params)
+}
+
+// PostAuthChangePassword operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthChangePassword(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAuthChangePasswordParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthChangePassword(c, params)
+}
+
+// PostAuthCompleteRequiredPasswordChange operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthCompleteRequiredPasswordChange(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAuthCompleteRequiredPasswordChangeParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthCompleteRequiredPasswordChange(c, params)
+}
+
+// PostAuthLogin operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthLogin(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAuthLoginParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthLogin(c, params)
+}
+
+// PostAuthLogout operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthLogout(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAuthLogoutParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthLogout(c, params)
+}
+
+// GetAuthPersonalAccessTokens operation middleware
+func (siw *ServerInterfaceWrapper) GetAuthPersonalAccessTokens(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAuthPersonalAccessTokensParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAuthPersonalAccessTokens(c, params)
+}
+
+// PostAuthPersonalAccessTokens operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthPersonalAccessTokens(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAuthPersonalAccessTokensParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthPersonalAccessTokens(c, params)
+}
+
+// PostAuthPersonalAccessTokenRevoke operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthPersonalAccessTokenRevoke(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tokenID" -------------
+	var tokenID int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tokenID", c.Param("tokenID"), &tokenID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter tokenID: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAuthPersonalAccessTokenRevokeParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthPersonalAccessTokenRevoke(c, tokenID, params)
+}
+
+// PostAuthRefresh operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthRefresh(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAuthRefreshParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthRefresh(c, params)
+}
+
+// GetAuthSessions operation middleware
+func (siw *ServerInterfaceWrapper) GetAuthSessions(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAuthSessionsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAuthSessions(c, params)
+}
+
+// PostAuthSessionsRevokeAll operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthSessionsRevokeAll(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAuthSessionsRevokeAllParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthSessionsRevokeAll(c, params)
+}
+
+// PostAuthSessionsRevokeOthers operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthSessionsRevokeOthers(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAuthSessionsRevokeOthersParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthSessionsRevokeOthers(c, params)
+}
+
+// PostAuthSessionRevoke operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthSessionRevoke(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "sessionID" -------------
+	var sessionID string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "sessionID", c.Param("sessionID"), &sessionID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter sessionID: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAuthSessionRevokeParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthSessionRevoke(c, sessionID, params)
+}
+
+// GinServerOptions provides options for the Gin server.
+type GinServerOptions struct {
+	BaseURL      string
+	Middlewares  []MiddlewareFunc
+	ErrorHandler func(*gin.Context, error, int)
+}
+
+// RegisterHandlers creates http.Handler with routing matching OpenAPI spec.
+func RegisterHandlers(router gin.IRouter, si ServerInterface) {
+	RegisterHandlersWithOptions(router, si, GinServerOptions{})
+}
+
+// RegisterHandlersWithOptions creates http.Handler with additional options
+func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options GinServerOptions) {
+	errorHandler := options.ErrorHandler
+	if errorHandler == nil {
+		errorHandler = func(c *gin.Context, err error, statusCode int) {
+			c.JSON(statusCode, gin.H{"msg": err.Error()})
+		}
+	}
+
+	wrapper := ServerInterfaceWrapper{
+		Handler:            si,
+		HandlerMiddlewares: options.Middlewares,
+		ErrorHandler:       errorHandler,
+	}
+
+	router.GET(options.BaseURL+"/api/auth/bootstrap", wrapper.GetAuthBootstrap)
+	router.POST(options.BaseURL+"/api/auth/change-password", wrapper.PostAuthChangePassword)
+	router.POST(options.BaseURL+"/api/auth/complete-required-password-change", wrapper.PostAuthCompleteRequiredPasswordChange)
+	router.POST(options.BaseURL+"/api/auth/login", wrapper.PostAuthLogin)
+	router.POST(options.BaseURL+"/api/auth/logout", wrapper.PostAuthLogout)
+	router.GET(options.BaseURL+"/api/auth/personal-access-tokens", wrapper.GetAuthPersonalAccessTokens)
+	router.POST(options.BaseURL+"/api/auth/personal-access-tokens", wrapper.PostAuthPersonalAccessTokens)
+	router.POST(options.BaseURL+"/api/auth/personal-access-tokens/:tokenID/revoke", wrapper.PostAuthPersonalAccessTokenRevoke)
+	router.POST(options.BaseURL+"/api/auth/refresh", wrapper.PostAuthRefresh)
+	router.GET(options.BaseURL+"/api/auth/sessions", wrapper.GetAuthSessions)
+	router.POST(options.BaseURL+"/api/auth/sessions/revoke-all", wrapper.PostAuthSessionsRevokeAll)
+	router.POST(options.BaseURL+"/api/auth/sessions/revoke-others", wrapper.PostAuthSessionsRevokeOthers)
+	router.POST(options.BaseURL+"/api/auth/sessions/:sessionID/revoke", wrapper.PostAuthSessionRevoke)
+}
+
+type GetAuthBootstrapRequestObject struct {
+	Params GetAuthBootstrapParams
+}
+
+type GetAuthBootstrapResponseObject interface {
+	VisitGetAuthBootstrapResponse(w http.ResponseWriter) error
+}
+
+type GetAuthBootstrap200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuthBootstrap200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			Locale struct {
+				CurrentLocale    string   `json:"current_locale"`
+				DefaultLocale    string   `json:"default_locale"`
+				FallbackLocale   string   `json:"fallback_locale"`
+				SupportedLocales []string `json:"supported_locales"`
+			} `json:"locale"`
+			Menus []struct {
+				Code string                                           `json:"code"`
+				Icon string                                           `json:"icon"`
+				Kind GetAuthBootstrap200JSONResponseBodyDataMenusKind `json:"kind"`
+
+				// Order Canonical menu order declared by the backend. Lower values render first within the same parent.
+				Order *int `json:"order,omitempty"`
+
+				// ParentCode Explicit parent navigation group code. Navigation hierarchy is never inferred from path.
+				ParentCode *string `json:"parent_code,omitempty"`
+
+				// Path Required for entry nodes and absent for group nodes.
+				Path       *string `json:"path,omitempty"`
+				Permission string  `json:"permission"`
+
+				// SectionKey Optional visual-only sidebar section identity. It never creates a route, permission, tab, breadcrumb, or menu node.
+				SectionKey *string `json:"section_key,omitempty"`
+
+				// SectionTitleKey Stable localization key for section_key. Required when section_key is present.
+				SectionTitleKey *string `json:"section_title_key,omitempty"`
+
+				// Title Existing menu-title fallback text. Consumers should prefer title_key when present.
+				Title string `json:"title"`
+
+				// TitleKey Stable menu title localization key owned by the menu contract. When present, it is the canonical title field and title is fallback-only.
+				TitleKey *string `json:"title_key,omitempty"`
+			} `json:"menus"`
+			MustChangePassword bool     `json:"must_change_password"`
+			Permissions        []string `json:"permissions"`
+			Roles              []string `json:"roles"`
+			User               struct {
+				DisplayName string `json:"display_name"`
+				Id          int64  `json:"id"`
+				Username    string `json:"username"`
+			} `json:"user"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetAuthBootstrap200ResponseHeaders
+}
+
+func (response GetAuthBootstrap200JSONResponse) VisitGetAuthBootstrapResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuthBootstrap401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuthBootstrap401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetAuthBootstrap401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetAuthBootstrap401ResponseHeaders
+}
+
+func (response GetAuthBootstrap401JSONResponse) VisitGetAuthBootstrapResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuthBootstrap403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuthBootstrap403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetAuthBootstrap403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetAuthBootstrap403ResponseHeaders
+}
+
+func (response GetAuthBootstrap403JSONResponse) VisitGetAuthBootstrapResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuthBootstrap500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuthBootstrap500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetAuthBootstrap500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetAuthBootstrap500ResponseHeaders
+}
+
+func (response GetAuthBootstrap500JSONResponse) VisitGetAuthBootstrapResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthChangePasswordRequestObject struct {
+	Params PostAuthChangePasswordParams
+	Body   *PostAuthChangePasswordJSONRequestBody
+}
+
+type PostAuthChangePasswordResponseObject interface {
+	VisitPostAuthChangePasswordResponse(w http.ResponseWriter) error
+}
+
+type PostAuthChangePassword200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthChangePassword200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data any    `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostAuthChangePassword200ResponseHeaders
+}
+
+func (response PostAuthChangePassword200JSONResponse) VisitPostAuthChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthChangePassword400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthChangePassword400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    PostAuthChangePassword400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers PostAuthChangePassword400ResponseHeaders
+}
+
+func (response PostAuthChangePassword400JSONResponse) VisitPostAuthChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthChangePassword401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthChangePassword401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    PostAuthChangePassword401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers PostAuthChangePassword401ResponseHeaders
+}
+
+func (response PostAuthChangePassword401JSONResponse) VisitPostAuthChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthChangePassword403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthChangePassword403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    PostAuthChangePassword403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers PostAuthChangePassword403ResponseHeaders
+}
+
+func (response PostAuthChangePassword403JSONResponse) VisitPostAuthChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthChangePassword500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthChangePassword500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                          `json:"messageKey,omitempty"`
+		Success    PostAuthChangePassword500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                           `json:"traceId"`
+	}
+	Headers PostAuthChangePassword500ResponseHeaders
+}
+
+func (response PostAuthChangePassword500JSONResponse) VisitPostAuthChangePasswordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthCompleteRequiredPasswordChangeRequestObject struct {
+	Params PostAuthCompleteRequiredPasswordChangeParams
+	Body   *PostAuthCompleteRequiredPasswordChangeJSONRequestBody
+}
+
+type PostAuthCompleteRequiredPasswordChangeResponseObject interface {
+	VisitPostAuthCompleteRequiredPasswordChangeResponse(w http.ResponseWriter) error
+}
+
+type PostAuthCompleteRequiredPasswordChange200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthCompleteRequiredPasswordChange200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data any    `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostAuthCompleteRequiredPasswordChange200ResponseHeaders
+}
+
+func (response PostAuthCompleteRequiredPasswordChange200JSONResponse) VisitPostAuthCompleteRequiredPasswordChangeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthCompleteRequiredPasswordChange400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthCompleteRequiredPasswordChange400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                          `json:"messageKey,omitempty"`
+		Success    PostAuthCompleteRequiredPasswordChange400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                           `json:"traceId"`
+	}
+	Headers PostAuthCompleteRequiredPasswordChange400ResponseHeaders
+}
+
+func (response PostAuthCompleteRequiredPasswordChange400JSONResponse) VisitPostAuthCompleteRequiredPasswordChangeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthCompleteRequiredPasswordChange401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthCompleteRequiredPasswordChange401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                          `json:"messageKey,omitempty"`
+		Success    PostAuthCompleteRequiredPasswordChange401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                           `json:"traceId"`
+	}
+	Headers PostAuthCompleteRequiredPasswordChange401ResponseHeaders
+}
+
+func (response PostAuthCompleteRequiredPasswordChange401JSONResponse) VisitPostAuthCompleteRequiredPasswordChangeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthCompleteRequiredPasswordChange403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthCompleteRequiredPasswordChange403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                          `json:"messageKey,omitempty"`
+		Success    PostAuthCompleteRequiredPasswordChange403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                           `json:"traceId"`
+	}
+	Headers PostAuthCompleteRequiredPasswordChange403ResponseHeaders
+}
+
+func (response PostAuthCompleteRequiredPasswordChange403JSONResponse) VisitPostAuthCompleteRequiredPasswordChangeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthCompleteRequiredPasswordChange500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthCompleteRequiredPasswordChange500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                          `json:"messageKey,omitempty"`
+		Success    PostAuthCompleteRequiredPasswordChange500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                           `json:"traceId"`
+	}
+	Headers PostAuthCompleteRequiredPasswordChange500ResponseHeaders
+}
+
+func (response PostAuthCompleteRequiredPasswordChange500JSONResponse) VisitPostAuthCompleteRequiredPasswordChangeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthLoginRequestObject struct {
+	Params PostAuthLoginParams
+	Body   *PostAuthLoginJSONRequestBody
+}
+
+type PostAuthLoginResponseObject interface {
+	VisitPostAuthLoginResponse(w http.ResponseWriter) error
+}
+
+type PostAuthLogin200ResponseHeaders struct {
+	SetCookie  *string
+	XRequestId *string
+}
+
+type PostAuthLogin200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			AccessToken        string    `json:"access_token"`
+			ExpiresAt          time.Time `json:"expires_at"`
+			MustChangePassword bool      `json:"must_change_password"`
+			User               struct {
+				DisplayName string `json:"display_name"`
+				Id          int64  `json:"id"`
+				Username    string `json:"username"`
+			} `json:"user"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostAuthLogin200ResponseHeaders
+}
+
+func (response PostAuthLogin200JSONResponse) VisitPostAuthLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthLogin401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthLogin401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                 `json:"messageKey,omitempty"`
+		Success    PostAuthLogin401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                  `json:"traceId"`
+	}
+	Headers PostAuthLogin401ResponseHeaders
+}
+
+func (response PostAuthLogin401JSONResponse) VisitPostAuthLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthLogin500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthLogin500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                 `json:"messageKey,omitempty"`
+		Success    PostAuthLogin500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                  `json:"traceId"`
+	}
+	Headers PostAuthLogin500ResponseHeaders
+}
+
+func (response PostAuthLogin500JSONResponse) VisitPostAuthLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthLogoutRequestObject struct {
+	Params PostAuthLogoutParams
+}
+
+type PostAuthLogoutResponseObject interface {
+	VisitPostAuthLogoutResponse(w http.ResponseWriter) error
+}
+
+type PostAuthLogout200ResponseHeaders struct {
+	SetCookie  *string
+	XRequestId *string
+}
+
+type PostAuthLogout200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data any    `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostAuthLogout200ResponseHeaders
+}
+
+func (response PostAuthLogout200JSONResponse) VisitPostAuthLogoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthLogout401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthLogout401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                  `json:"messageKey,omitempty"`
+		Success    PostAuthLogout401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                   `json:"traceId"`
+	}
+	Headers PostAuthLogout401ResponseHeaders
+}
+
+func (response PostAuthLogout401JSONResponse) VisitPostAuthLogoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthLogout500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthLogout500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                  `json:"messageKey,omitempty"`
+		Success    PostAuthLogout500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                   `json:"traceId"`
+	}
+	Headers PostAuthLogout500ResponseHeaders
+}
+
+func (response PostAuthLogout500JSONResponse) VisitPostAuthLogoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuthPersonalAccessTokensRequestObject struct {
+	Params GetAuthPersonalAccessTokensParams
+}
+
+type GetAuthPersonalAccessTokensResponseObject interface {
+	VisitGetAuthPersonalAccessTokensResponse(w http.ResponseWriter) error
+}
+
+type GetAuthPersonalAccessTokens200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuthPersonalAccessTokens200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data []struct {
+			CreatedAt  time.Time  `json:"created_at"`
+			ExpiresAt  time.Time  `json:"expires_at"`
+			Id         int64      `json:"id"`
+			LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+			Name       string     `json:"name"`
+			RevokedAt  *time.Time `json:"revoked_at,omitempty"`
+			Scopes     []string   `json:"scopes"`
+
+			// TokenPrefix Non-secret display prefix used to identify the credential.
+			TokenPrefix string `json:"token_prefix"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetAuthPersonalAccessTokens200ResponseHeaders
+}
+
+func (response GetAuthPersonalAccessTokens200JSONResponse) VisitGetAuthPersonalAccessTokensResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuthPersonalAccessTokens401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuthPersonalAccessTokens401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                               `json:"messageKey,omitempty"`
+		Success    GetAuthPersonalAccessTokens401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                `json:"traceId"`
+	}
+	Headers GetAuthPersonalAccessTokens401ResponseHeaders
+}
+
+func (response GetAuthPersonalAccessTokens401JSONResponse) VisitGetAuthPersonalAccessTokensResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuthPersonalAccessTokens403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuthPersonalAccessTokens403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                               `json:"messageKey,omitempty"`
+		Success    GetAuthPersonalAccessTokens403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                `json:"traceId"`
+	}
+	Headers GetAuthPersonalAccessTokens403ResponseHeaders
+}
+
+func (response GetAuthPersonalAccessTokens403JSONResponse) VisitGetAuthPersonalAccessTokensResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuthPersonalAccessTokens500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuthPersonalAccessTokens500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                               `json:"messageKey,omitempty"`
+		Success    GetAuthPersonalAccessTokens500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                `json:"traceId"`
+	}
+	Headers GetAuthPersonalAccessTokens500ResponseHeaders
+}
+
+func (response GetAuthPersonalAccessTokens500JSONResponse) VisitGetAuthPersonalAccessTokensResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPersonalAccessTokensRequestObject struct {
+	Params PostAuthPersonalAccessTokensParams
+	Body   *PostAuthPersonalAccessTokensJSONRequestBody
+}
+
+type PostAuthPersonalAccessTokensResponseObject interface {
+	VisitPostAuthPersonalAccessTokensResponse(w http.ResponseWriter) error
+}
+
+type PostAuthPersonalAccessTokens201ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthPersonalAccessTokens201JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			CreatedAt  time.Time  `json:"created_at"`
+			ExpiresAt  time.Time  `json:"expires_at"`
+			Id         int64      `json:"id"`
+			LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+			Name       string     `json:"name"`
+			RevokedAt  *time.Time `json:"revoked_at,omitempty"`
+			Scopes     []string   `json:"scopes"`
+
+			// Token One-time secret. It is returned only by this creation response and is never stored or returned again.
+			Token string `json:"token"`
+
+			// TokenPrefix Non-secret display prefix used to identify the credential.
+			TokenPrefix string `json:"token_prefix"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostAuthPersonalAccessTokens201ResponseHeaders
+}
+
+func (response PostAuthPersonalAccessTokens201JSONResponse) VisitPostAuthPersonalAccessTokensResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPersonalAccessTokens400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthPersonalAccessTokens400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                `json:"messageKey,omitempty"`
+		Success    PostAuthPersonalAccessTokens400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                 `json:"traceId"`
+	}
+	Headers PostAuthPersonalAccessTokens400ResponseHeaders
+}
+
+func (response PostAuthPersonalAccessTokens400JSONResponse) VisitPostAuthPersonalAccessTokensResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPersonalAccessTokens401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthPersonalAccessTokens401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                `json:"messageKey,omitempty"`
+		Success    PostAuthPersonalAccessTokens401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                 `json:"traceId"`
+	}
+	Headers PostAuthPersonalAccessTokens401ResponseHeaders
+}
+
+func (response PostAuthPersonalAccessTokens401JSONResponse) VisitPostAuthPersonalAccessTokensResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPersonalAccessTokens403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthPersonalAccessTokens403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                `json:"messageKey,omitempty"`
+		Success    PostAuthPersonalAccessTokens403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                 `json:"traceId"`
+	}
+	Headers PostAuthPersonalAccessTokens403ResponseHeaders
+}
+
+func (response PostAuthPersonalAccessTokens403JSONResponse) VisitPostAuthPersonalAccessTokensResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPersonalAccessTokens500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthPersonalAccessTokens500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                `json:"messageKey,omitempty"`
+		Success    PostAuthPersonalAccessTokens500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                 `json:"traceId"`
+	}
+	Headers PostAuthPersonalAccessTokens500ResponseHeaders
+}
+
+func (response PostAuthPersonalAccessTokens500JSONResponse) VisitPostAuthPersonalAccessTokensResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPersonalAccessTokenRevokeRequestObject struct {
+	TokenID int64 `json:"tokenID"`
+	Params  PostAuthPersonalAccessTokenRevokeParams
+}
+
+type PostAuthPersonalAccessTokenRevokeResponseObject interface {
+	VisitPostAuthPersonalAccessTokenRevokeResponse(w http.ResponseWriter) error
+}
+
+type PostAuthPersonalAccessTokenRevoke200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthPersonalAccessTokenRevoke200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data any    `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostAuthPersonalAccessTokenRevoke200ResponseHeaders
+}
+
+func (response PostAuthPersonalAccessTokenRevoke200JSONResponse) VisitPostAuthPersonalAccessTokenRevokeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPersonalAccessTokenRevoke400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthPersonalAccessTokenRevoke400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                     `json:"messageKey,omitempty"`
+		Success    PostAuthPersonalAccessTokenRevoke400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                      `json:"traceId"`
+	}
+	Headers PostAuthPersonalAccessTokenRevoke400ResponseHeaders
+}
+
+func (response PostAuthPersonalAccessTokenRevoke400JSONResponse) VisitPostAuthPersonalAccessTokenRevokeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPersonalAccessTokenRevoke401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthPersonalAccessTokenRevoke401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                     `json:"messageKey,omitempty"`
+		Success    PostAuthPersonalAccessTokenRevoke401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                      `json:"traceId"`
+	}
+	Headers PostAuthPersonalAccessTokenRevoke401ResponseHeaders
+}
+
+func (response PostAuthPersonalAccessTokenRevoke401JSONResponse) VisitPostAuthPersonalAccessTokenRevokeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPersonalAccessTokenRevoke403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthPersonalAccessTokenRevoke403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                     `json:"messageKey,omitempty"`
+		Success    PostAuthPersonalAccessTokenRevoke403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                      `json:"traceId"`
+	}
+	Headers PostAuthPersonalAccessTokenRevoke403ResponseHeaders
+}
+
+func (response PostAuthPersonalAccessTokenRevoke403JSONResponse) VisitPostAuthPersonalAccessTokenRevokeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthPersonalAccessTokenRevoke500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthPersonalAccessTokenRevoke500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                     `json:"messageKey,omitempty"`
+		Success    PostAuthPersonalAccessTokenRevoke500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                      `json:"traceId"`
+	}
+	Headers PostAuthPersonalAccessTokenRevoke500ResponseHeaders
+}
+
+func (response PostAuthPersonalAccessTokenRevoke500JSONResponse) VisitPostAuthPersonalAccessTokenRevokeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthRefreshRequestObject struct {
+	Params PostAuthRefreshParams
+}
+
+type PostAuthRefreshResponseObject interface {
+	VisitPostAuthRefreshResponse(w http.ResponseWriter) error
+}
+
+type PostAuthRefresh200ResponseHeaders struct {
+	SetCookie  *string
+	XRequestId *string
+}
+
+type PostAuthRefresh200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			AccessToken        string    `json:"access_token"`
+			ExpiresAt          time.Time `json:"expires_at"`
+			MustChangePassword bool      `json:"must_change_password"`
+			User               struct {
+				DisplayName string `json:"display_name"`
+				Id          int64  `json:"id"`
+				Username    string `json:"username"`
+			} `json:"user"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostAuthRefresh200ResponseHeaders
+}
+
+func (response PostAuthRefresh200JSONResponse) VisitPostAuthRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthRefresh401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthRefresh401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    PostAuthRefresh401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers PostAuthRefresh401ResponseHeaders
+}
+
+func (response PostAuthRefresh401JSONResponse) VisitPostAuthRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthRefresh403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthRefresh403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    PostAuthRefresh403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers PostAuthRefresh403ResponseHeaders
+}
+
+func (response PostAuthRefresh403JSONResponse) VisitPostAuthRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthRefresh500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthRefresh500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    PostAuthRefresh500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers PostAuthRefresh500ResponseHeaders
+}
+
+func (response PostAuthRefresh500JSONResponse) VisitPostAuthRefreshResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuthSessionsRequestObject struct {
+	Params GetAuthSessionsParams
+}
+
+type GetAuthSessionsResponseObject interface {
+	VisitGetAuthSessionsResponse(w http.ResponseWriter) error
+}
+
+type GetAuthSessions200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuthSessions200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data []struct {
+			CreatedAt time.Time `json:"created_at"`
+			Current   bool      `json:"current"`
+			ExpiresAt time.Time `json:"expires_at"`
+			SessionId string    `json:"session_id"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetAuthSessions200ResponseHeaders
+}
+
+func (response GetAuthSessions200JSONResponse) VisitGetAuthSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuthSessions400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuthSessions400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetAuthSessions400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetAuthSessions400ResponseHeaders
+}
+
+func (response GetAuthSessions400JSONResponse) VisitGetAuthSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuthSessions401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuthSessions401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetAuthSessions401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetAuthSessions401ResponseHeaders
+}
+
+func (response GetAuthSessions401JSONResponse) VisitGetAuthSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuthSessions403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuthSessions403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetAuthSessions403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetAuthSessions403ResponseHeaders
+}
+
+func (response GetAuthSessions403JSONResponse) VisitGetAuthSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuthSessions500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuthSessions500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                   `json:"messageKey,omitempty"`
+		Success    GetAuthSessions500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                    `json:"traceId"`
+	}
+	Headers GetAuthSessions500ResponseHeaders
+}
+
+func (response GetAuthSessions500JSONResponse) VisitGetAuthSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthSessionsRevokeAllRequestObject struct {
+	Params PostAuthSessionsRevokeAllParams
+}
+
+type PostAuthSessionsRevokeAllResponseObject interface {
+	VisitPostAuthSessionsRevokeAllResponse(w http.ResponseWriter) error
+}
+
+type PostAuthSessionsRevokeAll200ResponseHeaders struct {
+	SetCookie  *string
+	XRequestId *string
+}
+
+type PostAuthSessionsRevokeAll200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data any    `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostAuthSessionsRevokeAll200ResponseHeaders
+}
+
+func (response PostAuthSessionsRevokeAll200JSONResponse) VisitPostAuthSessionsRevokeAllResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthSessionsRevokeAll401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthSessionsRevokeAll401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostAuthSessionsRevokeAll401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostAuthSessionsRevokeAll401ResponseHeaders
+}
+
+func (response PostAuthSessionsRevokeAll401JSONResponse) VisitPostAuthSessionsRevokeAllResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthSessionsRevokeAll403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthSessionsRevokeAll403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostAuthSessionsRevokeAll403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostAuthSessionsRevokeAll403ResponseHeaders
+}
+
+func (response PostAuthSessionsRevokeAll403JSONResponse) VisitPostAuthSessionsRevokeAllResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthSessionsRevokeAll500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthSessionsRevokeAll500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                             `json:"messageKey,omitempty"`
+		Success    PostAuthSessionsRevokeAll500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                              `json:"traceId"`
+	}
+	Headers PostAuthSessionsRevokeAll500ResponseHeaders
+}
+
+func (response PostAuthSessionsRevokeAll500JSONResponse) VisitPostAuthSessionsRevokeAllResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthSessionsRevokeOthersRequestObject struct {
+	Params PostAuthSessionsRevokeOthersParams
+}
+
+type PostAuthSessionsRevokeOthersResponseObject interface {
+	VisitPostAuthSessionsRevokeOthersResponse(w http.ResponseWriter) error
+}
+
+type PostAuthSessionsRevokeOthers200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthSessionsRevokeOthers200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data any    `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostAuthSessionsRevokeOthers200ResponseHeaders
+}
+
+func (response PostAuthSessionsRevokeOthers200JSONResponse) VisitPostAuthSessionsRevokeOthersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthSessionsRevokeOthers401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthSessionsRevokeOthers401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                `json:"messageKey,omitempty"`
+		Success    PostAuthSessionsRevokeOthers401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                 `json:"traceId"`
+	}
+	Headers PostAuthSessionsRevokeOthers401ResponseHeaders
+}
+
+func (response PostAuthSessionsRevokeOthers401JSONResponse) VisitPostAuthSessionsRevokeOthersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthSessionsRevokeOthers403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthSessionsRevokeOthers403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                `json:"messageKey,omitempty"`
+		Success    PostAuthSessionsRevokeOthers403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                 `json:"traceId"`
+	}
+	Headers PostAuthSessionsRevokeOthers403ResponseHeaders
+}
+
+func (response PostAuthSessionsRevokeOthers403JSONResponse) VisitPostAuthSessionsRevokeOthersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthSessionsRevokeOthers500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthSessionsRevokeOthers500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                `json:"messageKey,omitempty"`
+		Success    PostAuthSessionsRevokeOthers500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                 `json:"traceId"`
+	}
+	Headers PostAuthSessionsRevokeOthers500ResponseHeaders
+}
+
+func (response PostAuthSessionsRevokeOthers500JSONResponse) VisitPostAuthSessionsRevokeOthersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthSessionRevokeRequestObject struct {
+	SessionID string `json:"sessionID"`
+	Params    PostAuthSessionRevokeParams
+}
+
+type PostAuthSessionRevokeResponseObject interface {
+	VisitPostAuthSessionRevokeResponse(w http.ResponseWriter) error
+}
+
+type PostAuthSessionRevoke200ResponseHeaders struct {
+	SetCookie  *string
+	XRequestId *string
+}
+
+type PostAuthSessionRevoke200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data any    `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PostAuthSessionRevoke200ResponseHeaders
+}
+
+func (response PostAuthSessionRevoke200JSONResponse) VisitPostAuthSessionRevokeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthSessionRevoke400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthSessionRevoke400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                         `json:"messageKey,omitempty"`
+		Success    PostAuthSessionRevoke400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                          `json:"traceId"`
+	}
+	Headers PostAuthSessionRevoke400ResponseHeaders
+}
+
+func (response PostAuthSessionRevoke400JSONResponse) VisitPostAuthSessionRevokeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthSessionRevoke401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthSessionRevoke401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                         `json:"messageKey,omitempty"`
+		Success    PostAuthSessionRevoke401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                          `json:"traceId"`
+	}
+	Headers PostAuthSessionRevoke401ResponseHeaders
+}
+
+func (response PostAuthSessionRevoke401JSONResponse) VisitPostAuthSessionRevokeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthSessionRevoke403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthSessionRevoke403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                         `json:"messageKey,omitempty"`
+		Success    PostAuthSessionRevoke403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                          `json:"traceId"`
+	}
+	Headers PostAuthSessionRevoke403ResponseHeaders
+}
+
+func (response PostAuthSessionRevoke403JSONResponse) VisitPostAuthSessionRevokeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthSessionRevoke404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthSessionRevoke404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                         `json:"messageKey,omitempty"`
+		Success    PostAuthSessionRevoke404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                          `json:"traceId"`
+	}
+	Headers PostAuthSessionRevoke404ResponseHeaders
+}
+
+func (response PostAuthSessionRevoke404JSONResponse) VisitPostAuthSessionRevokeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuthSessionRevoke500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuthSessionRevoke500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                         `json:"messageKey,omitempty"`
+		Success    PostAuthSessionRevoke500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                          `json:"traceId"`
+	}
+	Headers PostAuthSessionRevoke500ResponseHeaders
+}
+
+func (response PostAuthSessionRevoke500JSONResponse) VisitPostAuthSessionRevokeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+// StrictServerInterface represents all server handlers.
+type StrictServerInterface interface {
+	// GetAuthBootstrap Read current authenticated bootstrap payload
+	// (GET /api/auth/bootstrap)
+	GetAuthBootstrap(ctx context.Context, request GetAuthBootstrapRequestObject) (GetAuthBootstrapResponseObject, error)
+	// PostAuthChangePassword Change current user password
+	// (POST /api/auth/change-password)
+	PostAuthChangePassword(ctx context.Context, request PostAuthChangePasswordRequestObject) (PostAuthChangePasswordResponseObject, error)
+	// PostAuthCompleteRequiredPasswordChange Complete required password change
+	// (POST /api/auth/complete-required-password-change)
+	PostAuthCompleteRequiredPasswordChange(ctx context.Context, request PostAuthCompleteRequiredPasswordChangeRequestObject) (PostAuthCompleteRequiredPasswordChangeResponseObject, error)
+	// PostAuthLogin Login with username and password
+	// (POST /api/auth/login)
+	PostAuthLogin(ctx context.Context, request PostAuthLoginRequestObject) (PostAuthLoginResponseObject, error)
+	// PostAuthLogout Logout current refresh session
+	// (POST /api/auth/logout)
+	PostAuthLogout(ctx context.Context, request PostAuthLogoutRequestObject) (PostAuthLogoutResponseObject, error)
+	// GetAuthPersonalAccessTokens List current user personal API tokens
+	// (GET /api/auth/personal-access-tokens)
+	GetAuthPersonalAccessTokens(ctx context.Context, request GetAuthPersonalAccessTokensRequestObject) (GetAuthPersonalAccessTokensResponseObject, error)
+	// PostAuthPersonalAccessTokens Create current user personal API token
+	// (POST /api/auth/personal-access-tokens)
+	PostAuthPersonalAccessTokens(ctx context.Context, request PostAuthPersonalAccessTokensRequestObject) (PostAuthPersonalAccessTokensResponseObject, error)
+	// PostAuthPersonalAccessTokenRevoke Revoke current user personal API token
+	// (POST /api/auth/personal-access-tokens/{tokenID}/revoke)
+	PostAuthPersonalAccessTokenRevoke(ctx context.Context, request PostAuthPersonalAccessTokenRevokeRequestObject) (PostAuthPersonalAccessTokenRevokeResponseObject, error)
+	// PostAuthRefresh Rotate refresh session and issue a new access token
+	// (POST /api/auth/refresh)
+	PostAuthRefresh(ctx context.Context, request PostAuthRefreshRequestObject) (PostAuthRefreshResponseObject, error)
+	// GetAuthSessions List current user sessions
+	// (GET /api/auth/sessions)
+	GetAuthSessions(ctx context.Context, request GetAuthSessionsRequestObject) (GetAuthSessionsResponseObject, error)
+	// PostAuthSessionsRevokeAll Revoke all current user sessions
+	// (POST /api/auth/sessions/revoke-all)
+	PostAuthSessionsRevokeAll(ctx context.Context, request PostAuthSessionsRevokeAllRequestObject) (PostAuthSessionsRevokeAllResponseObject, error)
+	// PostAuthSessionsRevokeOthers Revoke other current user sessions
+	// (POST /api/auth/sessions/revoke-others)
+	PostAuthSessionsRevokeOthers(ctx context.Context, request PostAuthSessionsRevokeOthersRequestObject) (PostAuthSessionsRevokeOthersResponseObject, error)
+	// PostAuthSessionRevoke Revoke one current user session
+	// (POST /api/auth/sessions/{sessionID}/revoke)
+	PostAuthSessionRevoke(ctx context.Context, request PostAuthSessionRevokeRequestObject) (PostAuthSessionRevokeResponseObject, error)
+}
+
+type StrictHandlerFunc func(ctx *gin.Context, request any) (any, error)
+type StrictMiddlewareFunc func(f StrictHandlerFunc, operationID string) StrictHandlerFunc
+
+type StrictGinServerOptions struct {
+	// RequestErrorHandlerFunc is called when a request cannot be parsed or
+	// decoded. It is invoked for JSON bind failures, form parse/bind errors,
+	// multipart reader errors, media type parse errors, missing multipart
+	// boundaries, and request body read errors. The default returns 400.
+	RequestErrorHandlerFunc func(ctx *gin.Context, err error)
+	// HandlerErrorFunc is called when the application handler (or any
+	// middleware wrapping it) returns a non-nil error. The default returns 500.
+	HandlerErrorFunc func(ctx *gin.Context, err error)
+	// ResponseErrorHandlerFunc is called when the response object fails to
+	// serialize (Visit*Response returns an error) or when the handler returns
+	// an unexpected response type. The default returns 500.
+	ResponseErrorHandlerFunc func(ctx *gin.Context, err error)
+}
+
+func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc) ServerInterface {
+	return &strictHandler{ssi: ssi, middlewares: middlewares, options: StrictGinServerOptions{
+		RequestErrorHandlerFunc: func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
+		},
+		HandlerErrorFunc: func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		},
+		ResponseErrorHandlerFunc: func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		},
+	}}
+}
+
+func NewStrictHandlerWithOptions(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc, options StrictGinServerOptions) ServerInterface {
+	if options.RequestErrorHandlerFunc == nil {
+		options.RequestErrorHandlerFunc = func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
+		}
+	}
+	if options.HandlerErrorFunc == nil {
+		options.HandlerErrorFunc = func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		}
+	}
+	if options.ResponseErrorHandlerFunc == nil {
+		options.ResponseErrorHandlerFunc = func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		}
+	}
+	return &strictHandler{ssi: ssi, middlewares: middlewares, options: options}
+}
+
+type strictHandler struct {
+	ssi         StrictServerInterface
+	middlewares []StrictMiddlewareFunc
+	options     StrictGinServerOptions
+}
+
+// GetAuthBootstrap operation middleware
+func (sh *strictHandler) GetAuthBootstrap(ctx *gin.Context, params GetAuthBootstrapParams) {
+	var request GetAuthBootstrapRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAuthBootstrap(ctx, request.(GetAuthBootstrapRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAuthBootstrap")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetAuthBootstrapResponseObject); ok {
+		if err := validResponse.VisitGetAuthBootstrapResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthChangePassword operation middleware
+func (sh *strictHandler) PostAuthChangePassword(ctx *gin.Context, params PostAuthChangePasswordParams) {
+	var request PostAuthChangePasswordRequestObject
+
+	request.Params = params
+
+	var body PostAuthChangePasswordJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthChangePassword(ctx, request.(PostAuthChangePasswordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthChangePassword")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostAuthChangePasswordResponseObject); ok {
+		if err := validResponse.VisitPostAuthChangePasswordResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthCompleteRequiredPasswordChange operation middleware
+func (sh *strictHandler) PostAuthCompleteRequiredPasswordChange(ctx *gin.Context, params PostAuthCompleteRequiredPasswordChangeParams) {
+	var request PostAuthCompleteRequiredPasswordChangeRequestObject
+
+	request.Params = params
+
+	var body PostAuthCompleteRequiredPasswordChangeJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthCompleteRequiredPasswordChange(ctx, request.(PostAuthCompleteRequiredPasswordChangeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthCompleteRequiredPasswordChange")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostAuthCompleteRequiredPasswordChangeResponseObject); ok {
+		if err := validResponse.VisitPostAuthCompleteRequiredPasswordChangeResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthLogin operation middleware
+func (sh *strictHandler) PostAuthLogin(ctx *gin.Context, params PostAuthLoginParams) {
+	var request PostAuthLoginRequestObject
+
+	request.Params = params
+
+	var body PostAuthLoginJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthLogin(ctx, request.(PostAuthLoginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthLogin")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostAuthLoginResponseObject); ok {
+		if err := validResponse.VisitPostAuthLoginResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthLogout operation middleware
+func (sh *strictHandler) PostAuthLogout(ctx *gin.Context, params PostAuthLogoutParams) {
+	var request PostAuthLogoutRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthLogout(ctx, request.(PostAuthLogoutRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthLogout")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostAuthLogoutResponseObject); ok {
+		if err := validResponse.VisitPostAuthLogoutResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAuthPersonalAccessTokens operation middleware
+func (sh *strictHandler) GetAuthPersonalAccessTokens(ctx *gin.Context, params GetAuthPersonalAccessTokensParams) {
+	var request GetAuthPersonalAccessTokensRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAuthPersonalAccessTokens(ctx, request.(GetAuthPersonalAccessTokensRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAuthPersonalAccessTokens")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetAuthPersonalAccessTokensResponseObject); ok {
+		if err := validResponse.VisitGetAuthPersonalAccessTokensResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthPersonalAccessTokens operation middleware
+func (sh *strictHandler) PostAuthPersonalAccessTokens(ctx *gin.Context, params PostAuthPersonalAccessTokensParams) {
+	var request PostAuthPersonalAccessTokensRequestObject
+
+	request.Params = params
+
+	var body PostAuthPersonalAccessTokensJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthPersonalAccessTokens(ctx, request.(PostAuthPersonalAccessTokensRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthPersonalAccessTokens")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostAuthPersonalAccessTokensResponseObject); ok {
+		if err := validResponse.VisitPostAuthPersonalAccessTokensResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthPersonalAccessTokenRevoke operation middleware
+func (sh *strictHandler) PostAuthPersonalAccessTokenRevoke(ctx *gin.Context, tokenID int64, params PostAuthPersonalAccessTokenRevokeParams) {
+	var request PostAuthPersonalAccessTokenRevokeRequestObject
+
+	request.TokenID = tokenID
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthPersonalAccessTokenRevoke(ctx, request.(PostAuthPersonalAccessTokenRevokeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthPersonalAccessTokenRevoke")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostAuthPersonalAccessTokenRevokeResponseObject); ok {
+		if err := validResponse.VisitPostAuthPersonalAccessTokenRevokeResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthRefresh operation middleware
+func (sh *strictHandler) PostAuthRefresh(ctx *gin.Context, params PostAuthRefreshParams) {
+	var request PostAuthRefreshRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthRefresh(ctx, request.(PostAuthRefreshRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthRefresh")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostAuthRefreshResponseObject); ok {
+		if err := validResponse.VisitPostAuthRefreshResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAuthSessions operation middleware
+func (sh *strictHandler) GetAuthSessions(ctx *gin.Context, params GetAuthSessionsParams) {
+	var request GetAuthSessionsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAuthSessions(ctx, request.(GetAuthSessionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAuthSessions")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetAuthSessionsResponseObject); ok {
+		if err := validResponse.VisitGetAuthSessionsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthSessionsRevokeAll operation middleware
+func (sh *strictHandler) PostAuthSessionsRevokeAll(ctx *gin.Context, params PostAuthSessionsRevokeAllParams) {
+	var request PostAuthSessionsRevokeAllRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthSessionsRevokeAll(ctx, request.(PostAuthSessionsRevokeAllRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthSessionsRevokeAll")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostAuthSessionsRevokeAllResponseObject); ok {
+		if err := validResponse.VisitPostAuthSessionsRevokeAllResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthSessionsRevokeOthers operation middleware
+func (sh *strictHandler) PostAuthSessionsRevokeOthers(ctx *gin.Context, params PostAuthSessionsRevokeOthersParams) {
+	var request PostAuthSessionsRevokeOthersRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthSessionsRevokeOthers(ctx, request.(PostAuthSessionsRevokeOthersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthSessionsRevokeOthers")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostAuthSessionsRevokeOthersResponseObject); ok {
+		if err := validResponse.VisitPostAuthSessionsRevokeOthersResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuthSessionRevoke operation middleware
+func (sh *strictHandler) PostAuthSessionRevoke(ctx *gin.Context, sessionID string, params PostAuthSessionRevokeParams) {
+	var request PostAuthSessionRevokeRequestObject
+
+	request.SessionID = sessionID
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuthSessionRevoke(ctx, request.(PostAuthSessionRevokeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuthSessionRevoke")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostAuthSessionRevokeResponseObject); ok {
+		if err := validResponse.VisitPostAuthSessionRevokeResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}

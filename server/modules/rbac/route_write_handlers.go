@@ -11,34 +11,8 @@ import (
 	rbacopenapi "graft/server/internal/contract/openapi/rbac"
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
-	rbaccontract "graft/server/modules/rbac/contract"
 	rbacstore "graft/server/modules/rbac/store"
 )
-
-func registerRoleWriteRoutes(
-	group *gin.RouterGroup,
-	ctx *module.Context,
-	moduleName string,
-	writer writeManagementService,
-	guards managementGuards,
-) {
-	group.POST(rbaccontract.RoleCollection, guards.roleCreate, func(ginCtx *gin.Context) {
-		handleCreateRoleRoute(ginCtx, ctx, moduleName, writer)
-	})
-
-	group.POST(rbaccontract.RoleUpdateRoute, guards.roleUpdate, func(ginCtx *gin.Context) {
-		handleUpdateRoleRoute(ginCtx, ctx, moduleName, writer)
-	})
-	group.POST(rbaccontract.RoleCloneRoute, guards.roleCreate, func(ginCtx *gin.Context) {
-		handleCloneRoleRoute(ginCtx, ctx, moduleName, writer)
-	})
-
-	group.POST(rbaccontract.RoleStatusRoute, guards.roleStatus, func(ginCtx *gin.Context) { handleUpdateRoleStatusRoute(ginCtx, ctx, moduleName, writer) })
-	group.POST(rbaccontract.RoleDeleteRoute, guards.roleDelete, func(ginCtx *gin.Context) { handleDeleteRoleRoute(ginCtx, ctx, moduleName, writer) })
-	group.POST(rbaccontract.RolePermissionReplaceRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) { handleReplaceRolePermissionsRoute(ginCtx, ctx, moduleName, writer) })
-	group.POST(rbaccontract.RolePermissionAddRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) { handleAddRolePermissionsRoute(ginCtx, ctx, moduleName, writer) })
-	group.DELETE(rbaccontract.RolePermissionRemoveRoute, guards.rolePermissionAssign, func(ginCtx *gin.Context) { handleRemoveRolePermissionsRoute(ginCtx, ctx, moduleName, writer) })
-}
 
 func handleCloneRoleRoute(ginCtx *gin.Context, ctx *module.Context, moduleName string, writer writeManagementService) {
 	roleID, err := parseManagementID(ginCtx.Param("id"))
@@ -98,8 +72,6 @@ func handleCreateRoleRoute(
 		return
 	}
 
-	rbacWriteGeneratedHandler{}.PostRoles(bindGeneratedRoleCreateParams(ginCtx), request)
-
 	role, err := writer.CreateRole(requestCtx, roleInput)
 	if err != nil {
 		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, moduleName, err, "id")
@@ -154,8 +126,6 @@ func handleUpdateRoleRoute(
 		return
 	}
 
-	rbacWriteGeneratedHandler{}.PostRoleUpdate(roleID, bindGeneratedRoleUpdateParams(ginCtx), request)
-
 	role, err := writer.UpdateRole(requestCtx, roleInput)
 	if err != nil {
 		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, moduleName, err, "id")
@@ -192,8 +162,6 @@ func handleUpdateRoleStatusRoute(ginCtx *gin.Context, ctx *module.Context, modul
 		return
 	}
 
-	rbacWriteGeneratedHandler{}.PostRoleStatus(roleID, bindGeneratedRoleStatusParams(ginCtx), request)
-
 	role, err := writer.SetRoleStatus(requestCtx, rbacstore.SetRoleStatusInput{ID: roleID, Status: status})
 	if err != nil {
 		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, moduleName, err, "status")
@@ -215,7 +183,6 @@ func handleDeleteRoleRoute(ginCtx *gin.Context, ctx *module.Context, moduleName 
 		writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": "id"})
 		return
 	}
-	rbacWriteGeneratedHandler{}.PostRoleDelete(roleID, bindGeneratedRoleDeleteParams(ginCtx))
 	if err := writer.SoftDeleteRole(requestCtx, rbacstore.SoftDeleteRoleInput{ID: roleID}); err != nil {
 		writeRBACManagementError(ginCtx, ctx.I18n, ctx.Logger, moduleName, err, "id")
 		return

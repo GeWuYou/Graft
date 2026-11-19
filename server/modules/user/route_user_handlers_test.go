@@ -112,6 +112,7 @@ func TestDeleteUserRouteReturnsNoContentForInitialAndTombstoneDelete(t *testing.
 		},
 	}
 	group := router.Group("/api/users")
+	registrar.wrapper = registrar.newStrictWrapper(registrar.ctx, userSavedViewHandlers{})
 	registrar.registerUserReadRoutes(group)
 	registrar.registerDeleteUserRoute(group)
 

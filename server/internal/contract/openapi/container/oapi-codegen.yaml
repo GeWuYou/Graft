@@ -1,0 +1,52 @@
+package: containeropenapi
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  include-operation-ids:
+    - deleteContainerSavedView
+    - deleteDockerImageSavedView
+    - deleteDockerNetwork
+    - deleteDockerNetworkSavedView
+    - deleteDockerVolumeSavedView
+    - getContainer
+    - getContainerDashboardSummary
+    - getContainerEvents
+    - getContainerLogs
+    - getContainerMountUsage
+    - getContainerSavedViews
+    - getContainers
+    - getDockerImage
+    - getDockerImageSavedViews
+    - getDockerImages
+    - getDockerNetwork
+    - getDockerNetworkSavedViews
+    - getDockerNetworks
+    - getDockerSystem
+    - getDockerVolume
+    - getDockerVolumeSavedViews
+    - getDockerVolumes
+    - postContainerBatchActions
+    - postContainerMountUsageRefresh
+    - postContainerRemove
+    - postContainerRestart
+    - postContainerSavedView
+    - postContainerShellSession
+    - postContainerStart
+    - postContainerStop
+    - postDockerImageBatchRemove
+    - postDockerImagePull
+    - postDockerImageRemove
+    - postDockerImageSavedView
+    - postDockerImageTag
+    - postDockerImageUntag
+    - postDockerNetwork
+    - postDockerNetworkSavedView
+    - postDockerVolumeBatchRemove
+    - postDockerVolumeRemove
+    - postDockerVolumeSavedView
+    - putContainerSavedView
+    - putDockerImageSavedView
+    - putDockerNetworkSavedView
+    - putDockerVolumeSavedView

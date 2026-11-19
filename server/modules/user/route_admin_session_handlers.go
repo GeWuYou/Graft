@@ -1,12 +1,12 @@
 package user
 
 import (
+	"graft/server/internal/contract/openapi/strictsupport"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
-	useropenapi "graft/server/internal/contract/openapi/user"
 	"graft/server/internal/httpx"
 	"graft/server/internal/moduleapi"
 	usercontract "graft/server/modules/user/contract"
@@ -18,33 +18,33 @@ func (r userRouteRegistrar) registerAdminSessionRoutes(group *gin.RouterGroup) {
 }
 
 func (r userRouteRegistrar) registerAdminSessionReadRoute(group *gin.RouterGroup) {
-	group.GET(usercontract.UserSessions, r.guards.userSessionRead, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		rawID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
-		if !ok {
-			return
-		}
+	group.GET(usercontract.UserSessions, r.guards.userSessionRead, r.guards.restrictedSession, strictsupport.Route(r.wrapper.GetUserSessions, r.handleUserSessions))
+}
 
-		summary, err := r.userSvc.GetUserByID(ginCtx.Request.Context(), rawID)
-		if err != nil {
-			r.runtime().writeUserLookupError(ginCtx, rawID, "get user by id before listing sessions failed", err)
-			return
-		}
+func (r userRouteRegistrar) handleUserSessions(ginCtx *gin.Context) {
+	rawID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
+	if !ok {
+		return
+	}
 
-		listOptions, err := parseSessionListOptions(ginCtx.Query("limit"))
-		if err != nil {
-			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "limit")
-			return
-		}
-		userReadGeneratedHandler{}.GetUserSessions(rawID, bindGeneratedUserSessionsParams(ginCtx, listOptions))
+	summary, err := r.userSvc.GetUserByID(ginCtx.Request.Context(), rawID)
+	if err != nil {
+		r.runtime().writeUserLookupError(ginCtx, rawID, "get user by id before listing sessions failed", err)
+		return
+	}
 
-		sessions, err := r.authSessions.ListSessionsByUserID(ginCtx.Request.Context(), summary.ID)
-		if err != nil {
-			r.runtime().writeAuthRouteError(ginCtx, "list user refresh sessions failed", err, zap.Uint64("userID", rawID))
-			return
-		}
+	listOptions, err := parseSessionListOptions(ginCtx.Query("limit"))
+	if err != nil {
+		writeInvalidArgumentField(ginCtx, r.ctx.I18n, "limit")
+		return
+	}
+	sessions, err := r.authSessions.ListSessionsByUserID(ginCtx.Request.Context(), summary.ID)
+	if err != nil {
+		r.runtime().writeAuthRouteError(ginCtx, "list user refresh sessions failed", err, zap.Uint64("userID", rawID))
+		return
+	}
 
-		httpx.WriteSuccess(ginCtx, http.StatusOK, toGeneratedSessionSummariesFromCapability(sessions, listOptions))
-	})
+	httpx.WriteSuccess(ginCtx, http.StatusOK, toGeneratedSessionSummariesFromCapability(sessions, listOptions))
 }
 
 func (r userRouteRegistrar) registerAdminSessionRevokeRoutes(group *gin.RouterGroup) {
@@ -53,121 +53,58 @@ func (r userRouteRegistrar) registerAdminSessionRevokeRoutes(group *gin.RouterGr
 }
 
 func (r userRouteRegistrar) registerAdminRevokeSingleSessionRoute(group *gin.RouterGroup) {
-	group.POST(usercontract.UserSessionByIDRevoke, r.guards.userSessionRevoke, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		rawID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
-		if !ok {
-			return
-		}
+	group.POST(usercontract.UserSessionByIDRevoke, r.guards.userSessionRevoke, r.guards.restrictedSession, strictsupport.Route(r.wrapper.PostUserSessionRevoke, r.handleUserSessionRevoke))
+}
 
-		sessionID, ok := readSessionIDParam(ginCtx, r.ctx.I18n)
-		if !ok {
-			return
-		}
-		userWriteGeneratedHandler{}.PostUserSessionRevoke(rawID, sessionID, bindGeneratedUserSessionRevokeParams(ginCtx))
+func (r userRouteRegistrar) handleUserSessionRevoke(ginCtx *gin.Context) {
+	rawID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
+	if !ok {
+		return
+	}
 
-		summary, err := r.userSvc.GetUserByID(ginCtx.Request.Context(), rawID)
-		if err != nil {
-			r.runtime().writeUserLookupError(ginCtx, rawID, "get user by id before revoking session failed", err)
-			return
-		}
+	sessionID, ok := readSessionIDParam(ginCtx, r.ctx.I18n)
+	if !ok {
+		return
+	}
+	summary, err := r.userSvc.GetUserByID(ginCtx.Request.Context(), rawID)
+	if err != nil {
+		r.runtime().writeUserLookupError(ginCtx, rawID, "get user by id before revoking session failed", err)
+		return
+	}
 
-		if _, err := r.authSessions.RevokeSessionByUserID(ginCtx.Request.Context(), summary.ID, sessionID); err != nil {
-			r.runtime().writeAuthRouteError(
-				ginCtx,
-				"admin revoke user refresh session failed",
-				err,
-				zap.Uint64("userID", rawID),
-				zap.String("sessionID", sessionID),
-			)
-			return
-		}
+	if _, err := r.authSessions.RevokeSessionByUserID(ginCtx.Request.Context(), summary.ID, sessionID); err != nil {
+		r.runtime().writeAuthRouteError(
+			ginCtx,
+			"admin revoke user refresh session failed",
+			err,
+			zap.Uint64("userID", rawID),
+			zap.String("sessionID", sessionID),
+		)
+		return
+	}
 
-		clearRefreshCookieWhen(ginCtx, r.cookies, func(claims *moduleapi.AccessTokenClaims) bool {
-			return claims.UserID == rawID && claims.SessionID == sessionID
-		})
-		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
+	clearRefreshCookieWhen(ginCtx, r.cookies, func(claims *moduleapi.AccessTokenClaims) bool {
+		return claims.UserID == rawID && claims.SessionID == sessionID
 	})
+	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 }
 
 func (r userRouteRegistrar) registerAdminRevokeAllSessionsRoute(group *gin.RouterGroup) {
-	group.POST(usercontract.UserSessionsRevokeAll, r.guards.userSessionRevoke, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		rawID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
-		if !ok {
-			return
-		}
-		userWriteGeneratedHandler{}.PostUserSessionsRevokeAll(rawID, bindGeneratedUserSessionsRevokeAllParams(ginCtx))
+	group.POST(usercontract.UserSessionsRevokeAll, r.guards.userSessionRevoke, r.guards.restrictedSession, strictsupport.Route(r.wrapper.PostUserSessionsRevokeAll, r.handleUserSessionsRevokeAll))
+}
 
-		if _, err := r.authSessions.RevokeSessionsByUserID(ginCtx.Request.Context(), rawID); err != nil {
-			r.runtime().writeAuthRouteError(ginCtx, "admin revoke user refresh sessions failed", err, zap.Uint64("userID", rawID))
-			return
-		}
+func (r userRouteRegistrar) handleUserSessionsRevokeAll(ginCtx *gin.Context) {
+	rawID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
+	if !ok {
+		return
+	}
+	if _, err := r.authSessions.RevokeSessionsByUserID(ginCtx.Request.Context(), rawID); err != nil {
+		r.runtime().writeAuthRouteError(ginCtx, "admin revoke user refresh sessions failed", err, zap.Uint64("userID", rawID))
+		return
+	}
 
-		clearRefreshCookieWhen(ginCtx, r.cookies, func(claims *moduleapi.AccessTokenClaims) bool {
-			return claims.UserID == rawID
-		})
-		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
+	clearRefreshCookieWhen(ginCtx, r.cookies, func(claims *moduleapi.AccessTokenClaims) bool {
+		return claims.UserID == rawID
 	})
-}
-
-func (h userReadGeneratedHandler) GetUserSessions(id uint64, params useropenapi.GetUserSessionsParams) {
-	_ = h
-	_ = id
-	_ = params
-}
-
-func (h userWriteGeneratedHandler) PostUserSessionsRevokeAll(
-	id uint64,
-	params useropenapi.PostUserSessionsRevokeAllParams,
-) {
-	_ = h
-	_ = id
-	_ = params
-}
-
-func (h userWriteGeneratedHandler) PostUserSessionRevoke(
-	id uint64,
-	sessionID string,
-	params useropenapi.PostUserSessionRevokeParams,
-) {
-	_ = h
-	_ = id
-	_ = sessionID
-	_ = params
-}
-
-// bindGeneratedUserSessionsParams 将请求头和会话列表选项转换为生成的用户会话查询参数。
-// 当限制值大于零时，将其包含在返回参数中。
-//
-// options 提供会话列表的查询选项。
-func bindGeneratedUserSessionsParams(
-	ginCtx *gin.Context,
-	options userSessionListOptions,
-) useropenapi.GetUserSessionsParams {
-	locale, requestID := bindGeneratedHeaders(ginCtx)
-	params := useropenapi.GetUserSessionsParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-	if options.Limit > 0 {
-		params.Limit = &options.Limit
-	}
-
-	return params
-}
-
-func bindGeneratedUserSessionsRevokeAllParams(ginCtx *gin.Context) useropenapi.PostUserSessionsRevokeAllParams {
-	locale, requestID := bindGeneratedHeaders(ginCtx)
-	return useropenapi.PostUserSessionsRevokeAllParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-// bindGeneratedUserSessionRevokeParams 将请求头绑定到生成的会话撤销请求参数，保持统一的 locale 和 request ID 契约。
-func bindGeneratedUserSessionRevokeParams(ginCtx *gin.Context) useropenapi.PostUserSessionRevokeParams {
-	locale, requestID := bindGeneratedHeaders(ginCtx)
-	return useropenapi.PostUserSessionRevokeParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
+	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 }

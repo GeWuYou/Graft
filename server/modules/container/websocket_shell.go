@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"syscall"
 	"time"
 
@@ -133,7 +134,7 @@ func (r routeRuntime) authenticateShellWebSocketRequest(ginCtx *gin.Context) (co
 		httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, err)
 		return nil, moduleapi.RequestAuthContext{}, true
 	}
-	params := bindGetContainerShellWebSocketParams(ginCtx)
+	ticket := strings.TrimSpace(ginCtx.Query("ticket"))
 	ref, ok := readRef(ginCtx, r)
 	if !ok {
 		return nil, moduleapi.RequestAuthContext{}, true
@@ -141,7 +142,7 @@ func (r routeRuntime) authenticateShellWebSocketRequest(ginCtx *gin.Context) (co
 	handshake, err := r.service.ConsumeShellSessionTicket(
 		requestCtx,
 		ref,
-		params.Ticket,
+		ticket,
 		ginCtx.GetHeader("Origin"),
 	)
 	if err != nil {

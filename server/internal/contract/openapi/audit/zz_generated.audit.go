@@ -4,7 +4,16 @@
 package auditopenapi
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/oapi-codegen/runtime"
 )
 
 // Defines values for GetAuditIncident200JSONResponseBodyDataIncidentRiskLevel.
@@ -2599,3 +2608,4663 @@ type PutAuditVisibilityOverrideJSONRequestBody PutAuditVisibilityOverrideJSONBod
 
 // PutAuditVisibilityOverridesBatchJSONRequestBody defines body for PutAuditVisibilityOverridesBatch for application/json ContentType.
 type PutAuditVisibilityOverridesBatchJSONRequestBody PutAuditVisibilityOverridesBatchJSONBody
+
+// ServerInterface represents all server handlers.
+type ServerInterface interface {
+	// GetAuditIncident Read audit incident drilldown
+	// (GET /api/audit/incidents/{event_id})
+	GetAuditIncident(c *gin.Context, eventId int64, params GetAuditIncidentParams)
+	// GetAuditLogs List audit logs
+	// (GET /api/audit/logs)
+	GetAuditLogs(c *gin.Context, params GetAuditLogsParams)
+	// PostAuditLogDeletion Delete audit logs
+	// (POST /api/audit/logs/deletions)
+	PostAuditLogDeletion(c *gin.Context, params PostAuditLogDeletionParams)
+	// GetAuditLogSavedViews List private audit-log saved views
+	// (GET /api/audit/logs/saved-views)
+	GetAuditLogSavedViews(c *gin.Context, params GetAuditLogSavedViewsParams)
+	// PostAuditLogSavedView Create a private audit-log saved view
+	// (POST /api/audit/logs/saved-views)
+	PostAuditLogSavedView(c *gin.Context, params PostAuditLogSavedViewParams)
+	// DeleteAuditLogSavedView Delete a private audit-log saved view
+	// (DELETE /api/audit/logs/saved-views/{viewId})
+	DeleteAuditLogSavedView(c *gin.Context, viewId int64, params DeleteAuditLogSavedViewParams)
+	// PutAuditLogSavedView Update a private audit-log saved view
+	// (PUT /api/audit/logs/saved-views/{viewId})
+	PutAuditLogSavedView(c *gin.Context, viewId int64, params PutAuditLogSavedViewParams)
+	// GetAuditLogDetail Get audit log detail
+	// (GET /api/audit/logs/{id})
+	GetAuditLogDetail(c *gin.Context, id int64, params GetAuditLogDetailParams)
+	// GetAuditVisibilityPolicy Read audit visibility policy
+	// (GET /api/audit/policies/visibility)
+	GetAuditVisibilityPolicy(c *gin.Context, params GetAuditVisibilityPolicyParams)
+	// PutAuditVisibilityPolicy Update audit visibility default
+	// (PUT /api/audit/policies/visibility)
+	PutAuditVisibilityPolicy(c *gin.Context, params PutAuditVisibilityPolicyParams)
+	// DeleteAuditVisibilityOverride Delete audit visibility override
+	// (DELETE /api/audit/policies/visibility/overrides)
+	DeleteAuditVisibilityOverride(c *gin.Context, params DeleteAuditVisibilityOverrideParams)
+	// PutAuditVisibilityOverride Upsert audit visibility override
+	// (PUT /api/audit/policies/visibility/overrides)
+	PutAuditVisibilityOverride(c *gin.Context, params PutAuditVisibilityOverrideParams)
+	// PutAuditVisibilityOverridesBatch Batch upsert audit visibility overrides
+	// (PUT /api/audit/policies/visibility/overrides/batch)
+	PutAuditVisibilityOverridesBatch(c *gin.Context, params PutAuditVisibilityOverridesBatchParams)
+}
+
+// ServerInterfaceWrapper converts contexts to parameters.
+type ServerInterfaceWrapper struct {
+	Handler            ServerInterface
+	HandlerMiddlewares []MiddlewareFunc
+	ErrorHandler       func(*gin.Context, error, int)
+}
+
+type MiddlewareFunc func(c *gin.Context)
+
+// GetAuditIncident operation middleware
+func (siw *ServerInterfaceWrapper) GetAuditIncident(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "event_id" -------------
+	var eventId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "event_id", c.Param("event_id"), &eventId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter event_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAuditIncidentParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAuditIncident(c, eventId, params)
+}
+
+// GetAuditLogs operation middleware
+func (siw *ServerInterfaceWrapper) GetAuditLogs(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAuditLogsParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page", c.Request.URL.Query(), &params.Page, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "page_size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "page_size", c.Request.URL.Query(), &params.PageSize, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page_size: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "actor_user_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "actor_user_id", c.Request.URL.Query(), &params.ActorUserId, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter actor_user_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "keyword" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "keyword", c.Request.URL.Query(), &params.Keyword, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter keyword: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "actor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "actor", c.Request.URL.Query(), &params.Actor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter actor: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "action" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "action", c.Request.URL.Query(), &params.Action, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter action: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "preset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "preset", c.Request.URL.Query(), &params.Preset, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter preset: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "scope" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "scope", c.Request.URL.Query(), &params.Scope, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter scope: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "visibility_scope" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "visibility_scope", c.Request.URL.Query(), &params.VisibilityScope, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter visibility_scope: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "business_category" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "business_category", c.Request.URL.Query(), &params.BusinessCategory, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter business_category: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "action_prefix" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "action_prefix", c.Request.URL.Query(), &params.ActionPrefix, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter action_prefix: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "action_prefixes" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "action_prefixes", c.Request.URL.Query(), &params.ActionPrefixes, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter action_prefixes: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "action_keywords" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "action_keywords", c.Request.URL.Query(), &params.ActionKeywords, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter action_keywords: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "source" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "source", c.Request.URL.Query(), &params.Source, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter source: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "resource_type" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "resource_type", c.Request.URL.Query(), &params.ResourceType, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter resource_type: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "resource_types" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "resource_types", c.Request.URL.Query(), &params.ResourceTypes, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter resource_types: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "resource_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "resource_id", c.Request.URL.Query(), &params.ResourceId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter resource_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "resource_name" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "resource_name", c.Request.URL.Query(), &params.ResourceName, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter resource_name: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "request_path_prefixes" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "request_path_prefixes", c.Request.URL.Query(), &params.RequestPathPrefixes, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter request_path_prefixes: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "request_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "request_id", c.Request.URL.Query(), &params.RequestId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter request_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "session_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "session_id", c.Request.URL.Query(), &params.SessionId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter session_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "result" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "result", c.Request.URL.Query(), &params.Result, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter result: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "results" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "results", c.Request.URL.Query(), &params.Results, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter results: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "risk_level" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "risk_level", c.Request.URL.Query(), &params.RiskLevel, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter risk_level: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "risk_levels" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "risk_levels", c.Request.URL.Query(), &params.RiskLevels, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter risk_levels: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "success" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "success", c.Request.URL.Query(), &params.Success, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter success: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "created_from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "created_from", c.Request.URL.Query(), &params.CreatedFrom, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter created_from: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "created_to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "created_to", c.Request.URL.Query(), &params.CreatedTo, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter created_to: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "sort" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "sort", c.Request.URL.Query(), &params.Sort, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter sort: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAuditLogs(c, params)
+}
+
+// PostAuditLogDeletion operation middleware
+func (siw *ServerInterfaceWrapper) PostAuditLogDeletion(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAuditLogDeletionParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Header parameter Idempotency-Key is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuditLogDeletion(c, params)
+}
+
+// GetAuditLogSavedViews operation middleware
+func (siw *ServerInterfaceWrapper) GetAuditLogSavedViews(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAuditLogSavedViewsParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAuditLogSavedViews(c, params)
+}
+
+// PostAuditLogSavedView operation middleware
+func (siw *ServerInterfaceWrapper) PostAuditLogSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostAuditLogSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuditLogSavedView(c, params)
+}
+
+// DeleteAuditLogSavedView operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAuditLogSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", c.Param("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter viewId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteAuditLogSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteAuditLogSavedView(c, viewId, params)
+}
+
+// PutAuditLogSavedView operation middleware
+func (siw *ServerInterfaceWrapper) PutAuditLogSavedView(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "viewId" -------------
+	var viewId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "viewId", c.Param("viewId"), &viewId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter viewId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutAuditLogSavedViewParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutAuditLogSavedView(c, viewId, params)
+}
+
+// GetAuditLogDetail operation middleware
+func (siw *ServerInterfaceWrapper) GetAuditLogDetail(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "int64", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAuditLogDetailParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAuditLogDetail(c, id, params)
+}
+
+// GetAuditVisibilityPolicy operation middleware
+func (siw *ServerInterfaceWrapper) GetAuditVisibilityPolicy(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAuditVisibilityPolicyParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAuditVisibilityPolicy(c, params)
+}
+
+// PutAuditVisibilityPolicy operation middleware
+func (siw *ServerInterfaceWrapper) PutAuditVisibilityPolicy(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutAuditVisibilityPolicyParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutAuditVisibilityPolicy(c, params)
+}
+
+// DeleteAuditVisibilityOverride operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAuditVisibilityOverride(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteAuditVisibilityOverrideParams
+
+	// ------------- Required query parameter "source" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "source", c.Request.URL.Query(), &params.Source, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter source: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Required query parameter "action_key" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "action_key", c.Request.URL.Query(), &params.ActionKey, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter action_key: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteAuditVisibilityOverride(c, params)
+}
+
+// PutAuditVisibilityOverride operation middleware
+func (siw *ServerInterfaceWrapper) PutAuditVisibilityOverride(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutAuditVisibilityOverrideParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutAuditVisibilityOverride(c, params)
+}
+
+// PutAuditVisibilityOverridesBatch operation middleware
+func (siw *ServerInterfaceWrapper) PutAuditVisibilityOverridesBatch(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutAuditVisibilityOverridesBatchParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "X-Graft-Locale" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Graft-Locale")]; found {
+		var XGraftLocale string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Graft-Locale, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Graft-Locale", valueList[0], &XGraftLocale, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Graft-Locale: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XGraftLocale = &XGraftLocale
+
+	}
+
+	// ------------- Optional header parameter "X-Request-Id" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Request-Id")]; found {
+		var XRequestId string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for X-Request-Id, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Request-Id", valueList[0], &XRequestId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter X-Request-Id: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.XRequestId = &XRequestId
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutAuditVisibilityOverridesBatch(c, params)
+}
+
+// GinServerOptions provides options for the Gin server.
+type GinServerOptions struct {
+	BaseURL      string
+	Middlewares  []MiddlewareFunc
+	ErrorHandler func(*gin.Context, error, int)
+}
+
+// RegisterHandlers creates http.Handler with routing matching OpenAPI spec.
+func RegisterHandlers(router gin.IRouter, si ServerInterface) {
+	RegisterHandlersWithOptions(router, si, GinServerOptions{})
+}
+
+// RegisterHandlersWithOptions creates http.Handler with additional options
+func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options GinServerOptions) {
+	errorHandler := options.ErrorHandler
+	if errorHandler == nil {
+		errorHandler = func(c *gin.Context, err error, statusCode int) {
+			c.JSON(statusCode, gin.H{"msg": err.Error()})
+		}
+	}
+
+	wrapper := ServerInterfaceWrapper{
+		Handler:            si,
+		HandlerMiddlewares: options.Middlewares,
+		ErrorHandler:       errorHandler,
+	}
+
+	router.GET(options.BaseURL+"/api/audit/incidents/:event_id", wrapper.GetAuditIncident)
+	router.GET(options.BaseURL+"/api/audit/logs", wrapper.GetAuditLogs)
+	router.POST(options.BaseURL+"/api/audit/logs/deletions", wrapper.PostAuditLogDeletion)
+	router.GET(options.BaseURL+"/api/audit/logs/saved-views", wrapper.GetAuditLogSavedViews)
+	router.POST(options.BaseURL+"/api/audit/logs/saved-views", wrapper.PostAuditLogSavedView)
+	router.DELETE(options.BaseURL+"/api/audit/logs/saved-views/:viewId", wrapper.DeleteAuditLogSavedView)
+	router.PUT(options.BaseURL+"/api/audit/logs/saved-views/:viewId", wrapper.PutAuditLogSavedView)
+	router.GET(options.BaseURL+"/api/audit/logs/:id", wrapper.GetAuditLogDetail)
+	router.GET(options.BaseURL+"/api/audit/policies/visibility", wrapper.GetAuditVisibilityPolicy)
+	router.PUT(options.BaseURL+"/api/audit/policies/visibility", wrapper.PutAuditVisibilityPolicy)
+	router.DELETE(options.BaseURL+"/api/audit/policies/visibility/overrides", wrapper.DeleteAuditVisibilityOverride)
+	router.PUT(options.BaseURL+"/api/audit/policies/visibility/overrides", wrapper.PutAuditVisibilityOverride)
+	router.PUT(options.BaseURL+"/api/audit/policies/visibility/overrides/batch", wrapper.PutAuditVisibilityOverridesBatch)
+}
+
+type GetAuditIncidentRequestObject struct {
+	EventId int64 `json:"event_id"`
+	Params  GetAuditIncidentParams
+}
+
+type GetAuditIncidentResponseObject interface {
+	VisitGetAuditIncidentResponse(w http.ResponseWriter) error
+}
+
+type GetAuditIncident200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditIncident200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			Incident struct {
+				CorrelationReason string                                                   `json:"correlation_reason"`
+				EndedAt           time.Time                                                `json:"ended_at"`
+				IncidentKey       string                                                   `json:"incident_key"`
+				RiskLevel         GetAuditIncident200JSONResponseBodyDataIncidentRiskLevel `json:"risk_level"`
+				StartedAt         time.Time                                                `json:"started_at"`
+				Summary           string                                                   `json:"summary"`
+				Title             string                                                   `json:"title"`
+			} `json:"incident"`
+
+			// MonitorContext Monitor evidence linked to an audit incident, describing anomaly scope, observation time, and deep-link evidence navigation.
+			MonitorContext struct {
+				// AnomalyKey Canonical anomaly identifier describing the monitor condition tied to the incident.
+				AnomalyKey *GetAuditIncident200JSONResponseBodyDataMonitorContextAnomalyKey `json:"anomaly_key,omitempty"`
+
+				// EvidenceLinks Canonical evidence links that deep-link into related monitor or audit investigation surfaces.
+				EvidenceLinks []struct {
+					// AuditContext Optional audit evidence filters used to correlate evidence links and narrow audit investigation context.
+					AuditContext *struct {
+						// Action Exact audit action identifier to match.
+						Action *string `json:"action,omitempty"`
+
+						// ActionPrefix Action namespace prefix used for broader matching such as `user.`.
+						ActionPrefix *string `json:"action_prefix,omitempty"`
+
+						// CreatedFrom Inclusive RFC 3339 lower bound for audit record creation time.
+						CreatedFrom *time.Time `json:"created_from,omitempty"`
+
+						// CreatedTo Inclusive RFC 3339 upper bound for audit record creation time.
+						CreatedTo *time.Time `json:"created_to,omitempty"`
+
+						// RequestId Correlation request identifier used to trace related records.
+						RequestId *string `json:"request_id,omitempty"`
+
+						// ResourceId Stable resource identifier associated with the audit record.
+						ResourceId *string `json:"resource_id,omitempty"`
+
+						// ResourceName Human-readable resource label captured with the audit record.
+						ResourceName *string `json:"resource_name,omitempty"`
+
+						// ResourceType Resource type associated with the audit record.
+						ResourceType *string `json:"resource_type,omitempty"`
+
+						// Result Audit result classification for the matching evidence set.
+						Result *GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextResult `json:"result,omitempty"`
+
+						// RiskLevel Risk classification for matched audit evidence.
+						RiskLevel *GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextRiskLevel `json:"risk_level,omitempty"`
+
+						// Source Canonical audit event source category.
+						Source *GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksAuditContextSource `json:"source,omitempty"`
+					} `json:"audit_context,omitempty"`
+					IncidentSeed *struct {
+						EventId int64 `json:"event_id"`
+					} `json:"incident_seed,omitempty"`
+					LinkState  GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksLinkState  `json:"link_state"`
+					Reason     *string                                                                      `json:"reason,omitempty"`
+					TargetKind GetAuditIncident200JSONResponseBodyDataMonitorContextEvidenceLinksTargetKind `json:"target_kind"`
+					TimeWindow *struct {
+						CreatedFrom time.Time `json:"created_from"`
+						CreatedTo   time.Time `json:"created_to"`
+					} `json:"time_window,omitempty"`
+
+					// Title Direct evidence-link title fallback when the client has no translation for title_key.
+					Title string `json:"title"`
+
+					// TitleKey Stable localization key for the evidence-link title.
+					TitleKey *string `json:"title_key,omitempty"`
+				} `json:"evidence_links"`
+
+				// ObservedAt RFC 3339 timestamp when the anomaly was observed.
+				ObservedAt *time.Time `json:"observed_at,omitempty"`
+
+				// Reason Optional explanation when evidence is partial or unavailable.
+				Reason *string `json:"reason,omitempty"`
+
+				// ScopeKind Scope category that owns the anomaly target.
+				ScopeKind *GetAuditIncident200JSONResponseBodyDataMonitorContextScopeKind `json:"scope_kind,omitempty"`
+
+				// ScopeRef Stable scope identifier used to reopen the owning monitor view.
+				ScopeRef *string `json:"scope_ref,omitempty"`
+
+				// State Availability of correlated monitor evidence for this incident.
+				State GetAuditIncident200JSONResponseBodyDataMonitorContextState `json:"state"`
+
+				// Summary Stable locale key for the correlated monitor evidence summary, resolved by the web locale catalog.
+				Summary string `json:"summary"`
+
+				// SummaryParams String-formatted interpolation values for the monitor summary locale key.
+				SummaryParams map[string]string `json:"summary_params"`
+			} `json:"monitor_context"`
+			RelatedActors []struct {
+				ActorDisplayName *string `json:"actor_display_name,omitempty"`
+				ActorUserId      *int64  `json:"actor_user_id,omitempty"`
+				ActorUsername    *string `json:"actor_username,omitempty"`
+				EventCount       int     `json:"event_count"`
+			} `json:"related_actors"`
+			RelatedEvents []struct {
+				Action           string                                                         `json:"action"`
+				ActorDisplayName *string                                                        `json:"actor_display_name,omitempty"`
+				ActorUserId      *int64                                                         `json:"actor_user_id,omitempty"`
+				ActorUsername    *string                                                        `json:"actor_username,omitempty"`
+				CreatedAt        time.Time                                                      `json:"created_at"`
+				Id               int64                                                          `json:"id"`
+				Ip               string                                                         `json:"ip"`
+				Message          string                                                         `json:"message"`
+				Metadata         map[string]interface{}                                         `json:"metadata"`
+				RequestId        string                                                         `json:"request_id"`
+				RequestMethod    *string                                                        `json:"request_method,omitempty"`
+				RequestPath      *string                                                        `json:"request_path,omitempty"`
+				ResourceId       *string                                                        `json:"resource_id,omitempty"`
+				ResourceName     *string                                                        `json:"resource_name,omitempty"`
+				ResourceType     string                                                         `json:"resource_type"`
+				Result           *GetAuditIncident200JSONResponseBodyDataRelatedEventsResult    `json:"result,omitempty"`
+				RiskLevel        *GetAuditIncident200JSONResponseBodyDataRelatedEventsRiskLevel `json:"risk_level,omitempty"`
+				SessionId        *string                                                        `json:"session_id,omitempty"`
+				Source           *GetAuditIncident200JSONResponseBodyDataRelatedEventsSource    `json:"source,omitempty"`
+				StatusCode       *int                                                           `json:"status_code,omitempty"`
+				Success          bool                                                           `json:"success"`
+				Target           struct {
+					Id       *string                                                        `json:"id,omitempty"`
+					Kind     GetAuditIncident200JSONResponseBodyDataRelatedEventsTargetKind `json:"kind"`
+					Label    string                                                         `json:"label"`
+					RouteRef *string                                                        `json:"route_ref,omitempty"`
+					Type     string                                                         `json:"type"`
+				} `json:"target"`
+				TargetLabel *string `json:"target_label,omitempty"`
+				TargetType  *string `json:"target_type,omitempty"`
+				TraceId     *string `json:"trace_id,omitempty"`
+				UserAgent   string  `json:"user_agent"`
+			} `json:"related_events"`
+			RelatedRequests []struct {
+				EndedAt    time.Time `json:"ended_at"`
+				EventCount int       `json:"event_count"`
+				RequestId  string    `json:"request_id"`
+				StartedAt  time.Time `json:"started_at"`
+			} `json:"related_requests"`
+			RelatedResources []struct {
+				EventCount   int    `json:"event_count"`
+				ResourceId   string `json:"resource_id"`
+				ResourceName string `json:"resource_name"`
+				ResourceType string `json:"resource_type"`
+			} `json:"related_resources"`
+			SeedEvent struct {
+				Action           string                                                     `json:"action"`
+				ActorDisplayName *string                                                    `json:"actor_display_name,omitempty"`
+				ActorUserId      *int64                                                     `json:"actor_user_id,omitempty"`
+				ActorUsername    *string                                                    `json:"actor_username,omitempty"`
+				CreatedAt        time.Time                                                  `json:"created_at"`
+				Id               int64                                                      `json:"id"`
+				Ip               string                                                     `json:"ip"`
+				Message          string                                                     `json:"message"`
+				Metadata         map[string]interface{}                                     `json:"metadata"`
+				RequestId        string                                                     `json:"request_id"`
+				RequestMethod    *string                                                    `json:"request_method,omitempty"`
+				RequestPath      *string                                                    `json:"request_path,omitempty"`
+				ResourceId       *string                                                    `json:"resource_id,omitempty"`
+				ResourceName     *string                                                    `json:"resource_name,omitempty"`
+				ResourceType     string                                                     `json:"resource_type"`
+				Result           *GetAuditIncident200JSONResponseBodyDataSeedEventResult    `json:"result,omitempty"`
+				RiskLevel        *GetAuditIncident200JSONResponseBodyDataSeedEventRiskLevel `json:"risk_level,omitempty"`
+				SessionId        *string                                                    `json:"session_id,omitempty"`
+				Source           *GetAuditIncident200JSONResponseBodyDataSeedEventSource    `json:"source,omitempty"`
+				StatusCode       *int                                                       `json:"status_code,omitempty"`
+				Success          bool                                                       `json:"success"`
+				Target           struct {
+					Id       *string                                                    `json:"id,omitempty"`
+					Kind     GetAuditIncident200JSONResponseBodyDataSeedEventTargetKind `json:"kind"`
+					Label    string                                                     `json:"label"`
+					RouteRef *string                                                    `json:"route_ref,omitempty"`
+					Type     string                                                     `json:"type"`
+				} `json:"target"`
+				TargetLabel *string `json:"target_label,omitempty"`
+				TargetType  *string `json:"target_type,omitempty"`
+				TraceId     *string `json:"trace_id,omitempty"`
+				UserAgent   string  `json:"user_agent"`
+			} `json:"seed_event"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetAuditIncident200ResponseHeaders
+}
+
+func (response GetAuditIncident200JSONResponse) VisitGetAuditIncidentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditIncident400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditIncident400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetAuditIncident400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetAuditIncident400ResponseHeaders
+}
+
+func (response GetAuditIncident400JSONResponse) VisitGetAuditIncidentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditIncident401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditIncident401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetAuditIncident401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetAuditIncident401ResponseHeaders
+}
+
+func (response GetAuditIncident401JSONResponse) VisitGetAuditIncidentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditIncident403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditIncident403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetAuditIncident403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetAuditIncident403ResponseHeaders
+}
+
+func (response GetAuditIncident403JSONResponse) VisitGetAuditIncidentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditIncident404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditIncident404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetAuditIncident404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetAuditIncident404ResponseHeaders
+}
+
+func (response GetAuditIncident404JSONResponse) VisitGetAuditIncidentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditIncident500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditIncident500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                    `json:"messageKey,omitempty"`
+		Success    GetAuditIncident500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                     `json:"traceId"`
+	}
+	Headers GetAuditIncident500ResponseHeaders
+}
+
+func (response GetAuditIncident500JSONResponse) VisitGetAuditIncidentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditLogsRequestObject struct {
+	Params GetAuditLogsParams
+}
+
+type GetAuditLogsResponseObject interface {
+	VisitGetAuditLogsResponse(w http.ResponseWriter) error
+}
+
+type GetAuditLogs200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditLogs200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			AppliedScope *struct {
+				Description *string   `json:"description,omitempty"`
+				Module      string    `json:"module"`
+				Name        string    `json:"name"`
+				OwnedFields *[]string `json:"owned_fields,omitempty"`
+				Scope       string    `json:"scope"`
+			} `json:"applied_scope,omitempty"`
+			ConvertibleFilters *struct {
+				ActionKeywords      *[]string                                                              `json:"action_keywords,omitempty"`
+				ActionPrefixes      *[]string                                                              `json:"action_prefixes,omitempty"`
+				BusinessCategory    *GetAuditLogs200JSONResponseBodyDataConvertibleFiltersBusinessCategory `json:"business_category,omitempty"`
+				Preset              *GetAuditLogs200JSONResponseBodyDataConvertibleFiltersPreset           `json:"preset,omitempty"`
+				RequestPathPrefixes *[]string                                                              `json:"request_path_prefixes,omitempty"`
+				ResourceTypes       *[]string                                                              `json:"resource_types,omitempty"`
+				Results             *[]GetAuditLogs200JSONResponseBodyDataConvertibleFiltersResults        `json:"results,omitempty"`
+				RiskLevels          *[]GetAuditLogs200JSONResponseBodyDataConvertibleFiltersRiskLevels     `json:"risk_levels,omitempty"`
+				Source              *GetAuditLogs200JSONResponseBodyDataConvertibleFiltersSource           `json:"source,omitempty"`
+				Success             *bool                                                                  `json:"success,omitempty"`
+			} `json:"convertible_filters,omitempty"`
+			Items []struct {
+				Action           string                                             `json:"action"`
+				ActorDisplayName *string                                            `json:"actor_display_name,omitempty"`
+				ActorUserId      *int64                                             `json:"actor_user_id,omitempty"`
+				ActorUsername    *string                                            `json:"actor_username,omitempty"`
+				CreatedAt        time.Time                                          `json:"created_at"`
+				Id               int64                                              `json:"id"`
+				Ip               string                                             `json:"ip"`
+				Message          string                                             `json:"message"`
+				Metadata         map[string]interface{}                             `json:"metadata"`
+				RequestId        string                                             `json:"request_id"`
+				RequestMethod    *string                                            `json:"request_method,omitempty"`
+				RequestPath      *string                                            `json:"request_path,omitempty"`
+				ResourceId       *string                                            `json:"resource_id,omitempty"`
+				ResourceName     *string                                            `json:"resource_name,omitempty"`
+				ResourceType     string                                             `json:"resource_type"`
+				Result           *GetAuditLogs200JSONResponseBodyDataItemsResult    `json:"result,omitempty"`
+				RiskLevel        *GetAuditLogs200JSONResponseBodyDataItemsRiskLevel `json:"risk_level,omitempty"`
+				SessionId        *string                                            `json:"session_id,omitempty"`
+				Source           *GetAuditLogs200JSONResponseBodyDataItemsSource    `json:"source,omitempty"`
+				StatusCode       *int                                               `json:"status_code,omitempty"`
+				Success          bool                                               `json:"success"`
+				Target           struct {
+					Id       *string                                            `json:"id,omitempty"`
+					Kind     GetAuditLogs200JSONResponseBodyDataItemsTargetKind `json:"kind"`
+					Label    string                                             `json:"label"`
+					RouteRef *string                                            `json:"route_ref,omitempty"`
+					Type     string                                             `json:"type"`
+				} `json:"target"`
+				TargetLabel *string `json:"target_label,omitempty"`
+				TargetType  *string `json:"target_type,omitempty"`
+				TraceId     *string `json:"trace_id,omitempty"`
+				UserAgent   string  `json:"user_agent"`
+			} `json:"items"`
+			Page            int `json:"page"`
+			PageSize        int `json:"page_size"`
+			ScopeProjection *struct {
+				Description *string `json:"description,omitempty"`
+				Items       *[]struct {
+					Key      string    `json:"key"`
+					Kind     string    `json:"kind"`
+					LabelKey string    `json:"label_key"`
+					Locked   bool      `json:"locked"`
+					Values   *[]string `json:"values,omitempty"`
+				} `json:"items,omitempty"`
+				Title string `json:"title"`
+			} `json:"scope_projection,omitempty"`
+			Total int `json:"total"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetAuditLogs200ResponseHeaders
+}
+
+func (response GetAuditLogs200JSONResponse) VisitGetAuditLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditLogs400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditLogs400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                `json:"messageKey,omitempty"`
+		Success    GetAuditLogs400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                 `json:"traceId"`
+	}
+	Headers GetAuditLogs400ResponseHeaders
+}
+
+func (response GetAuditLogs400JSONResponse) VisitGetAuditLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditLogs401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditLogs401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                `json:"messageKey,omitempty"`
+		Success    GetAuditLogs401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                 `json:"traceId"`
+	}
+	Headers GetAuditLogs401ResponseHeaders
+}
+
+func (response GetAuditLogs401JSONResponse) VisitGetAuditLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditLogs403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditLogs403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                `json:"messageKey,omitempty"`
+		Success    GetAuditLogs403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                 `json:"traceId"`
+	}
+	Headers GetAuditLogs403ResponseHeaders
+}
+
+func (response GetAuditLogs403JSONResponse) VisitGetAuditLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditLogs500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditLogs500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                `json:"messageKey,omitempty"`
+		Success    GetAuditLogs500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                 `json:"traceId"`
+	}
+	Headers GetAuditLogs500ResponseHeaders
+}
+
+func (response GetAuditLogs500JSONResponse) VisitGetAuditLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuditLogDeletionRequestObject struct {
+	Params PostAuditLogDeletionParams
+	Body   *PostAuditLogDeletionJSONRequestBody
+}
+
+type PostAuditLogDeletionResponseObject interface {
+	VisitPostAuditLogDeletionResponse(w http.ResponseWriter) error
+}
+
+type PostAuditLogDeletion200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+
+	// Data Canonical result for a bounded synchronous destructive batch. results contains exactly one item per requested ID in request order, and summary.requested equals summary.succeeded plus summary.failed.
+	Data struct {
+		OperationId string `json:"operation_id"`
+		Results     []struct {
+			// Code Stable public failure code. Required by runtime semantics when status is failed and omitted otherwise.
+			Code   *string                                                  `json:"code,omitempty"`
+			Id     string                                                   `json:"id"`
+			Status PostAuditLogDeletion200JSONResponseBodyDataResultsStatus `json:"status"`
+		} `json:"results"`
+
+		// Summary Counts for one bounded synchronous destructive batch operation.
+		Summary struct {
+			Failed    int `json:"failed"`
+			Requested int `json:"requested"`
+			Succeeded int `json:"succeeded"`
+		} `json:"summary"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PostAuditLogDeletion200JSONResponse) VisitPostAuditLogDeletionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuditLogDeletion400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuditLogDeletion400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostAuditLogDeletion400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostAuditLogDeletion400ResponseHeaders
+}
+
+func (response PostAuditLogDeletion400JSONResponse) VisitPostAuditLogDeletionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuditLogDeletion401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuditLogDeletion401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostAuditLogDeletion401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostAuditLogDeletion401ResponseHeaders
+}
+
+func (response PostAuditLogDeletion401JSONResponse) VisitPostAuditLogDeletionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuditLogDeletion403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuditLogDeletion403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostAuditLogDeletion403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostAuditLogDeletion403ResponseHeaders
+}
+
+func (response PostAuditLogDeletion403JSONResponse) VisitPostAuditLogDeletionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuditLogDeletion404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuditLogDeletion404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostAuditLogDeletion404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostAuditLogDeletion404ResponseHeaders
+}
+
+func (response PostAuditLogDeletion404JSONResponse) VisitPostAuditLogDeletionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuditLogDeletion409ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuditLogDeletion409JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostAuditLogDeletion409JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostAuditLogDeletion409ResponseHeaders
+}
+
+func (response PostAuditLogDeletion409JSONResponse) VisitPostAuditLogDeletionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuditLogDeletion500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuditLogDeletion500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PostAuditLogDeletion500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PostAuditLogDeletion500ResponseHeaders
+}
+
+func (response PostAuditLogDeletion500JSONResponse) VisitPostAuditLogDeletionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditLogSavedViewsRequestObject struct {
+	Params GetAuditLogSavedViewsParams
+}
+
+type GetAuditLogSavedViewsResponseObject interface {
+	VisitGetAuditLogSavedViewsResponse(w http.ResponseWriter) error
+}
+
+type GetAuditLogSavedViews200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		Items []struct {
+			CreatedAt time.Time `json:"created_at"`
+			Id        int64     `json:"id"`
+
+			// IsDefault Whether this user view is applied by default for its list surface.
+			IsDefault      bool                   `json:"is_default"`
+			Name           string                 `json:"name"`
+			PageSize       int                    `json:"page_size"`
+			QueryState     map[string]interface{} `json:"query_state"`
+			UpdatedAt      time.Time              `json:"updated_at"`
+			VisibleColumns []string               `json:"visible_columns"`
+		} `json:"items"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response GetAuditLogSavedViews200JSONResponse) VisitGetAuditLogSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditLogSavedViews401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditLogSavedViews401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                         `json:"messageKey,omitempty"`
+		Success    GetAuditLogSavedViews401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                          `json:"traceId"`
+	}
+	Headers GetAuditLogSavedViews401ResponseHeaders
+}
+
+func (response GetAuditLogSavedViews401JSONResponse) VisitGetAuditLogSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditLogSavedViews403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditLogSavedViews403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                         `json:"messageKey,omitempty"`
+		Success    GetAuditLogSavedViews403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                          `json:"traceId"`
+	}
+	Headers GetAuditLogSavedViews403ResponseHeaders
+}
+
+func (response GetAuditLogSavedViews403JSONResponse) VisitGetAuditLogSavedViewsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuditLogSavedViewRequestObject struct {
+	Params PostAuditLogSavedViewParams
+	Body   *PostAuditLogSavedViewJSONRequestBody
+}
+
+type PostAuditLogSavedViewResponseObject interface {
+	VisitPostAuditLogSavedViewResponse(w http.ResponseWriter) error
+}
+
+type PostAuditLogSavedView201JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		CreatedAt time.Time `json:"created_at"`
+		Id        int64     `json:"id"`
+
+		// IsDefault Whether this user view is applied by default for its list surface.
+		IsDefault      bool                   `json:"is_default"`
+		Name           string                 `json:"name"`
+		PageSize       int                    `json:"page_size"`
+		QueryState     map[string]interface{} `json:"query_state"`
+		UpdatedAt      time.Time              `json:"updated_at"`
+		VisibleColumns []string               `json:"visible_columns"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PostAuditLogSavedView201JSONResponse) VisitPostAuditLogSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuditLogSavedView400Response struct {
+}
+
+func (response PostAuditLogSavedView400Response) VisitPostAuditLogSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PostAuditLogSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuditLogSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                         `json:"messageKey,omitempty"`
+		Success    PostAuditLogSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                          `json:"traceId"`
+	}
+	Headers PostAuditLogSavedView401ResponseHeaders
+}
+
+func (response PostAuditLogSavedView401JSONResponse) VisitPostAuditLogSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuditLogSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PostAuditLogSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                         `json:"messageKey,omitempty"`
+		Success    PostAuditLogSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                          `json:"traceId"`
+	}
+	Headers PostAuditLogSavedView403ResponseHeaders
+}
+
+func (response PostAuditLogSavedView403JSONResponse) VisitPostAuditLogSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostAuditLogSavedView409Response struct {
+}
+
+func (response PostAuditLogSavedView409Response) VisitPostAuditLogSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type DeleteAuditLogSavedViewRequestObject struct {
+	ViewId int64 `json:"viewId"`
+	Params DeleteAuditLogSavedViewParams
+}
+
+type DeleteAuditLogSavedViewResponseObject interface {
+	VisitDeleteAuditLogSavedViewResponse(w http.ResponseWriter) error
+}
+
+type DeleteAuditLogSavedView204Response struct {
+}
+
+func (response DeleteAuditLogSavedView204Response) VisitDeleteAuditLogSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteAuditLogSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteAuditLogSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                           `json:"messageKey,omitempty"`
+		Success    DeleteAuditLogSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                            `json:"traceId"`
+	}
+	Headers DeleteAuditLogSavedView401ResponseHeaders
+}
+
+func (response DeleteAuditLogSavedView401JSONResponse) VisitDeleteAuditLogSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAuditLogSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteAuditLogSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                           `json:"messageKey,omitempty"`
+		Success    DeleteAuditLogSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                            `json:"traceId"`
+	}
+	Headers DeleteAuditLogSavedView403ResponseHeaders
+}
+
+func (response DeleteAuditLogSavedView403JSONResponse) VisitDeleteAuditLogSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAuditLogSavedView404Response struct {
+}
+
+func (response DeleteAuditLogSavedView404Response) VisitDeleteAuditLogSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PutAuditLogSavedViewRequestObject struct {
+	ViewId int64 `json:"viewId"`
+	Params PutAuditLogSavedViewParams
+	Body   *PutAuditLogSavedViewJSONRequestBody
+}
+
+type PutAuditLogSavedViewResponseObject interface {
+	VisitPutAuditLogSavedViewResponse(w http.ResponseWriter) error
+}
+
+type PutAuditLogSavedView200JSONResponse struct {
+	// Code Existing canonical response code.
+	Code string `json:"code"`
+	Data struct {
+		CreatedAt time.Time `json:"created_at"`
+		Id        int64     `json:"id"`
+
+		// IsDefault Whether this user view is applied by default for its list surface.
+		IsDefault      bool                   `json:"is_default"`
+		Name           string                 `json:"name"`
+		PageSize       int                    `json:"page_size"`
+		QueryState     map[string]interface{} `json:"query_state"`
+		UpdatedAt      time.Time              `json:"updated_at"`
+		VisibleColumns []string               `json:"visible_columns"`
+	} `json:"data"`
+
+	// Locale Present on localized error flows and omitted on normal success.
+	Locale *string `json:"locale,omitempty"`
+
+	// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+	Message string `json:"message"`
+
+	// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+	MessageKey *string `json:"messageKey,omitempty"`
+	Success    bool    `json:"success"`
+
+	// TraceId Mirrors the request id contract used by the current runtime.
+	TraceId string `json:"traceId"`
+}
+
+func (response PutAuditLogSavedView200JSONResponse) VisitPutAuditLogSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditLogSavedView400Response struct {
+}
+
+func (response PutAuditLogSavedView400Response) VisitPutAuditLogSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PutAuditLogSavedView401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditLogSavedView401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PutAuditLogSavedView401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PutAuditLogSavedView401ResponseHeaders
+}
+
+func (response PutAuditLogSavedView401JSONResponse) VisitPutAuditLogSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditLogSavedView403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditLogSavedView403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                        `json:"messageKey,omitempty"`
+		Success    PutAuditLogSavedView403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                         `json:"traceId"`
+	}
+	Headers PutAuditLogSavedView403ResponseHeaders
+}
+
+func (response PutAuditLogSavedView403JSONResponse) VisitPutAuditLogSavedViewResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditLogSavedView404Response struct {
+}
+
+func (response PutAuditLogSavedView404Response) VisitPutAuditLogSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PutAuditLogSavedView409Response struct {
+}
+
+func (response PutAuditLogSavedView409Response) VisitPutAuditLogSavedViewResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
+type GetAuditLogDetailRequestObject struct {
+	Id     int64 `json:"id"`
+	Params GetAuditLogDetailParams
+}
+
+type GetAuditLogDetailResponseObject interface {
+	VisitGetAuditLogDetailResponse(w http.ResponseWriter) error
+}
+
+type GetAuditLogDetail200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditLogDetail200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			Action           string                                             `json:"action"`
+			ActorDisplayName *string                                            `json:"actor_display_name,omitempty"`
+			ActorUserId      *int64                                             `json:"actor_user_id,omitempty"`
+			ActorUsername    *string                                            `json:"actor_username,omitempty"`
+			CreatedAt        time.Time                                          `json:"created_at"`
+			Id               int64                                              `json:"id"`
+			Ip               string                                             `json:"ip"`
+			Message          string                                             `json:"message"`
+			Metadata         map[string]interface{}                             `json:"metadata"`
+			RequestId        string                                             `json:"request_id"`
+			RequestMethod    *string                                            `json:"request_method,omitempty"`
+			RequestPath      *string                                            `json:"request_path,omitempty"`
+			ResourceId       *string                                            `json:"resource_id,omitempty"`
+			ResourceName     *string                                            `json:"resource_name,omitempty"`
+			ResourceType     string                                             `json:"resource_type"`
+			Result           *GetAuditLogDetail200JSONResponseBodyDataResult    `json:"result,omitempty"`
+			RiskLevel        *GetAuditLogDetail200JSONResponseBodyDataRiskLevel `json:"risk_level,omitempty"`
+			SessionId        *string                                            `json:"session_id,omitempty"`
+			Source           *GetAuditLogDetail200JSONResponseBodyDataSource    `json:"source,omitempty"`
+			StatusCode       *int                                               `json:"status_code,omitempty"`
+			Success          bool                                               `json:"success"`
+			Target           struct {
+				Id       *string                                            `json:"id,omitempty"`
+				Kind     GetAuditLogDetail200JSONResponseBodyDataTargetKind `json:"kind"`
+				Label    string                                             `json:"label"`
+				RouteRef *string                                            `json:"route_ref,omitempty"`
+				Type     string                                             `json:"type"`
+			} `json:"target"`
+			TargetLabel *string `json:"target_label,omitempty"`
+			TargetType  *string `json:"target_type,omitempty"`
+			TraceId     *string `json:"trace_id,omitempty"`
+			UserAgent   string  `json:"user_agent"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetAuditLogDetail200ResponseHeaders
+}
+
+func (response GetAuditLogDetail200JSONResponse) VisitGetAuditLogDetailResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditLogDetail400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditLogDetail400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    GetAuditLogDetail400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers GetAuditLogDetail400ResponseHeaders
+}
+
+func (response GetAuditLogDetail400JSONResponse) VisitGetAuditLogDetailResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditLogDetail401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditLogDetail401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    GetAuditLogDetail401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers GetAuditLogDetail401ResponseHeaders
+}
+
+func (response GetAuditLogDetail401JSONResponse) VisitGetAuditLogDetailResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditLogDetail403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditLogDetail403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    GetAuditLogDetail403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers GetAuditLogDetail403ResponseHeaders
+}
+
+func (response GetAuditLogDetail403JSONResponse) VisitGetAuditLogDetailResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditLogDetail404ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditLogDetail404JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    GetAuditLogDetail404JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers GetAuditLogDetail404ResponseHeaders
+}
+
+func (response GetAuditLogDetail404JSONResponse) VisitGetAuditLogDetailResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditLogDetail500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditLogDetail500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                     `json:"messageKey,omitempty"`
+		Success    GetAuditLogDetail500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                      `json:"traceId"`
+	}
+	Headers GetAuditLogDetail500ResponseHeaders
+}
+
+func (response GetAuditLogDetail500JSONResponse) VisitGetAuditLogDetailResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditVisibilityPolicyRequestObject struct {
+	Params GetAuditVisibilityPolicyParams
+}
+
+type GetAuditVisibilityPolicyResponseObject interface {
+	VisitGetAuditVisibilityPolicyResponse(w http.ResponseWriter) error
+}
+
+type GetAuditVisibilityPolicy200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditVisibilityPolicy200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			Catalog []struct {
+				ActionKey         string                                                                  `json:"action_key"`
+				Category          string                                                                  `json:"category"`
+				DefaultStrategy   GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogDefaultStrategy   `json:"default_strategy"`
+				Description       string                                                                  `json:"description"`
+				DisplayName       string                                                                  `json:"display_name"`
+				EffectiveStrategy GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogEffectiveStrategy `json:"effective_strategy"`
+				Overridden        bool                                                                    `json:"overridden"`
+				Source            GetAuditVisibilityPolicy200JSONResponseBodyDataCatalogSource            `json:"source"`
+			} `json:"catalog"`
+			Default struct {
+				Key           string                                                         `json:"key"`
+				Strategy      GetAuditVisibilityPolicy200JSONResponseBodyDataDefaultStrategy `json:"strategy"`
+				UpdatedAt     time.Time                                                      `json:"updated_at"`
+				UpdatedBy     *int64                                                         `json:"updated_by,omitempty"`
+				UpdatedByName *string                                                        `json:"updated_by_name,omitempty"`
+			} `json:"default"`
+			Overrides []struct {
+				ActionKey     string                                                           `json:"action_key"`
+				CreatedAt     time.Time                                                        `json:"created_at"`
+				CreatedBy     *int64                                                           `json:"created_by,omitempty"`
+				CreatedByName *string                                                          `json:"created_by_name,omitempty"`
+				Description   string                                                           `json:"description"`
+				Id            int64                                                            `json:"id"`
+				Source        GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesSource   `json:"source"`
+				Strategy      GetAuditVisibilityPolicy200JSONResponseBodyDataOverridesStrategy `json:"strategy"`
+				UpdatedAt     time.Time                                                        `json:"updated_at"`
+				UpdatedBy     *int64                                                           `json:"updated_by,omitempty"`
+				UpdatedByName *string                                                          `json:"updated_by_name,omitempty"`
+			} `json:"overrides"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers GetAuditVisibilityPolicy200ResponseHeaders
+}
+
+func (response GetAuditVisibilityPolicy200JSONResponse) VisitGetAuditVisibilityPolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditVisibilityPolicy401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditVisibilityPolicy401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    GetAuditVisibilityPolicy401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers GetAuditVisibilityPolicy401ResponseHeaders
+}
+
+func (response GetAuditVisibilityPolicy401JSONResponse) VisitGetAuditVisibilityPolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditVisibilityPolicy403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditVisibilityPolicy403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    GetAuditVisibilityPolicy403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers GetAuditVisibilityPolicy403ResponseHeaders
+}
+
+func (response GetAuditVisibilityPolicy403JSONResponse) VisitGetAuditVisibilityPolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuditVisibilityPolicy500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type GetAuditVisibilityPolicy500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    GetAuditVisibilityPolicy500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers GetAuditVisibilityPolicy500ResponseHeaders
+}
+
+func (response GetAuditVisibilityPolicy500JSONResponse) VisitGetAuditVisibilityPolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditVisibilityPolicyRequestObject struct {
+	Params PutAuditVisibilityPolicyParams
+	Body   *PutAuditVisibilityPolicyJSONRequestBody
+}
+
+type PutAuditVisibilityPolicyResponseObject interface {
+	VisitPutAuditVisibilityPolicyResponse(w http.ResponseWriter) error
+}
+
+type PutAuditVisibilityPolicy200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditVisibilityPolicy200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			Key           string                                                  `json:"key"`
+			Strategy      PutAuditVisibilityPolicy200JSONResponseBodyDataStrategy `json:"strategy"`
+			UpdatedAt     time.Time                                               `json:"updated_at"`
+			UpdatedBy     *int64                                                  `json:"updated_by,omitempty"`
+			UpdatedByName *string                                                 `json:"updated_by_name,omitempty"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PutAuditVisibilityPolicy200ResponseHeaders
+}
+
+func (response PutAuditVisibilityPolicy200JSONResponse) VisitPutAuditVisibilityPolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditVisibilityPolicy400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditVisibilityPolicy400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    PutAuditVisibilityPolicy400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers PutAuditVisibilityPolicy400ResponseHeaders
+}
+
+func (response PutAuditVisibilityPolicy400JSONResponse) VisitPutAuditVisibilityPolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditVisibilityPolicy401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditVisibilityPolicy401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    PutAuditVisibilityPolicy401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers PutAuditVisibilityPolicy401ResponseHeaders
+}
+
+func (response PutAuditVisibilityPolicy401JSONResponse) VisitPutAuditVisibilityPolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditVisibilityPolicy403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditVisibilityPolicy403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    PutAuditVisibilityPolicy403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers PutAuditVisibilityPolicy403ResponseHeaders
+}
+
+func (response PutAuditVisibilityPolicy403JSONResponse) VisitPutAuditVisibilityPolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditVisibilityPolicy500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditVisibilityPolicy500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                            `json:"messageKey,omitempty"`
+		Success    PutAuditVisibilityPolicy500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                             `json:"traceId"`
+	}
+	Headers PutAuditVisibilityPolicy500ResponseHeaders
+}
+
+func (response PutAuditVisibilityPolicy500JSONResponse) VisitPutAuditVisibilityPolicyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAuditVisibilityOverrideRequestObject struct {
+	Params DeleteAuditVisibilityOverrideParams
+}
+
+type DeleteAuditVisibilityOverrideResponseObject interface {
+	VisitDeleteAuditVisibilityOverrideResponse(w http.ResponseWriter) error
+}
+
+type DeleteAuditVisibilityOverride200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteAuditVisibilityOverride200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data any    `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers DeleteAuditVisibilityOverride200ResponseHeaders
+}
+
+func (response DeleteAuditVisibilityOverride200JSONResponse) VisitDeleteAuditVisibilityOverrideResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAuditVisibilityOverride400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteAuditVisibilityOverride400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                 `json:"messageKey,omitempty"`
+		Success    DeleteAuditVisibilityOverride400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                  `json:"traceId"`
+	}
+	Headers DeleteAuditVisibilityOverride400ResponseHeaders
+}
+
+func (response DeleteAuditVisibilityOverride400JSONResponse) VisitDeleteAuditVisibilityOverrideResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAuditVisibilityOverride401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteAuditVisibilityOverride401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                 `json:"messageKey,omitempty"`
+		Success    DeleteAuditVisibilityOverride401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                  `json:"traceId"`
+	}
+	Headers DeleteAuditVisibilityOverride401ResponseHeaders
+}
+
+func (response DeleteAuditVisibilityOverride401JSONResponse) VisitDeleteAuditVisibilityOverrideResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAuditVisibilityOverride403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteAuditVisibilityOverride403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                 `json:"messageKey,omitempty"`
+		Success    DeleteAuditVisibilityOverride403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                  `json:"traceId"`
+	}
+	Headers DeleteAuditVisibilityOverride403ResponseHeaders
+}
+
+func (response DeleteAuditVisibilityOverride403JSONResponse) VisitDeleteAuditVisibilityOverrideResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAuditVisibilityOverride500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type DeleteAuditVisibilityOverride500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                 `json:"messageKey,omitempty"`
+		Success    DeleteAuditVisibilityOverride500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                  `json:"traceId"`
+	}
+	Headers DeleteAuditVisibilityOverride500ResponseHeaders
+}
+
+func (response DeleteAuditVisibilityOverride500JSONResponse) VisitDeleteAuditVisibilityOverrideResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditVisibilityOverrideRequestObject struct {
+	Params PutAuditVisibilityOverrideParams
+	Body   *PutAuditVisibilityOverrideJSONRequestBody
+}
+
+type PutAuditVisibilityOverrideResponseObject interface {
+	VisitPutAuditVisibilityOverrideResponse(w http.ResponseWriter) error
+}
+
+type PutAuditVisibilityOverride200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditVisibilityOverride200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			ActionKey     string                                                    `json:"action_key"`
+			CreatedAt     time.Time                                                 `json:"created_at"`
+			CreatedBy     *int64                                                    `json:"created_by,omitempty"`
+			CreatedByName *string                                                   `json:"created_by_name,omitempty"`
+			Description   string                                                    `json:"description"`
+			Id            int64                                                     `json:"id"`
+			Source        PutAuditVisibilityOverride200JSONResponseBodyDataSource   `json:"source"`
+			Strategy      PutAuditVisibilityOverride200JSONResponseBodyDataStrategy `json:"strategy"`
+			UpdatedAt     time.Time                                                 `json:"updated_at"`
+			UpdatedBy     *int64                                                    `json:"updated_by,omitempty"`
+			UpdatedByName *string                                                   `json:"updated_by_name,omitempty"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PutAuditVisibilityOverride200ResponseHeaders
+}
+
+func (response PutAuditVisibilityOverride200JSONResponse) VisitPutAuditVisibilityOverrideResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditVisibilityOverride400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditVisibilityOverride400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    PutAuditVisibilityOverride400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers PutAuditVisibilityOverride400ResponseHeaders
+}
+
+func (response PutAuditVisibilityOverride400JSONResponse) VisitPutAuditVisibilityOverrideResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditVisibilityOverride401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditVisibilityOverride401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    PutAuditVisibilityOverride401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers PutAuditVisibilityOverride401ResponseHeaders
+}
+
+func (response PutAuditVisibilityOverride401JSONResponse) VisitPutAuditVisibilityOverrideResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditVisibilityOverride403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditVisibilityOverride403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    PutAuditVisibilityOverride403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers PutAuditVisibilityOverride403ResponseHeaders
+}
+
+func (response PutAuditVisibilityOverride403JSONResponse) VisitPutAuditVisibilityOverrideResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditVisibilityOverride500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditVisibilityOverride500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                              `json:"messageKey,omitempty"`
+		Success    PutAuditVisibilityOverride500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                               `json:"traceId"`
+	}
+	Headers PutAuditVisibilityOverride500ResponseHeaders
+}
+
+func (response PutAuditVisibilityOverride500JSONResponse) VisitPutAuditVisibilityOverrideResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditVisibilityOverridesBatchRequestObject struct {
+	Params PutAuditVisibilityOverridesBatchParams
+	Body   *PutAuditVisibilityOverridesBatchJSONRequestBody
+}
+
+type PutAuditVisibilityOverridesBatchResponseObject interface {
+	VisitPutAuditVisibilityOverridesBatchResponse(w http.ResponseWriter) error
+}
+
+type PutAuditVisibilityOverridesBatch200ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditVisibilityOverridesBatch200JSONResponse struct {
+	Body struct {
+		// Code Existing canonical response code.
+		Code string `json:"code"`
+		Data struct {
+			Items []struct {
+				ActionKey     string                                                               `json:"action_key"`
+				CreatedAt     time.Time                                                            `json:"created_at"`
+				CreatedBy     *int64                                                               `json:"created_by,omitempty"`
+				CreatedByName *string                                                              `json:"created_by_name,omitempty"`
+				Description   string                                                               `json:"description"`
+				Id            int64                                                                `json:"id"`
+				Source        PutAuditVisibilityOverridesBatch200JSONResponseBodyDataItemsSource   `json:"source"`
+				Strategy      PutAuditVisibilityOverridesBatch200JSONResponseBodyDataItemsStrategy `json:"strategy"`
+				UpdatedAt     time.Time                                                            `json:"updated_at"`
+				UpdatedBy     *int64                                                               `json:"updated_by,omitempty"`
+				UpdatedByName *string                                                              `json:"updated_by_name,omitempty"`
+			} `json:"items"`
+		} `json:"data"`
+
+		// Locale Present on localized error flows and omitted on normal success.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text. Consumers should not treat this as the canonical localization contract when a key field is present.
+		Message string `json:"message"`
+
+		// MessageKey Stable localization key for key-aware error flows. When present, consumers should treat it as canonical and use message only as fallback text.
+		MessageKey *string `json:"messageKey,omitempty"`
+		Success    bool    `json:"success"`
+
+		// TraceId Mirrors the request id contract used by the current runtime.
+		TraceId string `json:"traceId"`
+	}
+	Headers PutAuditVisibilityOverridesBatch200ResponseHeaders
+}
+
+func (response PutAuditVisibilityOverridesBatch200JSONResponse) VisitPutAuditVisibilityOverridesBatchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditVisibilityOverridesBatch400ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditVisibilityOverridesBatch400JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                    `json:"messageKey,omitempty"`
+		Success    PutAuditVisibilityOverridesBatch400JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                     `json:"traceId"`
+	}
+	Headers PutAuditVisibilityOverridesBatch400ResponseHeaders
+}
+
+func (response PutAuditVisibilityOverridesBatch400JSONResponse) VisitPutAuditVisibilityOverridesBatchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditVisibilityOverridesBatch401ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditVisibilityOverridesBatch401JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                    `json:"messageKey,omitempty"`
+		Success    PutAuditVisibilityOverridesBatch401JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                     `json:"traceId"`
+	}
+	Headers PutAuditVisibilityOverridesBatch401ResponseHeaders
+}
+
+func (response PutAuditVisibilityOverridesBatch401JSONResponse) VisitPutAuditVisibilityOverridesBatchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditVisibilityOverridesBatch403ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditVisibilityOverridesBatch403JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                    `json:"messageKey,omitempty"`
+		Success    PutAuditVisibilityOverridesBatch403JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                     `json:"traceId"`
+	}
+	Headers PutAuditVisibilityOverridesBatch403ResponseHeaders
+}
+
+func (response PutAuditVisibilityOverridesBatch403JSONResponse) VisitPutAuditVisibilityOverridesBatchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAuditVisibilityOverridesBatch500ResponseHeaders struct {
+	XRequestId *string
+}
+
+type PutAuditVisibilityOverridesBatch500JSONResponse struct {
+	Body struct {
+		// Code Existing canonical error response code.
+		Code string `json:"code"`
+
+		// Data Optional structured error details preserved from the current runtime.
+		Data *map[string]interface{} `json:"data,omitempty"`
+
+		// Locale Locale used to resolve the fallback message text in this response.
+		Locale *string `json:"locale,omitempty"`
+
+		// Message Existing runtime fallback text paired with messageKey for compatibility.
+		Message string `json:"message"`
+
+		// MessageKey Stable error localization key. Consumers should prefer this key and use message only as fallback text.
+		MessageKey *string                                                    `json:"messageKey,omitempty"`
+		Success    PutAuditVisibilityOverridesBatch500JSONResponseBodySuccess `json:"success"`
+		TraceId    string                                                     `json:"traceId"`
+	}
+	Headers PutAuditVisibilityOverridesBatch500ResponseHeaders
+}
+
+func (response PutAuditVisibilityOverridesBatch500JSONResponse) VisitPutAuditVisibilityOverridesBatchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XRequestId != nil {
+		w.Header().Set("X-Request-Id", fmt.Sprint(*response.Headers.XRequestId))
+	}
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+// StrictServerInterface represents all server handlers.
+type StrictServerInterface interface {
+	// GetAuditIncident Read audit incident drilldown
+	// (GET /api/audit/incidents/{event_id})
+	GetAuditIncident(ctx context.Context, request GetAuditIncidentRequestObject) (GetAuditIncidentResponseObject, error)
+	// GetAuditLogs List audit logs
+	// (GET /api/audit/logs)
+	GetAuditLogs(ctx context.Context, request GetAuditLogsRequestObject) (GetAuditLogsResponseObject, error)
+	// PostAuditLogDeletion Delete audit logs
+	// (POST /api/audit/logs/deletions)
+	PostAuditLogDeletion(ctx context.Context, request PostAuditLogDeletionRequestObject) (PostAuditLogDeletionResponseObject, error)
+	// GetAuditLogSavedViews List private audit-log saved views
+	// (GET /api/audit/logs/saved-views)
+	GetAuditLogSavedViews(ctx context.Context, request GetAuditLogSavedViewsRequestObject) (GetAuditLogSavedViewsResponseObject, error)
+	// PostAuditLogSavedView Create a private audit-log saved view
+	// (POST /api/audit/logs/saved-views)
+	PostAuditLogSavedView(ctx context.Context, request PostAuditLogSavedViewRequestObject) (PostAuditLogSavedViewResponseObject, error)
+	// DeleteAuditLogSavedView Delete a private audit-log saved view
+	// (DELETE /api/audit/logs/saved-views/{viewId})
+	DeleteAuditLogSavedView(ctx context.Context, request DeleteAuditLogSavedViewRequestObject) (DeleteAuditLogSavedViewResponseObject, error)
+	// PutAuditLogSavedView Update a private audit-log saved view
+	// (PUT /api/audit/logs/saved-views/{viewId})
+	PutAuditLogSavedView(ctx context.Context, request PutAuditLogSavedViewRequestObject) (PutAuditLogSavedViewResponseObject, error)
+	// GetAuditLogDetail Get audit log detail
+	// (GET /api/audit/logs/{id})
+	GetAuditLogDetail(ctx context.Context, request GetAuditLogDetailRequestObject) (GetAuditLogDetailResponseObject, error)
+	// GetAuditVisibilityPolicy Read audit visibility policy
+	// (GET /api/audit/policies/visibility)
+	GetAuditVisibilityPolicy(ctx context.Context, request GetAuditVisibilityPolicyRequestObject) (GetAuditVisibilityPolicyResponseObject, error)
+	// PutAuditVisibilityPolicy Update audit visibility default
+	// (PUT /api/audit/policies/visibility)
+	PutAuditVisibilityPolicy(ctx context.Context, request PutAuditVisibilityPolicyRequestObject) (PutAuditVisibilityPolicyResponseObject, error)
+	// DeleteAuditVisibilityOverride Delete audit visibility override
+	// (DELETE /api/audit/policies/visibility/overrides)
+	DeleteAuditVisibilityOverride(ctx context.Context, request DeleteAuditVisibilityOverrideRequestObject) (DeleteAuditVisibilityOverrideResponseObject, error)
+	// PutAuditVisibilityOverride Upsert audit visibility override
+	// (PUT /api/audit/policies/visibility/overrides)
+	PutAuditVisibilityOverride(ctx context.Context, request PutAuditVisibilityOverrideRequestObject) (PutAuditVisibilityOverrideResponseObject, error)
+	// PutAuditVisibilityOverridesBatch Batch upsert audit visibility overrides
+	// (PUT /api/audit/policies/visibility/overrides/batch)
+	PutAuditVisibilityOverridesBatch(ctx context.Context, request PutAuditVisibilityOverridesBatchRequestObject) (PutAuditVisibilityOverridesBatchResponseObject, error)
+}
+
+type StrictHandlerFunc func(ctx *gin.Context, request any) (any, error)
+type StrictMiddlewareFunc func(f StrictHandlerFunc, operationID string) StrictHandlerFunc
+
+type StrictGinServerOptions struct {
+	// RequestErrorHandlerFunc is called when a request cannot be parsed or
+	// decoded. It is invoked for JSON bind failures, form parse/bind errors,
+	// multipart reader errors, media type parse errors, missing multipart
+	// boundaries, and request body read errors. The default returns 400.
+	RequestErrorHandlerFunc func(ctx *gin.Context, err error)
+	// HandlerErrorFunc is called when the application handler (or any
+	// middleware wrapping it) returns a non-nil error. The default returns 500.
+	HandlerErrorFunc func(ctx *gin.Context, err error)
+	// ResponseErrorHandlerFunc is called when the response object fails to
+	// serialize (Visit*Response returns an error) or when the handler returns
+	// an unexpected response type. The default returns 500.
+	ResponseErrorHandlerFunc func(ctx *gin.Context, err error)
+}
+
+func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc) ServerInterface {
+	return &strictHandler{ssi: ssi, middlewares: middlewares, options: StrictGinServerOptions{
+		RequestErrorHandlerFunc: func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
+		},
+		HandlerErrorFunc: func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		},
+		ResponseErrorHandlerFunc: func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		},
+	}}
+}
+
+func NewStrictHandlerWithOptions(ssi StrictServerInterface, middlewares []StrictMiddlewareFunc, options StrictGinServerOptions) ServerInterface {
+	if options.RequestErrorHandlerFunc == nil {
+		options.RequestErrorHandlerFunc = func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
+		}
+	}
+	if options.HandlerErrorFunc == nil {
+		options.HandlerErrorFunc = func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		}
+	}
+	if options.ResponseErrorHandlerFunc == nil {
+		options.ResponseErrorHandlerFunc = func(ctx *gin.Context, err error) {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"msg": err.Error()})
+		}
+	}
+	return &strictHandler{ssi: ssi, middlewares: middlewares, options: options}
+}
+
+type strictHandler struct {
+	ssi         StrictServerInterface
+	middlewares []StrictMiddlewareFunc
+	options     StrictGinServerOptions
+}
+
+// GetAuditIncident operation middleware
+func (sh *strictHandler) GetAuditIncident(ctx *gin.Context, eventId int64, params GetAuditIncidentParams) {
+	var request GetAuditIncidentRequestObject
+
+	request.EventId = eventId
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAuditIncident(ctx, request.(GetAuditIncidentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAuditIncident")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetAuditIncidentResponseObject); ok {
+		if err := validResponse.VisitGetAuditIncidentResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAuditLogs operation middleware
+func (sh *strictHandler) GetAuditLogs(ctx *gin.Context, params GetAuditLogsParams) {
+	var request GetAuditLogsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAuditLogs(ctx, request.(GetAuditLogsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAuditLogs")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetAuditLogsResponseObject); ok {
+		if err := validResponse.VisitGetAuditLogsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuditLogDeletion operation middleware
+func (sh *strictHandler) PostAuditLogDeletion(ctx *gin.Context, params PostAuditLogDeletionParams) {
+	var request PostAuditLogDeletionRequestObject
+
+	request.Params = params
+
+	var body PostAuditLogDeletionJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuditLogDeletion(ctx, request.(PostAuditLogDeletionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuditLogDeletion")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostAuditLogDeletionResponseObject); ok {
+		if err := validResponse.VisitPostAuditLogDeletionResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAuditLogSavedViews operation middleware
+func (sh *strictHandler) GetAuditLogSavedViews(ctx *gin.Context, params GetAuditLogSavedViewsParams) {
+	var request GetAuditLogSavedViewsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAuditLogSavedViews(ctx, request.(GetAuditLogSavedViewsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAuditLogSavedViews")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetAuditLogSavedViewsResponseObject); ok {
+		if err := validResponse.VisitGetAuditLogSavedViewsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostAuditLogSavedView operation middleware
+func (sh *strictHandler) PostAuditLogSavedView(ctx *gin.Context, params PostAuditLogSavedViewParams) {
+	var request PostAuditLogSavedViewRequestObject
+
+	request.Params = params
+
+	var body PostAuditLogSavedViewJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostAuditLogSavedView(ctx, request.(PostAuditLogSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostAuditLogSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PostAuditLogSavedViewResponseObject); ok {
+		if err := validResponse.VisitPostAuditLogSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteAuditLogSavedView operation middleware
+func (sh *strictHandler) DeleteAuditLogSavedView(ctx *gin.Context, viewId int64, params DeleteAuditLogSavedViewParams) {
+	var request DeleteAuditLogSavedViewRequestObject
+
+	request.ViewId = viewId
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteAuditLogSavedView(ctx, request.(DeleteAuditLogSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteAuditLogSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(DeleteAuditLogSavedViewResponseObject); ok {
+		if err := validResponse.VisitDeleteAuditLogSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutAuditLogSavedView operation middleware
+func (sh *strictHandler) PutAuditLogSavedView(ctx *gin.Context, viewId int64, params PutAuditLogSavedViewParams) {
+	var request PutAuditLogSavedViewRequestObject
+
+	request.ViewId = viewId
+	request.Params = params
+
+	var body PutAuditLogSavedViewJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PutAuditLogSavedView(ctx, request.(PutAuditLogSavedViewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutAuditLogSavedView")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PutAuditLogSavedViewResponseObject); ok {
+		if err := validResponse.VisitPutAuditLogSavedViewResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAuditLogDetail operation middleware
+func (sh *strictHandler) GetAuditLogDetail(ctx *gin.Context, id int64, params GetAuditLogDetailParams) {
+	var request GetAuditLogDetailRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAuditLogDetail(ctx, request.(GetAuditLogDetailRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAuditLogDetail")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetAuditLogDetailResponseObject); ok {
+		if err := validResponse.VisitGetAuditLogDetailResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAuditVisibilityPolicy operation middleware
+func (sh *strictHandler) GetAuditVisibilityPolicy(ctx *gin.Context, params GetAuditVisibilityPolicyParams) {
+	var request GetAuditVisibilityPolicyRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAuditVisibilityPolicy(ctx, request.(GetAuditVisibilityPolicyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAuditVisibilityPolicy")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetAuditVisibilityPolicyResponseObject); ok {
+		if err := validResponse.VisitGetAuditVisibilityPolicyResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutAuditVisibilityPolicy operation middleware
+func (sh *strictHandler) PutAuditVisibilityPolicy(ctx *gin.Context, params PutAuditVisibilityPolicyParams) {
+	var request PutAuditVisibilityPolicyRequestObject
+
+	request.Params = params
+
+	var body PutAuditVisibilityPolicyJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PutAuditVisibilityPolicy(ctx, request.(PutAuditVisibilityPolicyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutAuditVisibilityPolicy")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PutAuditVisibilityPolicyResponseObject); ok {
+		if err := validResponse.VisitPutAuditVisibilityPolicyResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteAuditVisibilityOverride operation middleware
+func (sh *strictHandler) DeleteAuditVisibilityOverride(ctx *gin.Context, params DeleteAuditVisibilityOverrideParams) {
+	var request DeleteAuditVisibilityOverrideRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteAuditVisibilityOverride(ctx, request.(DeleteAuditVisibilityOverrideRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteAuditVisibilityOverride")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(DeleteAuditVisibilityOverrideResponseObject); ok {
+		if err := validResponse.VisitDeleteAuditVisibilityOverrideResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutAuditVisibilityOverride operation middleware
+func (sh *strictHandler) PutAuditVisibilityOverride(ctx *gin.Context, params PutAuditVisibilityOverrideParams) {
+	var request PutAuditVisibilityOverrideRequestObject
+
+	request.Params = params
+
+	var body PutAuditVisibilityOverrideJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PutAuditVisibilityOverride(ctx, request.(PutAuditVisibilityOverrideRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutAuditVisibilityOverride")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PutAuditVisibilityOverrideResponseObject); ok {
+		if err := validResponse.VisitPutAuditVisibilityOverrideResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutAuditVisibilityOverridesBatch operation middleware
+func (sh *strictHandler) PutAuditVisibilityOverridesBatch(ctx *gin.Context, params PutAuditVisibilityOverridesBatchParams) {
+	var request PutAuditVisibilityOverridesBatchRequestObject
+
+	request.Params = params
+
+	var body PutAuditVisibilityOverridesBatchJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PutAuditVisibilityOverridesBatch(ctx, request.(PutAuditVisibilityOverridesBatchRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutAuditVisibilityOverridesBatch")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PutAuditVisibilityOverridesBatchResponseObject); ok {
+		if err := validResponse.VisitPutAuditVisibilityOverridesBatchResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}

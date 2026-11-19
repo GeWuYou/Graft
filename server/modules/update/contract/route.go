@@ -19,7 +19,7 @@ const (
 	// UpdateOperationEventsRoute 回放一次 operation 的受控节点事件，不代理 runner 原始输出。
 	UpdateOperationEventsRoute = "/operations/:operationID/events"
 	// UpdateFailureDiagnosticRoute 读取一次更新启动失败的受控诊断详情。
-	UpdateFailureDiagnosticRoute = "/diagnostics/:requestID"
+	UpdateFailureDiagnosticRoute = "/diagnostics/:requestId"
 	// UpdateOperationDiagnosticRoute 读取一条 operation 终态的受控失败诊断详情。
 	UpdateOperationDiagnosticRoute = "/operations/:operationID/diagnostic"
 	// UpdateMenuPath 是 Update Center 的稳定前端路由。

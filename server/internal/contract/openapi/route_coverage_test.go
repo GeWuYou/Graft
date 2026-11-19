@@ -139,3 +139,55 @@ func TestNoExcludedDocsRoutesLeakIntoBusinessSpec(t *testing.T) {
 		}
 	}
 }
+
+// TestNonStrictEndpointsStayHandwrittenWhitelist documents the endpoints that are
+// intentionally not mounted through generated strict wrappers, with the reason for
+// each. This is the migration whitelist required by the openapi-strict-server topic.
+func TestNonStrictEndpointsStayHandwrittenWhitelist(t *testing.T) {
+	t.Parallel()
+
+	repoRoot, err := findRepositoryRoot()
+	if err != nil {
+		t.Fatalf("find repository root: %v", err)
+	}
+	loader := openapi3.NewLoader()
+	loader.IsExternalRefsAllowed = true
+	spec, err := loader.LoadFromFile(filepath.Join(repoRoot, "openapi", "openapi.yaml"))
+	if err != nil {
+		t.Fatalf("load root openapi spec: %v", err)
+	}
+
+	// handWrittenSpecEndpoints 声明保留手写挂载、且存在于 canonical spec 的端点。
+	// 每一项的原因必须在注释中给出；契约修复后应切换到生成 wrapper 挂载。
+	handWrittenSpecEndpoints := map[string]string{
+		// WebSocket 升级握手无法进入 JSON strict 绑定链路；容器模块保持手写挂载。
+		"/api/ops/containers/{id}/shell/ws": "websocket upgrade keeps explicit hand-written registration",
+	}
+	for route, reason := range handWrittenSpecEndpoints {
+		if spec.Paths.Find(route) == nil {
+			t.Fatalf("whitelisted hand-written route %s is missing from root spec", route)
+		}
+		if reason == "" {
+			t.Fatalf("whitelisted hand-written route %s must document a reason", route)
+		}
+	}
+
+	// coreOwnedSpecRoutes 由 server/internal 的 core owner 直接挂载，不属于
+	// server/modules/<name> 的迁移范围，保持手写注册。
+	coreOwnedSpecRoutes := []string{
+		"/healthz",
+		"/mcp",
+		"/sse",
+		"/ws",
+		"/api/platform/capabilities",
+		"/api/modules/runtime",
+		"/api/modules/runtime/{module_key}",
+		"/api/dashboard/summary",
+		"/api/dashboard/widgets/{widget_id}",
+	}
+	for _, route := range coreOwnedSpecRoutes {
+		if spec.Paths.Find(route) == nil {
+			t.Fatalf("core-owned route %s is missing from root spec", route)
+		}
+	}
+}

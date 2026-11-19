@@ -68,7 +68,7 @@ func TestGetFailureDiagnosticReturnsStoredSanitizedEvidence(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(recorder)
-	ctx.Params = gin.Params{{Key: "requestID", Value: "request-91"}}
+	ctx.Params = gin.Params{{Key: "requestId", Value: "request-91"}}
 	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/platform/updates/diagnostics/request-91", nil)
 	store := &failureDiagnosticStoreRecorder{value: FailureDiagnostic{RequestID: "request-91", TargetVersion: "0.11.0-beta.9", FailureCode: rolloutFailureOperationStartFailed, FailureStage: "runner_launch", Summary: updateFailureDiagnosticSummary, Detail: "docker launch failed: [REDACTED]", OccurredAt: time.Now().UTC()}}
 

@@ -1,0 +1,22 @@
+package: announcementopenapi
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  include-operation-ids:
+    - deleteAnnouncement
+    - deleteAnnouncementSavedView
+    - getAnnouncement
+    - getAnnouncementSavedViews
+    - getAnnouncements
+    - getMyAnnouncements
+    - getMyAnnouncementsUnreadCount
+    - postAnnouncementArchive
+    - postAnnouncementPublish
+    - postAnnouncementSavedView
+    - postAnnouncements
+    - postMyAnnouncementRead
+    - postMyAnnouncementsReadAll
+    - putAnnouncement
+    - putAnnouncementSavedView

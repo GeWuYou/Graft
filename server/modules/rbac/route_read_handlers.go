@@ -24,8 +24,6 @@ func handleListRoles(
 	moduleName string,
 	reader readManagementService,
 ) gin.HandlerFunc {
-	handler := rbacReadGeneratedHandler{}
-
 	return newManagementListHandler(
 		ctx,
 		moduleName,
@@ -38,8 +36,6 @@ func handleListRoles(
 				})
 				return generated.RoleListResponse{}, nil
 			}
-			handler.GetRoles(params)
-
 			filter := rbacstore.RoleFilter{}
 			if params.Keyword != nil {
 				filter.Query = *params.Keyword
@@ -67,15 +63,10 @@ func handleListRolePermissionBindings(
 	moduleName string,
 	reader readManagementService,
 ) gin.HandlerFunc {
-	handler := rbacReadGeneratedHandler{}
-
 	return handleStableIDResponse(stableIDResponseHandlerConfig[generated.RolePermissionBindingResponse]{
 		ctx:        ctx,
 		moduleName: moduleName,
 		logMessage: "list role permission bindings failed",
-		bindGenerated: func(ginCtx *gin.Context, targetID uint64) {
-			handler.GetRolePermissions(targetID, bindGeneratedRolePermissionParams(ginCtx))
-		},
 		read: func(requestCtx context.Context, targetID uint64) (generated.RolePermissionBindingResponse, error) {
 			bindings, err := reader.ListRolePermissionBindings(requestCtx, targetID)
 			if err != nil {
@@ -93,16 +84,12 @@ func handleListPermissions(
 	moduleName string,
 	reader readManagementService,
 ) gin.HandlerFunc {
-	handler := rbacReadGeneratedHandler{}
-
 	return func(ginCtx *gin.Context) {
 		params, invalidField := bindGeneratedPermissionParams(ginCtx)
 		if invalidField != "" {
 			writeLocalizedContractError(ginCtx, ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument, map[string]any{"field": invalidField})
 			return
 		}
-		handler.GetPermissions(params)
-
 		filter := rbacstore.PermissionFilter{}
 		if params.Keyword != nil {
 			filter.Query = *params.Keyword
@@ -133,37 +120,6 @@ func handleListPermissions(
 
 		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
 	}
-}
-
-type rbacReadGeneratedHandler struct {
-}
-
-func (h rbacReadGeneratedHandler) GetPermission(id uint64, params rbacopenapi.GetPermissionParams) {
-	_ = h
-	_ = id
-	_ = params
-}
-
-func (h rbacReadGeneratedHandler) GetPermissions(params rbacopenapi.GetPermissionsParams) {
-	_ = h
-	_ = params
-}
-
-func (h rbacReadGeneratedHandler) GetRole(id uint64, params rbacopenapi.GetRoleParams) {
-	_ = h
-	_ = id
-	_ = params
-}
-
-func (h rbacReadGeneratedHandler) GetRoles(params rbacopenapi.GetRolesParams) {
-	_ = h
-	_ = params
-}
-
-func (h rbacReadGeneratedHandler) GetRolePermissions(id uint64, params rbacopenapi.GetRolePermissionsParams) {
-	_ = h
-	_ = id
-	_ = params
 }
 
 func bindGeneratedPermissionParams(ginCtx *gin.Context) (rbacopenapi.GetPermissionsParams, string) {
@@ -209,14 +165,6 @@ func bindRBACListWindow(ginCtx *gin.Context) (int, int, string) {
 	return limit, offset, ""
 }
 
-func bindGeneratedPermissionDetailParams(ginCtx *gin.Context) rbacopenapi.GetPermissionParams {
-	locale, requestID := bindGeneratedReadHeaders(ginCtx)
-	return rbacopenapi.GetPermissionParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
 func bindGeneratedRoleParams(ginCtx *gin.Context) (rbacopenapi.GetRolesParams, string) {
 	locale, requestID := bindGeneratedReadHeaders(ginCtx)
 	params := rbacopenapi.GetRolesParams{
@@ -254,22 +202,6 @@ func bindGeneratedRoleParams(ginCtx *gin.Context) (rbacopenapi.GetRolesParams, s
 	return params, ""
 }
 
-func bindGeneratedRoleDetailParams(ginCtx *gin.Context) rbacopenapi.GetRoleParams {
-	locale, requestID := bindGeneratedReadHeaders(ginCtx)
-	return rbacopenapi.GetRoleParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
-func bindGeneratedRolePermissionParams(ginCtx *gin.Context) rbacopenapi.GetRolePermissionsParams {
-	locale, requestID := bindGeneratedReadHeaders(ginCtx)
-	return rbacopenapi.GetRolePermissionsParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
 func bindGeneratedReadHeaders(ginCtx *gin.Context) (locale *string, requestID *string) {
 	if raw := strings.TrimSpace(ginCtx.GetHeader(httpx.RequestIDHeader)); raw != "" {
 		requestID = &raw
@@ -287,15 +219,10 @@ func handleListUserRoleBindings(
 	moduleName string,
 	reader readManagementService,
 ) gin.HandlerFunc {
-	handler := rbacUserRoleGeneratedHandler{}
-
 	return handleStableIDResponse(stableIDResponseHandlerConfig[generated.UserRoleBindingResponse]{
 		ctx:        ctx,
 		moduleName: moduleName,
 		logMessage: "list user-role bindings failed",
-		bindGenerated: func(ginCtx *gin.Context, targetID uint64) {
-			handler.GetUserRoles(targetID, bindGeneratedUserRoleReadParams(ginCtx))
-		},
 		read: func(requestCtx context.Context, targetID uint64) (generated.UserRoleBindingResponse, error) {
 			roleIDs, err := reader.ListRoleIDsByUserID(requestCtx, targetID)
 			if err != nil {
@@ -308,54 +235,32 @@ func handleListUserRoleBindings(
 	})
 }
 
-type rbacUserRoleGeneratedHandler struct {
-}
-
-func (h rbacUserRoleGeneratedHandler) GetUserRoles(id uint64, params rbacopenapi.GetUserRolesParams) {
-	_ = h
-	_ = id
-	_ = params
-}
-
-func bindGeneratedUserRoleReadParams(ginCtx *gin.Context) rbacopenapi.GetUserRolesParams {
-	locale, requestID := bindGeneratedReadHeaders(ginCtx)
-	return rbacopenapi.GetUserRolesParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
 type stableIDResponseHandlerConfig[T any] struct {
-	ctx           *module.Context
-	moduleName    string
-	logMessage    string
-	bindGenerated func(ginCtx *gin.Context, targetID uint64)
-	read          func(requestCtx context.Context, targetID uint64) (T, error)
-	isNotFound    func(error) bool
-	notFoundKey   messagecontract.Key
+	ctx        *module.Context
+	moduleName string
+	logMessage string
+
+	read        func(requestCtx context.Context, targetID uint64) (T, error)
+	isNotFound  func(error) bool
+	notFoundKey messagecontract.Key
 }
 
 type stableIDReadHandlerConfig[T any, R any] struct {
-	ctx           *module.Context
-	moduleName    string
-	logMessage    string
-	bindGenerated func(handler rbacReadGeneratedHandler, ginCtx *gin.Context, targetID uint64)
-	read          func(requestCtx context.Context, targetID uint64) (R, error)
-	mapResponse   func(R) (T, error)
-	isNotFound    func(error) bool
-	notFoundKey   messagecontract.Key
+	ctx        *module.Context
+	moduleName string
+	logMessage string
+
+	read        func(requestCtx context.Context, targetID uint64) (R, error)
+	mapResponse func(R) (T, error)
+	isNotFound  func(error) bool
+	notFoundKey messagecontract.Key
 }
 
 func newStableIDReadHandler[T any, R any](config stableIDReadHandlerConfig[T, R]) gin.HandlerFunc {
-	handler := rbacReadGeneratedHandler{}
-
 	return handleStableIDResponse(stableIDResponseHandlerConfig[T]{
 		ctx:        config.ctx,
 		moduleName: config.moduleName,
 		logMessage: config.logMessage,
-		bindGenerated: func(ginCtx *gin.Context, targetID uint64) {
-			config.bindGenerated(handler, ginCtx, targetID)
-		},
 		read: func(requestCtx context.Context, targetID uint64) (T, error) {
 			record, err := config.read(requestCtx, targetID)
 			if err != nil {
@@ -376,12 +281,9 @@ func handleGetRole(
 	reader readManagementService,
 ) gin.HandlerFunc {
 	return newStableIDReadHandler(stableIDReadHandlerConfig[generated.RoleDetailResponse, rbacstore.Role]{
-		ctx:        ctx,
-		moduleName: moduleName,
-		logMessage: "get role failed",
-		bindGenerated: func(handler rbacReadGeneratedHandler, ginCtx *gin.Context, targetID uint64) {
-			handler.GetRole(targetID, bindGeneratedRoleDetailParams(ginCtx))
-		},
+		ctx:         ctx,
+		moduleName:  moduleName,
+		logMessage:  "get role failed",
 		read:        reader.GetRole,
 		mapResponse: toRoleDetailResponse,
 		isNotFound:  func(err error) bool { return errors.Is(err, rbacstore.ErrRoleNotFound) },
@@ -396,12 +298,9 @@ func handleGetPermission(
 	reader readManagementService,
 ) gin.HandlerFunc {
 	return newStableIDReadHandler(stableIDReadHandlerConfig[generated.PermissionDetailResponse, rbacstore.Permission]{
-		ctx:        ctx,
-		moduleName: moduleName,
-		logMessage: "get permission failed",
-		bindGenerated: func(handler rbacReadGeneratedHandler, ginCtx *gin.Context, targetID uint64) {
-			handler.GetPermission(targetID, bindGeneratedPermissionDetailParams(ginCtx))
-		},
+		ctx:         ctx,
+		moduleName:  moduleName,
+		logMessage:  "get permission failed",
 		read:        reader.GetPermission,
 		mapResponse: toPermissionListItem,
 		isNotFound:  func(err error) bool { return errors.Is(err, rbacstore.ErrPermissionNotFound) },
@@ -415,8 +314,6 @@ func handleStableIDResponse[T any](config stableIDResponseHandlerConfig[T]) gin.
 		if !ok {
 			return
 		}
-
-		config.bindGenerated(ginCtx, targetID)
 
 		payload, err := config.read(ginCtx.Request.Context(), targetID)
 		if err != nil {

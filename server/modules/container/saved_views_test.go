@@ -102,7 +102,9 @@ func TestContainerSavedViewRoutesUseCanonicalImagePath(t *testing.T) {
 	engine := gin.New()
 	moduleCtx := newTestContext()
 	moduleCtx.Router = engine
-	registerContainerSavedViewRoutes(moduleCtx, savedViewServiceStub{}, func(ctx *gin.Context) { ctx.Next() })
+	handlers := newContainerSavedViewHandlers(moduleCtx, savedViewServiceStub{})
+	wrapper := newContainerStrictWrapper(moduleCtx, containerStrictServer{saved: handlers})
+	registerContainerSavedViewRoutes(moduleCtx, handlers, wrapper, func(ctx *gin.Context) { ctx.Next() })
 
 	routes := make(map[string]struct{})
 	for _, route := range engine.Routes() {
@@ -129,7 +131,9 @@ func TestContainerSavedViewRoutesServeCRUDForEachSurface(t *testing.T) {
 	service := &recordedSavedViewService{}
 	engine := gin.New()
 	moduleCtx.Router = engine
-	registerContainerSavedViewRoutes(moduleCtx, service, func(ctx *gin.Context) {
+	handlers := newContainerSavedViewHandlers(moduleCtx, service)
+	wrapper := newContainerStrictWrapper(moduleCtx, containerStrictServer{saved: handlers})
+	registerContainerSavedViewRoutes(moduleCtx, handlers, wrapper, func(ctx *gin.Context) {
 		ctx.Request = ctx.Request.WithContext(moduleapi.WithRequestAuthContext(ctx.Request.Context(), moduleapi.RequestAuthContext{User: &moduleapi.CurrentUser{ID: 7}}))
 	})
 

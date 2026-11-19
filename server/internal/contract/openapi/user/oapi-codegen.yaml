@@ -1,0 +1,21 @@
+package: useropenapi
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  include-operation-ids:
+    - deleteUser
+    - deleteUserSavedView
+    - getUserById
+    - getUserSavedViews
+    - getUserSessions
+    - getUsers
+    - postUserResetPassword
+    - postUserSavedView
+    - postUserSessionRevoke
+    - postUserSessionsRevokeAll
+    - postUserStatus
+    - postUserUpdate
+    - postUsers
+    - putUserSavedView
