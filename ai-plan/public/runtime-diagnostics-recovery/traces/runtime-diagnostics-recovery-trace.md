@@ -37,3 +37,18 @@
   migrations; bootstrap container check passed); the Runtime Target projection adds one bounded per-target read in
   the list path, consistent with the existing per-target agent trust reads; the identity-rejection re-enrollment loop
   cadence is pre-existing platform behavior and out of this topic's scope.
+
+## 2026-11-20 Correction Round 1 (worker track1-diagnostics)
+
+- Applied all five lead-verified Greptile findings; none required contract changes and the approved additive
+   shape was kept.
+- Agent admission: bounded persistence refresh keeps an ongoing rejection failing the local healthcheck; unchanged
+  evidence re-reports on a 2-minute refresh interval so backend receipts are refreshed before expiry; concurrent
+  per-capability claim results merge with rejection > transport > no_work priority and only a fully healthy cycle
+  clears evidence.
+- Task store: retry and recovery resets clear failure_stage/failure_class alongside the existing failure fields;
+  CAS transitions reset the diagnostic columns; store regression covers the cleared retry facts and fresh attempt.
+- Web: the trusted sanitized summary renders as its own segment next to the code label; drawer-level and helper tests
+  assert actual rendering; runtime-target detail tests cover claim admission classes and the no-receipt absence.
+- Validation after corrections: just openapi-check exit 0; cd server && go run ./cmd/graft validate backend exit 0
+  (both lint configs 0 issues); cd web && bun run check exit 0.
