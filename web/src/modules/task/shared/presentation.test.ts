@@ -4,7 +4,12 @@ import { createI18n } from 'vue-i18n';
 import enUS from '../locales/en-US.json';
 import zhCN from '../locales/zh-CN.json';
 import { resolveTaskFailureMessage } from './failure-copy';
-import { taskFailureAttribution, taskStageExecutionLabel } from './presentation';
+import {
+  taskDiagnosticSummary,
+  taskFailureAttribution,
+  taskFailureDetail,
+  taskStageExecutionLabel,
+} from './presentation';
 
 describe('Task execution diagnostics', () => {
   it.each(['zh-CN', 'en-US'])('resolves existing and local failures from the actual %s messages', (locale) => {
@@ -65,4 +70,44 @@ describe('Task execution diagnostics', () => {
       ].join(' · '),
     );
   });
+
+  it('renders the trusted sanitized summary and withholds historical raw text', () => {
+    const summary = 'yaml: line 3: could not find expected';
+    expect(taskDiagnosticSummary(` ${summary} `)).toBe(summary);
+    expect(taskDiagnosticSummary('first\nsecond')).toBe('');
+    expect(taskDiagnosticSummary('first\rsecond')).toBe('');
+    expect(taskDiagnosticSummary('长'.repeat(257))).toBe('');
+    expect(taskDiagnosticSummary('')).toBe('');
+    expect(taskDiagnosticSummary(null)).toBe('');
+    expect(taskDiagnosticSummary(undefined)).toBe('');
+  });
+
+  it.each(['zh-CN', 'en-US'])(
+    'composes failure detail with the sanitized summary actually rendered in %s',
+    (locale) => {
+      const i18n = createI18n({ legacy: false, locale, messages: { 'zh-CN': zhCN, 'en-US': enUS } });
+      const translate = (key: string) => i18n.global.t(key);
+      const summary = 'yaml: line 3: could not find expected';
+      const detail = taskFailureDetail(
+        {
+          failure_code: 'provider_operation_failed',
+          failure_message: summary,
+          failure_stage: 'compose_load',
+          failure_class: 'infrastructure',
+        },
+        translate,
+      );
+      expect(detail).toContain(translate('task.detail.failureCodes.providerOperationFailed'));
+      expect(detail).toContain(summary);
+      expect(detail).toContain(translate('task.detail.failureStages.compose_load'));
+      expect(detail).toContain(translate('task.detail.failureClasses.infrastructure'));
+      // 摘要与稳定码文案是独立段落，不能被通用 unknown 文案吞掉。
+      const segments = detail.split(' · ');
+      expect(segments).toContain(summary);
+      expect(segments.length).toBe(4);
+      expect(
+        taskFailureDetail({ failure_code: 'docker_runtime_unavailable', failure_message: undefined }, translate),
+      ).toBe(translate('task.detail.failureCodes.runtimeUnavailable'));
+    },
+  );
 });
