@@ -331,7 +331,6 @@
       },
       "quickActions": {
         "title": "快捷操作",
-        "description": "常用功能入口",
         "viewAll": "全部",
         "drawerTitle": "全部入口",
         "closeDrawer": "关闭全部入口",

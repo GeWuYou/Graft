@@ -232,6 +232,8 @@ describe('DashboardWorkbenchPreviewPage', () => {
       size: 'compact',
     });
     expect(wrapper.get('[role="group"]').attributes('aria-label')).toBe('dashboard.workbench.quickActions.title');
+    expect(wrapper.findAll('.quick-actions')).toHaveLength(1);
+    expect(wrapper.find('[data-context-group-id]').exists()).toBe(false);
   });
 
   it('filters the complete navigation without treating the home item count as a drawer limit', async () => {

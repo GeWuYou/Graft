@@ -331,7 +331,6 @@
       },
       "quickActions": {
         "title": "Quick Actions",
-        "description": "Frequently used features",
         "viewAll": "All",
         "drawerTitle": "All Entries",
         "closeDrawer": "Close all entries",

@@ -2,6 +2,8 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, inject, type InjectionKey, nextTick, type PropType, provide, ref } from 'vue';
 
+import { BUILD_ROUTE_PATH } from '@/modules/build/contract/paths';
+
 import enUS from '../../locales/en-US.json';
 import zhCN from '../../locales/zh-CN.json';
 import { DASHBOARD_PREVIEW_PRESENTATION } from '../../presentation/preview-workbench';
@@ -159,12 +161,29 @@ const emptyPresentation = projectWorkbenchScenario({
   quickActions: [],
 });
 
+const workbenchWithContextLinks: WorkbenchPresentation = {
+  ...DASHBOARD_PREVIEW_PRESENTATION,
+  contextLinkGroups: [
+    {
+      id: 'context-link-group:build:recent-jobs',
+      titleKey: 'dashboard.previewWorkbench.quickActions.createBuild.title',
+      sourceWidgetId: 'build.recent-jobs',
+      links: Array.from({ length: 8 }, (_, index) => ({
+        key: index === 0 ? 'build-jobs' : `build-jobs-${index}`,
+        labelKey: 'dashboard.actions.details',
+        route: BUILD_ROUTE_PATH.JOBS,
+        disabled: false,
+      })),
+    },
+  ],
+};
+
 function mountWorkbench(overrides: Partial<InstanceType<typeof DashboardWorkbench>['$props']> = {}) {
   return mount(DashboardWorkbench, {
     props: {
       generatedAt: DASHBOARD_PREVIEW_PRESENTATION.generatedAt,
       navigationLinks: [],
-      presentation: DASHBOARD_PREVIEW_PRESENTATION as WorkbenchPresentation,
+      presentation: workbenchWithContextLinks,
       preview: true,
       ...overrides,
     },
