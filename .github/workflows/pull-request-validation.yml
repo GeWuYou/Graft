@@ -797,9 +797,9 @@ jobs:
           page = 1
           while True:
               payload = json.loads(subprocess.check_output([
-                  "gh", "api",
+                  "gh", "api", "--method", "GET",
                   f"repos/{repo}/actions/runs/{run_id}/attempts/{attempt}/jobs",
-                  "-F", "per_page=100", "-F", f"page={page}",
+                  "-f", "per_page=100", "-f", f"page={page}",
               ], text=True))
               batch = payload.get("jobs", [])
               jobs.extend(batch)

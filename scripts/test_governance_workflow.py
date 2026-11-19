@@ -194,7 +194,10 @@ class GovernanceWorkflowTests(unittest.TestCase):
         self.assertEqual(env["EVENT_NAME"], "${{ github.event_name }}")
         self.assertEqual(env["GITHUB_TOKEN"], "${{ secrets.GITHUB_TOKEN }}")
         program = "\n".join(cross["run"].splitlines()[1:-1])
-        self.assertIn('"gh", "api"', program)
+        self.assertIn('"gh", "api", "--method", "GET"', program)
+        # -f query fields imply POST unless --method GET pins the jobs-list verb.
+        self.assertNotIn('"-F"', program)
+        self.assertIn('"-f", "per_page=100"', program)
         self.assertIn("attempts/{attempt}/jobs", program)
         self.assertIn('job.get("head_sha") != head_sha', program)
         self.assertIn('conclusion == "success"', program)
