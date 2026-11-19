@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	messagecontract "graft/server/internal/contract/message"
 	openapigen "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/httpx"
 	"graft/server/internal/logger"
@@ -37,10 +38,10 @@ func registerRegistryRoutes(ctx *module.Context, service *Service) error {
 	routes := registryStrictServer{module: ctx, service: service}
 	wrapper := registryopenapi.ServerInterfaceWrapper{
 		Handler: registryopenapi.NewStrictHandlerWithOptions(routes, nil, registryopenapi.StrictGinServerOptions{
-			RequestErrorHandlerFunc: strictsupport.RequestErrorHandler(ctx.I18n, "common.invalid_argument", nil),
+			RequestErrorHandlerFunc: strictsupport.RequestErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String(), nil),
 			HandlerErrorFunc:        strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
 		}),
-		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, "common.invalid_argument"),
+		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
 	}
 	group.GET("/available-destinations", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), strictsupport.Route(wrapper.GetRegistryAvailableDestinations, routes.handleAvailableDestinations))
 	group.GET("", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.ReadPermission, publisher), strictsupport.Route(wrapper.GetRegistries, routes.handleListConnections))
