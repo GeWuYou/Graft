@@ -14,15 +14,22 @@ DTO_TOKENS = ("Request", "Response", "Payload", "DTO", "Params")
 REQUEST_TOKENS = ("Request", "Payload", "DTO", "Params")
 RESPONSE_TOKENS = ("Response",)
 NON_DTO_SUFFIXES = ("Config", "Options", "Result", "Reader", "Manager", "Bridge", "Guard", "Registrar", "Handler")
+# 禁止的运行时接管标记：手写代码不得让生成代码接管路由注册（RegisterHandlers* /
+# HandlerFromMux / HandlerWithOptions 全量 handler 构造）。挂载生成的
+# ServerInterfaceWrapper 单个路由方法与 NewStrictHandlerWithOptions（配置统一
+# envelope 错误出口）是 openapi-strict-server 迁移的既定集成方式，不属于接管。
+# HandlerWithOptions 使用词边界匹配，避免命中 NewStrictHandlerWithOptions。
 FORBIDDEN_GENERATED_RUNTIME_PATTERNS = (
-    "NewStrictHandler(",
-    "RegisterHandlers(",
-    "RegisterHandlersWithOptions(",
-    "HandlerFromMux(",
-    "HandlerWithOptions(",
-    "ServerInterfaceWrapper",
-    "StrictHandlerFunc",
-    "StrictHTTPServerOptions",
+    r"NewStrictHandler(",
+    r"RegisterHandlers(",
+    r"RegisterHandlersWithOptions(",
+    r"HandlerFromMux(",
+    r"HandlerWithOptions(",
+    r"StrictHandlerFunc",
+    r"StrictHTTPServerOptions",
+)
+FORBIDDEN_MARKER_REGEXES = tuple(
+    re.compile(r"(?<![A-Za-z])" + re.escape(pattern)) for pattern in FORBIDDEN_GENERATED_RUNTIME_PATTERNS
 )
 
 HANDLER_BOUNDARY_CHECKS = {
@@ -32,27 +39,29 @@ HANDLER_BOUNDARY_CHECKS = {
         "authopenapi.PostAuthChangePasswordJSONRequestBody",
     ),
     "server/modules/user/route_user_handlers.go": (
-        "useropenapi.GetUsersParams",
         "useropenapi.PostUsersJSONRequestBody",
         "useropenapi.PostUserUpdateJSONRequestBody",
     ),
-    "server/modules/user/route_admin_session_handlers.go": (
-        "useropenapi.GetUserSessionsParams",
-        "useropenapi.PostUserSessionsRevokeAllParams",
-        "useropenapi.PostUserSessionRevokeParams",
+    "server/modules/user/strict_server.go": (
+        "useropenapi.GetUsersRequestObject",
+        "useropenapi.GetUserSessionsRequestObject",
+        "useropenapi.PostUserSessionsRevokeAllRequestObject",
+        "useropenapi.PostUserSessionRevokeRequestObject",
     ),
     "server/modules/rbac/route_read_handlers.go": (
         "rbacopenapi.GetPermissionsParams",
         "rbacopenapi.GetRolesParams",
-        "rbacopenapi.GetRolePermissionsParams",
-        "rbacopenapi.GetUserRolesParams",
+    ),
+    "server/modules/rbac/strict_server.go": (
+        "rbacopenapi.GetRolePermissionsRequestObject",
+        "rbacopenapi.GetUserRolesRequestObject",
     ),
     "server/modules/rbac/route_write_handlers.go": (
         "rbacopenapi.PostRolesJSONRequestBody",
         "rbacopenapi.PostRoleUpdateJSONRequestBody",
         "rbacopenapi.PostRoleStatusJSONRequestBody",
     ),
-    "server/modules/rbac/route_write_generated.go": (
+    "server/modules/rbac/route_write_stable_ids.go": (
         "rbacopenapi.PostRolePermissionsReplaceJSONRequestBody",
         "rbacopenapi.PostRolePermissionsAddJSONRequestBody",
         "rbacopenapi.DeleteRolePermissionsJSONRequestBody",
@@ -306,9 +315,16 @@ def audit_generated_runtime_takeover(repo_root: Path, result: AuditResult) -> No
     """
     for path in sorted((repo_root / "server").rglob("*.go")):
         rel_path = path.relative_to(repo_root).as_posix()
+        # zz_generated files are tool-owned oapi-codegen output; their runtime markers
+        # (RegisterHandlers/ServerInterfaceWrapper/StrictHandlerFunc) are part of the
+        # generated strict-server bindings and are validated byte-exactly by the
+        # openapi_generated_freshness_check.py targets. Ownership takeover remains
+        # blocked for all hand-written files.
+        if path.name.startswith("zz_generated."):
+            continue
         text = read_text(path)
-        for pattern in FORBIDDEN_GENERATED_RUNTIME_PATTERNS:
-            if pattern in text:
+        for pattern, marker in zip(FORBIDDEN_GENERATED_RUNTIME_PATTERNS, FORBIDDEN_MARKER_REGEXES):
+            if marker.search(text):
                 result.generated_runtime_used = True
                 result.violations.append(
                     f"{rel_path}: found generated runtime takeover marker `{pattern}`"

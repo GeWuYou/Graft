@@ -14,7 +14,7 @@ import (
 
 type replaceStableIDsHandlerConfig struct {
 	invalidField         string
-	readAndBindGenerated func(ginCtx *gin.Context, targetID uint64) ([]uint64, error)
+	readAndBindGenerated func(ginCtx *gin.Context) ([]uint64, error)
 	write                func(ctx context.Context, targetID uint64, ids []uint64) error
 	allowEmptyIDs        bool
 	resultStatus         stableIDBatchResultStatus
@@ -28,20 +28,18 @@ type batchStableIDsHandlerConfig struct {
 	resultStatus         stableIDBatchResultStatus
 }
 
-type generatedStableIDsRouteConfig[Body any, Params any] struct {
-	invalidField  string
-	read          func(*gin.Context) (Body, []uint64, error)
-	bindParams    func(*gin.Context) Params
-	record        func(uint64, Params, Body)
+type generatedStableIDsRouteConfig[Body any] struct {
+	invalidField string
+	read         func(*gin.Context) (Body, []uint64, error)
+
 	write         func(context.Context, uint64, []uint64) error
 	allowEmptyIDs bool
 	resultStatus  stableIDBatchResultStatus
 }
 
-type batchGeneratedStableIDsRouteConfig[Body any, Params any] struct {
-	read              func(*gin.Context) (Body, batchStableIDSet, error)
-	bindParams        func(*gin.Context) Params
-	record            func(Params, Body)
+type batchGeneratedStableIDsRouteConfig[Body any] struct {
+	read func(*gin.Context) (Body, batchStableIDSet, error)
+
 	write             func(context.Context, []uint64, []uint64) error
 	allowEmptyRoleIDs bool
 	resultStatus      stableIDBatchResultStatus

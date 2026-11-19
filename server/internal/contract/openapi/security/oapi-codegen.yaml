@@ -1,0 +1,8 @@
+package: securityopenapi
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  include-operation-ids:
+    - getSecurityOverview

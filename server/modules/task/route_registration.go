@@ -11,6 +11,8 @@ import (
 	"graft/server/internal/apperror"
 	"graft/server/internal/contract/errorcode"
 	messagecontract "graft/server/internal/contract/message"
+	"graft/server/internal/contract/openapi/strictsupport"
+	taskopenapi "graft/server/internal/contract/openapi/task"
 	"graft/server/internal/httpx"
 	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
@@ -33,14 +35,66 @@ func registerTaskRoutes(ctx *module.Context, runtime *Runtime, publisher httpx.S
 	g := ctx.Router.Group("/tasks")
 	g.Use(httpx.RequestIDMiddleware(), httpx.RequirePermission(ctx.I18n, auth, authorizer, "", publisher))
 	r := taskRoutes{runtime: runtime, ctx: ctx}
-	g.GET("", r.list)
-	g.GET("/:id", r.detail)
-	g.GET("/:id/stages", r.stages)
-	g.GET("/:id/events", r.events)
-	g.GET("/:id/logs", r.logs)
-	g.POST("/:id/cancel", r.cancel)
-	g.POST("/:id/stages/:stageID/retry", r.retry)
+	// 生成 wrapper 承担路径与请求参数绑定；组级鉴权中间件和 handler envelope 写入
+	// 保持迁移前顺序与字节。路径参数名与 canonical OpenAPI 一致。
+	wrapper := taskopenapi.ServerInterfaceWrapper{
+		Handler: taskopenapi.NewStrictHandlerWithOptions(
+			taskStrictServer{routes: r},
+			nil,
+			taskopenapi.StrictGinServerOptions{
+				RequestErrorHandlerFunc: strictsupport.RequestErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String(), nil),
+				HandlerErrorFunc:        strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
+			},
+		),
+		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
+	}
+	g.GET("", strictsupport.Route(wrapper.ListTasks, r.list))
+	g.GET("/:taskId", strictsupport.Route(wrapper.GetTask, nil))
+	g.GET("/:taskId/stages", strictsupport.Route(wrapper.ListTaskStages, nil))
+	replayEvents := func(c *gin.Context) { r.replay(c, taskReplayEvents, defaultTaskEventLimit, maxTaskEventLimit) }
+	g.GET("/:taskId/events", strictsupport.Route(wrapper.ListTaskEvents, replayEvents))
+	g.GET("/:taskId/logs", strictsupport.Route(wrapper.ListTaskLogs, r.logs))
+	g.POST("/:taskId/cancel", strictsupport.Route(wrapper.CancelTask, nil))
+	g.POST("/:taskId/stages/:stageId/retry", strictsupport.Route(wrapper.RetryTaskStage, r.retry))
 	return nil
+}
+
+// taskStrictServer 将任务路由主体适配到生成的 strict server 契约；
+// 编译期断言保证 OpenAPI 新增或重命名任务操作时必须在适配层补齐。
+type taskStrictServer struct {
+	routes taskRoutes
+}
+
+var _ taskopenapi.StrictServerInterface = taskStrictServer{}
+
+func (s taskStrictServer) ListTasks(ctx context.Context, _ taskopenapi.ListTasksRequestObject) (taskopenapi.ListTasksResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.list)
+}
+
+func (s taskStrictServer) GetTask(ctx context.Context, _ taskopenapi.GetTaskRequestObject) (taskopenapi.GetTaskResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.detail)
+}
+
+func (s taskStrictServer) ListTaskStages(ctx context.Context, _ taskopenapi.ListTaskStagesRequestObject) (taskopenapi.ListTaskStagesResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.stages)
+}
+
+func (s taskStrictServer) ListTaskEvents(ctx context.Context, _ taskopenapi.ListTaskEventsRequestObject) (taskopenapi.ListTaskEventsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, func(ginCtx *gin.Context) {
+		s.routes.replay(ginCtx, taskReplayEvents, defaultTaskEventLimit, maxTaskEventLimit)
+	})
+}
+
+func (s taskStrictServer) ListTaskLogs(ctx context.Context, _ taskopenapi.ListTaskLogsRequestObject) (taskopenapi.ListTaskLogsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.logs)
+}
+
+func (s taskStrictServer) CancelTask(ctx context.Context, _ taskopenapi.CancelTaskRequestObject) (taskopenapi.CancelTaskResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.cancel)
+}
+
+func (s taskStrictServer) RetryTaskStage(ctx context.Context, _ taskopenapi.RetryTaskStageRequestObject) (taskopenapi.RetryTaskStageResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.routes.retry)
 }
 
 type taskRoutes struct {
@@ -58,7 +112,7 @@ const (
 )
 
 func (r taskRoutes) get(c *gin.Context, action moduleapi.TaskOwnerAction) (moduleapi.TaskView, bool) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	id, err := strconv.ParseUint(c.Param("taskId"), 10, 64)
 	if err != nil || id == 0 {
 		r.writeError(c, http.StatusBadRequest, errTaskInvalidArgument)
 		return moduleapi.TaskView{}, false
@@ -95,10 +149,6 @@ func (r taskRoutes) stages(c *gin.Context) {
 		return
 	}
 	httpx.WriteSuccess(c, http.StatusOK, map[string]any{"items": taskStageResponses(stages)})
-}
-
-func (r taskRoutes) events(c *gin.Context) {
-	r.replay(c, taskReplayEvents, defaultTaskEventLimit, maxTaskEventLimit)
 }
 
 func (r taskRoutes) logs(c *gin.Context) {
@@ -189,7 +239,7 @@ func (r taskRoutes) retry(c *gin.Context) {
 	if !ok {
 		return
 	}
-	stageID, err := strconv.ParseUint(c.Param("stageID"), 10, 64)
+	stageID, err := strconv.ParseUint(c.Param("stageId"), 10, 64)
 	if err != nil || stageID == 0 {
 		r.writeError(c, http.StatusBadRequest, errTaskInvalidArgument)
 		return

@@ -3,6 +3,8 @@ package registry
 import (
 	"errors"
 	"fmt"
+	registryopenapi "graft/server/internal/contract/openapi/registry"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"math"
 	"net/http"
 	"strconv"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	messagecontract "graft/server/internal/contract/message"
 	openapigen "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/httpx"
 	"graft/server/internal/logger"
@@ -32,28 +35,37 @@ func registerRegistryRoutes(ctx *module.Context, service *Service) error {
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
 	group := ctx.Router.Group("/registries")
 	group.Use(httpx.RequestIDMiddleware())
-	group.GET("/available-destinations", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), func(c *gin.Context) { handleAvailableDestinations(c, ctx, service) })
-	group.GET("", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.ReadPermission, publisher), func(c *gin.Context) { handleListConnections(c, ctx, service) })
-	group.POST("", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.CreatePermission, publisher), func(c *gin.Context) { handleCreateConnection(c, ctx, service) })
-	group.GET("/:connectionRef", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.ReadPermission, publisher), func(c *gin.Context) { handleGetConnection(c, ctx, service) })
-	group.PUT("/:connectionRef", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.UpdatePermission, publisher), func(c *gin.Context) { handleUpdateConnection(c, ctx, service) })
-	group.DELETE("/:connectionRef", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.DeletePermission, publisher), func(c *gin.Context) { handleDeleteConnection(c, ctx, service) })
-	group.POST("/:connectionRef/verify", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.VerifyPermission, publisher), func(c *gin.Context) { handleVerifyConnection(c, ctx, service) })
-	group.GET("/:connectionRef/repositories", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.ReadPermission, publisher), func(c *gin.Context) { handleListRepositories(c, ctx, service) })
-	group.POST("/:connectionRef/repositories", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.CreatePermission, publisher), func(c *gin.Context) { handleCreateRepository(c, ctx, service) })
-	group.PUT("/:connectionRef/repositories", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.UpdatePermission, publisher), func(c *gin.Context) { handleUpdateRepository(c, ctx, service) })
-	group.DELETE("/:connectionRef/repositories", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.DeletePermission, publisher), func(c *gin.Context) { handleDeleteRepository(c, ctx, service) })
-	group.GET("/:connectionRef/repository-assignment-candidates", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleListAssignmentCandidates(c, ctx, service) })
-	group.GET("/:connectionRef/repository-assignments", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleListAssignments(c, ctx, service) })
-	group.POST("/:connectionRef/repository-assignments", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleGrantAssignment(c, ctx, service) })
-	group.PUT("/:connectionRef/repository-assignments", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleReplaceAssignments(c, ctx, service) })
-	group.POST("/:connectionRef/repository-assignments/batch", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleAddAssignments(c, ctx, service) })
-	group.POST("/:connectionRef/repository-assignments/batch-revoke", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleRevokeAssignments(c, ctx, service) })
-	group.DELETE("/:connectionRef/repository-assignments/:userId", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), func(c *gin.Context) { handleRevokeAssignment(c, ctx, service) })
+	routes := registryStrictServer{module: ctx, service: service}
+	wrapper := registryopenapi.ServerInterfaceWrapper{
+		Handler: registryopenapi.NewStrictHandlerWithOptions(routes, nil, registryopenapi.StrictGinServerOptions{
+			RequestErrorHandlerFunc: strictsupport.RequestErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String(), nil),
+			HandlerErrorFunc:        strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
+		}),
+		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
+	}
+	group.GET("/available-destinations", httpx.RequirePermission(ctx.I18n, auth, authorizer, buildcontract.BuildCreatePermission, publisher), strictsupport.Route(wrapper.GetRegistryAvailableDestinations, routes.handleAvailableDestinations))
+	group.GET("", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.ReadPermission, publisher), strictsupport.Route(wrapper.GetRegistries, routes.handleListConnections))
+	group.POST("", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.CreatePermission, publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostRegistry, routes.handleCreateConnection))
+	group.GET("/:connectionRef", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.ReadPermission, publisher), strictsupport.Route(wrapper.GetRegistry, routes.handleGetConnection))
+	group.PUT("/:connectionRef", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.UpdatePermission, publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutRegistry, func(c *gin.Context) { routes.handleUpdateConnection(c, nil) }))
+	group.DELETE("/:connectionRef", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.DeletePermission, publisher), strictsupport.Route(wrapper.DeleteRegistry, routes.handleDeleteConnection))
+	group.POST("/:connectionRef/verify", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.VerifyPermission, publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostRegistryVerify, func(c *gin.Context) { routes.handleVerifyConnection(c, nil) }))
+	group.GET("/:connectionRef/repositories", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.ReadPermission, publisher), strictsupport.Route(wrapper.GetRegistryArtifactRepositories, routes.handleListRepositories))
+	group.POST("/:connectionRef/repositories", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.CreatePermission, publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostRegistryArtifactRepository, func(c *gin.Context) { routes.handleCreateRepository(c, nil) }))
+	group.PUT("/:connectionRef/repositories", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.UpdatePermission, publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutRegistryArtifactRepository, func(c *gin.Context) { routes.handleUpdateRepository(c, nil) }))
+	group.DELETE("/:connectionRef/repositories", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.DeletePermission, publisher), strictsupport.Route(wrapper.DeleteRegistryArtifactRepository, routes.handleDeleteRepository))
+	group.GET("/:connectionRef/repository-assignment-candidates", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), strictsupport.Route(wrapper.GetRegistryRepositoryAssignmentCandidates, routes.handleListAssignmentCandidates))
+	group.GET("/:connectionRef/repository-assignments", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), strictsupport.Route(wrapper.GetRegistryArtifactRepositoryAssignments, routes.handleListAssignments))
+	group.POST("/:connectionRef/repository-assignments", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostRegistryArtifactRepositoryAssignment, func(c *gin.Context) { routes.handleGrantAssignment(c, nil) }))
+	group.PUT("/:connectionRef/repository-assignments", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutRegistryArtifactRepositoryAssignments, func(c *gin.Context) { routes.handleReplaceAssignments(c, nil) }))
+	group.POST("/:connectionRef/repository-assignments/batch", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostRegistryArtifactRepositoryAssignmentsBatchAdd, func(c *gin.Context) { routes.handleAddAssignments(c, nil) }))
+	group.POST("/:connectionRef/repository-assignments/batch-revoke", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostRegistryArtifactRepositoryAssignmentsBatchRevoke, func(c *gin.Context) { routes.handleRevokeAssignments(c, nil) }))
+	group.DELETE("/:connectionRef/repository-assignments/:userId", httpx.RequirePermission(ctx.I18n, auth, authorizer, registrycontract.AssignmentManagePermission, publisher), strictsupport.Route(wrapper.DeleteRegistryArtifactRepositoryAssignment, routes.handleRevokeAssignment))
 	return nil
 }
 
-func handleListConnections(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleListConnections(c *gin.Context) {
+	ctx, service := s.module, s.service
 	limit, offset := parsePage(c)
 	items, total, err := service.ListConnections(c, c.Query("search"), limit, offset)
 	if err != nil {
@@ -62,7 +74,8 @@ func handleListConnections(c *gin.Context, ctx *module.Context, service *Service
 	}
 	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryConnectionListResponse{Items: mapConnections(items), Limit: limit, Offset: offset, Total: int64(total)})
 }
-func handleGetConnection(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleGetConnection(c *gin.Context) {
+	ctx, service := s.module, s.service
 	item, err := service.GetConnection(c, c.Param("connectionRef"))
 	if err != nil {
 		writeRegistryError(c, ctx, err)
@@ -70,7 +83,8 @@ func handleGetConnection(c *gin.Context, ctx *module.Context, service *Service) 
 	}
 	httpx.WriteSuccess(c, http.StatusOK, mapConnection(item))
 }
-func handleCreateConnection(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleCreateConnection(c *gin.Context) {
+	ctx, service := s.module, s.service
 	var request openapigen.PostRegistryJSONRequestBody
 	if c.ShouldBindJSON(&request) != nil {
 		invalidRegistryRequest(c, ctx)
@@ -83,14 +97,18 @@ func handleCreateConnection(c *gin.Context, ctx *module.Context, service *Servic
 	}
 	httpx.WriteSuccess(c, http.StatusCreated, mapConnection(item))
 }
-func handleUpdateConnection(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleUpdateConnection(c *gin.Context, bound *openapigen.PutRegistryJSONRequestBody) {
+	ctx, service := s.module, s.service
 	existing, err := service.GetConnection(c, c.Param("connectionRef"))
 	if err != nil {
 		writeRegistryError(c, ctx, err)
 		return
 	}
 	var request openapigen.PutRegistryJSONRequestBody
-	if c.ShouldBindJSON(&request) != nil {
+	if bound != nil {
+		request = *bound
+	}
+	if bound == nil && c.ShouldBindJSON(&request) != nil {
 		invalidRegistryRequest(c, ctx)
 		return
 	}
@@ -102,16 +120,21 @@ func handleUpdateConnection(c *gin.Context, ctx *module.Context, service *Servic
 	}
 	httpx.WriteSuccess(c, http.StatusOK, mapConnection(item))
 }
-func handleDeleteConnection(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleDeleteConnection(c *gin.Context) {
+	ctx, service := s.module, s.service
 	if err := service.DeleteConnection(c, c.Param("connectionRef"), registryActorID(c)); err != nil {
 		writeRegistryError(c, ctx, err)
 		return
 	}
 	httpx.WriteSuccess[any](c, http.StatusOK, nil)
 }
-func handleVerifyConnection(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleVerifyConnection(c *gin.Context, bound *openapigen.PostRegistryVerifyJSONRequestBody) {
+	ctx, service := s.module, s.service
 	var request openapigen.PostRegistryVerifyJSONRequestBody
-	if c.ShouldBindJSON(&request) != nil {
+	if bound != nil {
+		request = *bound
+	}
+	if bound == nil && c.ShouldBindJSON(&request) != nil {
 		invalidRegistryRequest(c, ctx)
 		return
 	}
@@ -131,7 +154,8 @@ func handleVerifyConnection(c *gin.Context, ctx *module.Context, service *Servic
 	}
 	httpx.WriteSuccess(c, http.StatusOK, response)
 }
-func handleListRepositories(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleListRepositories(c *gin.Context) {
+	ctx, service := s.module, s.service
 	limit, offset := parsePage(c)
 	items, total, err := service.ListRepositories(c, c.Param("connectionRef"), limit, offset)
 	if err != nil {
@@ -140,9 +164,13 @@ func handleListRepositories(c *gin.Context, ctx *module.Context, service *Servic
 	}
 	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryArtifactRepositoryListResponse{Items: mapRepositories(items), Total: int64(total), Limit: limit, Offset: offset})
 }
-func handleCreateRepository(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleCreateRepository(c *gin.Context, bound *openapigen.PostRegistryArtifactRepositoryJSONRequestBody) {
+	ctx, service := s.module, s.service
 	var request openapigen.PostRegistryArtifactRepositoryJSONRequestBody
-	if c.ShouldBindJSON(&request) != nil {
+	if bound != nil {
+		request = *bound
+	}
+	if bound == nil && c.ShouldBindJSON(&request) != nil {
 		invalidRegistryRequest(c, ctx)
 		return
 	}
@@ -164,9 +192,13 @@ func handleCreateRepository(c *gin.Context, ctx *module.Context, service *Servic
 	}
 	httpx.WriteSuccess(c, http.StatusCreated, mapRepository(item))
 }
-func handleReplaceAssignments(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleReplaceAssignments(c *gin.Context, bound *openapigen.PutRegistryArtifactRepositoryAssignmentsJSONRequestBody) {
+	ctx, service := s.module, s.service
 	var request openapigen.PutRegistryArtifactRepositoryAssignmentsJSONRequestBody
-	if c.ShouldBindJSON(&request) != nil {
+	if bound != nil {
+		request = *bound
+	}
+	if bound == nil && c.ShouldBindJSON(&request) != nil {
 		invalidRegistryRequest(c, ctx)
 		return
 	}
@@ -200,9 +232,13 @@ func handleReplaceAssignments(c *gin.Context, ctx *module.Context, service *Serv
 }
 
 //nolint:dupl // 批量追加与撤销共享请求校验边界，但分别绑定不同的 OpenAPI DTO 和持久化结果。
-func handleAddAssignments(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleAddAssignments(c *gin.Context, bound *openapigen.PostRegistryArtifactRepositoryAssignmentsBatchAddJSONRequestBody) {
+	ctx, service := s.module, s.service
 	var request openapigen.PostRegistryArtifactRepositoryAssignmentsBatchAddJSONRequestBody
-	if c.ShouldBindJSON(&request) != nil {
+	if bound != nil {
+		request = *bound
+	}
+	if bound == nil && c.ShouldBindJSON(&request) != nil {
 		invalidRegistryRequest(c, ctx)
 		return
 	}
@@ -221,9 +257,13 @@ func handleAddAssignments(c *gin.Context, ctx *module.Context, service *Service)
 }
 
 //nolint:dupl // 批量追加与撤销共享请求校验边界，但分别绑定不同的 OpenAPI DTO 和持久化结果。
-func handleRevokeAssignments(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleRevokeAssignments(c *gin.Context, bound *openapigen.PostRegistryArtifactRepositoryAssignmentsBatchRevokeJSONRequestBody) {
+	ctx, service := s.module, s.service
 	var request openapigen.PostRegistryArtifactRepositoryAssignmentsBatchRevokeJSONRequestBody
-	if c.ShouldBindJSON(&request) != nil {
+	if bound != nil {
+		request = *bound
+	}
+	if bound == nil && c.ShouldBindJSON(&request) != nil {
 		invalidRegistryRequest(c, ctx)
 		return
 	}
@@ -280,9 +320,13 @@ func uniqueAssignmentUserIDs(values []int64) ([]uint64, bool) {
 	}
 	return userIDs, true
 }
-func handleUpdateRepository(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleUpdateRepository(c *gin.Context, bound *openapigen.PutRegistryArtifactRepositoryJSONRequestBody) {
+	ctx, service := s.module, s.service
 	var request openapigen.PutRegistryArtifactRepositoryJSONRequestBody
-	if c.ShouldBindJSON(&request) != nil {
+	if bound != nil {
+		request = *bound
+	}
+	if bound == nil && c.ShouldBindJSON(&request) != nil {
 		invalidRegistryRequest(c, ctx)
 		return
 	}
@@ -298,7 +342,8 @@ func handleUpdateRepository(c *gin.Context, ctx *module.Context, service *Servic
 	}
 	httpx.WriteSuccess(c, http.StatusOK, mapRepository(item))
 }
-func handleDeleteRepository(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleDeleteRepository(c *gin.Context) {
+	ctx, service := s.module, s.service
 	repositoryRef := registryRepositoryRef(c)
 	if repositoryRef == "" {
 		invalidRegistryRequest(c, ctx)
@@ -310,7 +355,8 @@ func handleDeleteRepository(c *gin.Context, ctx *module.Context, service *Servic
 	}
 	httpx.WriteSuccess[any](c, http.StatusOK, nil)
 }
-func handleListAssignments(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleListAssignments(c *gin.Context) {
+	ctx, service := s.module, s.service
 	repositoryRef := registryRepositoryRef(c)
 	if repositoryRef == "" {
 		invalidRegistryRequest(c, ctx)
@@ -325,7 +371,8 @@ func handleListAssignments(c *gin.Context, ctx *module.Context, service *Service
 	httpx.WriteSuccess(c, http.StatusOK, openapigen.RegistryArtifactRepositoryUserAssignmentListResponse{Items: mapAssignments(items), Total: int64(total), Limit: limit, Offset: offset})
 }
 
-func handleListAssignmentCandidates(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleListAssignmentCandidates(c *gin.Context) {
+	ctx, service := s.module, s.service
 	rawRepositoryRefs := c.QueryArray("repository_ref")
 	if len(rawRepositoryRefs) == 0 || len(rawRepositoryRefs) > 100 {
 		invalidRegistryRequest(c, ctx)
@@ -368,9 +415,13 @@ func toOpenAPIUserID(userID uint64) (int64, error) {
 	}
 	return int64(userID), nil
 }
-func handleGrantAssignment(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleGrantAssignment(c *gin.Context, bound *openapigen.PostRegistryArtifactRepositoryAssignmentJSONRequestBody) {
+	ctx, service := s.module, s.service
 	var request openapigen.PostRegistryArtifactRepositoryAssignmentJSONRequestBody
-	if c.ShouldBindJSON(&request) != nil || request.UserId < 1 {
+	if bound != nil {
+		request = *bound
+	}
+	if (bound == nil && c.ShouldBindJSON(&request) != nil) || request.UserId < 1 {
 		invalidRegistryRequest(c, ctx)
 		return
 	}
@@ -386,7 +437,8 @@ func handleGrantAssignment(c *gin.Context, ctx *module.Context, service *Service
 	}
 	httpx.WriteSuccess(c, http.StatusCreated, mapAssignment(item))
 }
-func handleRevokeAssignment(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleRevokeAssignment(c *gin.Context) {
+	ctx, service := s.module, s.service
 	userID, err := strconv.ParseUint(c.Param("userId"), 10, 64)
 	if err != nil || userID == 0 {
 		invalidRegistryRequest(c, ctx)
@@ -403,7 +455,8 @@ func handleRevokeAssignment(c *gin.Context, ctx *module.Context, service *Servic
 	}
 	httpx.WriteSuccess[any](c, http.StatusOK, nil)
 }
-func handleAvailableDestinations(c *gin.Context, ctx *module.Context, service *Service) {
+func (s registryStrictServer) handleAvailableDestinations(c *gin.Context) {
+	ctx, service := s.module, s.service
 	actorID := registryActorID(c)
 	limit, offset := parsePage(c)
 	items, total, err := service.ListAvailableDestinations(c, actorID, limit, offset)

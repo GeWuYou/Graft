@@ -1,6 +1,7 @@
 package user
 
 import (
+	"graft/server/internal/contract/openapi/strictsupport"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,60 +15,59 @@ import (
 )
 
 func (r userRouteRegistrar) registerUserReadRoutes(group *gin.RouterGroup) {
-	group.GET(usercontract.UserCollection, r.guards.userRead, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		userReadGeneratedHandler{}.GetUsers(bindGeneratedUserListParams(ginCtx))
+	group.GET(usercontract.UserCollection, r.guards.userRead, r.guards.restrictedSession, strictsupport.Route(r.wrapper.GetUsers, r.handleUserList))
+	group.GET(usercontract.UserByID, r.guards.userRead, r.guards.restrictedSession, strictsupport.Route(r.wrapper.GetUserById, r.handleUserDetail))
+}
+func (r userRouteRegistrar) handleUserList(ginCtx *gin.Context) {
+	query, ok := readUserListQuery(ginCtx)
+	if !ok {
+		writeInvalidArgumentField(ginCtx, r.ctx.I18n, "query")
+		return
+	}
+	page, err := r.userSvc.ListUsersPage(ginCtx.Request.Context(), query)
+	if err != nil {
+		reported := applog.ReportError(ginCtx.Request.Context(), r.runtime().appLogger().Named("read"), "list users failed", err,
+			applog.StringField("module", r.moduleName),
+		)
+		httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, reported)
+		return
+	}
 
-		query, ok := readUserListQuery(ginCtx)
-		if !ok {
-			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "query")
-			return
-		}
-		page, err := r.userSvc.ListUsersPage(ginCtx.Request.Context(), query)
-		if err != nil {
-			reported := applog.ReportError(ginCtx.Request.Context(), r.runtime().appLogger().Named("read"), "list users failed", err,
-				applog.StringField("module", r.moduleName),
-			)
-			httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, reported)
-			return
-		}
+	userIDs := make([]uint64, 0, len(page.Users))
+	for _, user := range page.Users {
+		userIDs = append(userIDs, user.ID)
+	}
 
-		userIDs := make([]uint64, 0, len(page.Users))
-		for _, user := range page.Users {
-			userIDs = append(userIDs, user.ID)
-		}
+	roleSummariesByUserID, err := r.userSvc.ListUserRoleSummaries(ginCtx.Request.Context(), userIDs)
+	if err != nil {
+		reported := applog.ReportError(ginCtx.Request.Context(), r.runtime().appLogger().Named("read"), "list user role summaries failed", err,
+			applog.StringField("module", r.moduleName),
+		)
+		httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, reported)
+		return
+	}
 
-		roleSummariesByUserID, err := r.userSvc.ListUserRoleSummaries(ginCtx.Request.Context(), userIDs)
-		if err != nil {
-			reported := applog.ReportError(ginCtx.Request.Context(), r.runtime().appLogger().Named("read"), "list user role summaries failed", err,
-				applog.StringField("module", r.moduleName),
-			)
-			httpx.AbortAppError(ginCtx, r.ctx.I18n, r.ctx.Logger, reported)
-			return
-		}
+	payload, mapErr := toUserListResponse(page.Users, roleSummariesByUserID, page.Total, page.Limit, page.Offset)
+	if mapErr != nil {
+		r.runtime().writeResponseMappingError(ginCtx, "map user list response failed", mapErr)
+		return
+	}
 
-		payload, mapErr := toUserListResponse(page.Users, roleSummariesByUserID, page.Total, page.Limit, page.Offset)
-		if mapErr != nil {
-			r.runtime().writeResponseMappingError(ginCtx, "map user list response failed", mapErr)
-			return
-		}
+	httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
+}
 
-		httpx.WriteSuccess(ginCtx, http.StatusOK, payload)
-	})
-	group.GET(usercontract.UserByID, r.guards.userRead, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		rawID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
-		if !ok {
-			return
-		}
-		userReadGeneratedHandler{}.GetUserByID(rawID, bindGeneratedUserDetailParams(ginCtx))
+func (r userRouteRegistrar) handleUserDetail(ginCtx *gin.Context) {
+	rawID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
+	if !ok {
+		return
+	}
+	record, err := r.userSvc.GetUser(ginCtx.Request.Context(), rawID)
+	if err != nil {
+		r.runtime().writeUserLookupError(ginCtx, rawID, "get user by id failed", err)
+		return
+	}
 
-		record, err := r.userSvc.GetUser(ginCtx.Request.Context(), rawID)
-		if err != nil {
-			r.runtime().writeUserLookupError(ginCtx, rawID, "get user by id failed", err)
-			return
-		}
-
-		r.writeUserItemResponse(ginCtx, "map user detail response failed", record)
-	})
+	r.writeUserItemResponse(ginCtx, "map user detail response failed", record)
 }
 
 func readUserListQuery(ginCtx *gin.Context) (ListQuery, bool) {
@@ -122,19 +122,6 @@ func readOptionalRoleID(raw string) (uint64, bool, bool) {
 	return parsed, true, err == nil && parsed > 0
 }
 
-type userReadGeneratedHandler struct{}
-
-func (h userReadGeneratedHandler) GetUsers(params useropenapi.GetUsersParams) {
-	_ = h
-	_ = params
-}
-
-func (h userReadGeneratedHandler) GetUserByID(id uint64, params useropenapi.GetUserByIdParams) {
-	_ = h
-	_ = id
-	_ = params
-}
-
 func (r userRouteRegistrar) registerUserWriteRoutes(group *gin.RouterGroup) {
 	r.registerCreateUserRoute(group)
 	r.registerUpdateUserRoute(group)
@@ -144,28 +131,33 @@ func (r userRouteRegistrar) registerUserWriteRoutes(group *gin.RouterGroup) {
 }
 
 func (r userRouteRegistrar) registerCreateUserRoute(group *gin.RouterGroup) {
-	group.POST(usercontract.UserCollection, r.guards.userCreate, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		requestCtx := ginCtx.Request.Context()
-		var request useropenapi.PostUsersJSONRequestBody
+	group.POST(usercontract.UserCollection, r.guards.userCreate, r.guards.restrictedSession, strictsupport.CacheRequestBody(), strictsupport.Route(r.wrapper.PostUsers, func(c *gin.Context) { r.handleUserCreate(c, nil) }))
+}
+
+func (r userRouteRegistrar) handleUserCreate(ginCtx *gin.Context, body *useropenapi.PostUsersJSONRequestBody) {
+	requestCtx := ginCtx.Request.Context()
+	var request useropenapi.PostUsersJSONRequestBody
+	if body == nil {
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
 			return
 		}
-		userWriteGeneratedHandler{}.PostUsers(bindGeneratedUserCreateParams(ginCtx), request)
-		if field, ok := invalidCreateUserField(request); ok {
-			writeInvalidArgumentField(ginCtx, r.ctx.I18n, field)
-			return
-		}
+	} else {
+		request = *body
+	}
+	if field, ok := invalidCreateUserField(request); ok {
+		writeInvalidArgumentField(ginCtx, r.ctx.I18n, field)
+		return
+	}
 
-		command := toCreateUserCommand(request, requestActorID(requestCtx))
-		created, err := r.userSvc.CreateUser(requestCtx, command)
-		if err != nil {
-			r.runtime().writeCreateUserError(ginCtx, "create user failed", err)
-			return
-		}
+	command := toCreateUserCommand(request, requestActorID(requestCtx))
+	created, err := r.userSvc.CreateUser(requestCtx, command)
+	if err != nil {
+		r.runtime().writeCreateUserError(ginCtx, "create user failed", err)
+		return
+	}
 
-		r.writeUserItemResponse(ginCtx, "map created user response failed", created)
-	})
+	r.writeUserItemResponse(ginCtx, "map created user response failed", created)
 }
 
 func invalidCreateUserField(request useropenapi.PostUsersJSONRequestBody) (string, bool) {
@@ -182,152 +174,112 @@ func invalidCreateUserField(request useropenapi.PostUsersJSONRequestBody) (strin
 }
 
 func (r userRouteRegistrar) registerUpdateUserRoute(group *gin.RouterGroup) {
-	group.POST(usercontract.UserUpdateRoute, r.guards.userUpdate, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		requestCtx := ginCtx.Request.Context()
-		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
-		if !ok {
-			return
-		}
+	group.POST(usercontract.UserUpdateRoute, r.guards.userUpdate, r.guards.restrictedSession, strictsupport.CacheRequestBody(), strictsupport.Route(r.wrapper.PostUserUpdate, func(c *gin.Context) { r.handleUserUpdate(c, nil) }))
+}
 
-		var request useropenapi.PostUserUpdateJSONRequestBody
+func (r userRouteRegistrar) handleUserUpdate(ginCtx *gin.Context, body *useropenapi.PostUserUpdateJSONRequestBody) {
+	requestCtx := ginCtx.Request.Context()
+	userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
+	if !ok {
+		return
+	}
+
+	var request useropenapi.PostUserUpdateJSONRequestBody
+	if body == nil {
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
 			return
 		}
-		userWriteGeneratedHandler{}.PostUserUpdate(userID, bindGeneratedUserUpdateParams(ginCtx), request)
+	} else {
+		request = *body
+	}
+	command := toUpdateUserCommand(request, userID, requestActorID(requestCtx))
+	updated, err := r.userSvc.UpdateUser(requestCtx, command)
+	if err != nil {
+		r.runtime().writeUserManagementError(ginCtx, userID, "update user failed", err)
+		return
+	}
 
-		command := toUpdateUserCommand(request, userID, requestActorID(requestCtx))
-		updated, err := r.userSvc.UpdateUser(requestCtx, command)
-		if err != nil {
-			r.runtime().writeUserManagementError(ginCtx, userID, "update user failed", err)
-			return
-		}
-
-		r.writeUserItemResponse(ginCtx, "map updated user response failed", updated)
-	})
-}
-
-type userWriteGeneratedHandler struct{}
-
-func (h userWriteGeneratedHandler) PostUsers(
-	params useropenapi.PostUsersParams,
-	body useropenapi.PostUsersJSONRequestBody,
-) {
-	_ = h
-	_ = params
-	_ = body
-}
-
-func (h userWriteGeneratedHandler) PostUserUpdate(
-	id uint64,
-	params useropenapi.PostUserUpdateParams,
-	body useropenapi.PostUserUpdateJSONRequestBody,
-) {
-	_ = h
-	_ = id
-	_ = params
-	_ = body
-}
-
-func (h userWriteGeneratedHandler) PostUserStatus(
-	id uint64,
-	params useropenapi.PostUserStatusParams,
-	body useropenapi.PostUserStatusJSONRequestBody,
-) {
-	_ = h
-	_ = id
-	_ = params
-	_ = body
-}
-
-func (h userWriteGeneratedHandler) PostUserResetPassword(
-	id uint64,
-	params useropenapi.PostUserResetPasswordParams,
-	body useropenapi.PostUserResetPasswordJSONRequestBody,
-) {
-	_ = h
-	_ = id
-	_ = params
-	_ = body
-}
-
-func (h userWriteGeneratedHandler) DeleteUser(
-	id uint64,
-	params useropenapi.DeleteUserParams,
-) {
-	_ = h
-	_ = id
-	_ = params
+	r.writeUserItemResponse(ginCtx, "map updated user response failed", updated)
 }
 
 func (r userRouteRegistrar) registerSetUserStatusRoute(group *gin.RouterGroup) {
-	group.POST(usercontract.UserStatusRoute, r.guards.userDisable, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		requestCtx := ginCtx.Request.Context()
-		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
-		if !ok {
-			return
-		}
+	group.POST(usercontract.UserStatusRoute, r.guards.userDisable, r.guards.restrictedSession, strictsupport.CacheRequestBody(), strictsupport.Route(r.wrapper.PostUserStatus, func(c *gin.Context) { r.handleUserStatus(c, nil) }))
+}
 
-		var request useropenapi.PostUserStatusJSONRequestBody
+func (r userRouteRegistrar) handleUserStatus(ginCtx *gin.Context, body *useropenapi.PostUserStatusJSONRequestBody) {
+	requestCtx := ginCtx.Request.Context()
+	userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
+	if !ok {
+		return
+	}
+
+	var request useropenapi.PostUserStatusJSONRequestBody
+	if body == nil {
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
 			return
 		}
-		userWriteGeneratedHandler{}.PostUserStatus(userID, bindGeneratedUserStatusParams(ginCtx), request)
-		command, ok := toUpdateUserStatusCommand(request, userID, requestActorID(requestCtx))
-		if !ok {
-			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "status")
-			return
-		}
+	} else {
+		request = *body
+	}
+	command, ok := toUpdateUserStatusCommand(request, userID, requestActorID(requestCtx))
+	if !ok {
+		writeInvalidArgumentField(ginCtx, r.ctx.I18n, "status")
+		return
+	}
 
-		updated, err := r.userSvc.SetUserStatus(requestCtx, command)
-		if err != nil {
-			r.runtime().writeUserManagementError(ginCtx, userID, "set user status failed", err)
-			return
-		}
+	updated, err := r.userSvc.SetUserStatus(requestCtx, command)
+	if err != nil {
+		r.runtime().writeUserManagementError(ginCtx, userID, "set user status failed", err)
+		return
+	}
 
-		r.writeUserItemResponse(ginCtx, "map user status response failed", updated)
-	})
+	r.writeUserItemResponse(ginCtx, "map user status response failed", updated)
 }
 
 func (r userRouteRegistrar) registerResetUserPasswordRoute(group *gin.RouterGroup) {
-	group.POST(usercontract.UserResetPasswordRoute, r.guards.userUpdate, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		requestCtx := ginCtx.Request.Context()
-		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
-		if !ok {
-			return
-		}
+	group.POST(usercontract.UserResetPasswordRoute, r.guards.userUpdate, r.guards.restrictedSession, strictsupport.CacheRequestBody(), strictsupport.Route(r.wrapper.PostUserResetPassword, func(c *gin.Context) { r.handleUserResetPassword(c, nil) }))
+}
 
-		var request useropenapi.PostUserResetPasswordJSONRequestBody
+func (r userRouteRegistrar) handleUserResetPassword(ginCtx *gin.Context, body *useropenapi.PostUserResetPasswordJSONRequestBody) {
+	requestCtx := ginCtx.Request.Context()
+	userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
+	if !ok {
+		return
+	}
+
+	var request useropenapi.PostUserResetPasswordJSONRequestBody
+	if body == nil {
 		if err := ginCtx.ShouldBindJSON(&request); err != nil {
 			writeInvalidArgumentField(ginCtx, r.ctx.I18n, "body")
 			return
 		}
-		userWriteGeneratedHandler{}.PostUserResetPassword(userID, bindGeneratedUserResetPasswordParams(ginCtx), request)
+	} else {
+		request = *body
+	}
+	if err := r.userSvc.ResetUserPassword(requestCtx, userID, request.NewPassword); err != nil {
+		r.runtime().writeUserManagementError(ginCtx, userID, "reset user password failed", err)
+		return
+	}
 
-		if err := r.userSvc.ResetUserPassword(requestCtx, userID, request.NewPassword); err != nil {
-			r.runtime().writeUserManagementError(ginCtx, userID, "reset user password failed", err)
-			return
-		}
-
-		httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
-	})
+	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 }
 
 func (r userRouteRegistrar) registerDeleteUserRoute(group *gin.RouterGroup) {
-	group.DELETE(usercontract.UserByID, r.guards.userDisable, r.guards.restrictedSession, func(ginCtx *gin.Context) {
-		requestCtx := ginCtx.Request.Context()
-		userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
-		if !ok {
-			return
-		}
-		userWriteGeneratedHandler{}.DeleteUser(userID, bindGeneratedUserDeleteParams(ginCtx))
+	group.DELETE(usercontract.UserByID, r.guards.userDisable, r.guards.restrictedSession, strictsupport.Route(r.wrapper.DeleteUser, r.handleUserDelete))
+}
 
-		if err := r.userSvc.DeleteUser(requestCtx, userID); err != nil {
-			r.runtime().writeUserManagementError(ginCtx, userID, "delete user failed", err)
-			return
-		}
+func (r userRouteRegistrar) handleUserDelete(ginCtx *gin.Context) {
+	requestCtx := ginCtx.Request.Context()
+	userID, ok := readUserIDParam(ginCtx, r.ctx.I18n)
+	if !ok {
+		return
+	}
+	if err := r.userSvc.DeleteUser(requestCtx, userID); err != nil {
+		r.runtime().writeUserManagementError(ginCtx, userID, "delete user failed", err)
+		return
+	}
 
-		ginCtx.Status(http.StatusNoContent)
-	})
+	ginCtx.Status(http.StatusNoContent)
 }

@@ -2,8 +2,8 @@ package rbac
 
 import (
 	"github.com/gin-gonic/gin"
+	"graft/server/internal/contract/openapi/strictsupport"
 
-	rbacopenapi "graft/server/internal/contract/openapi/rbac"
 	"graft/server/internal/httpx"
 	"graft/server/internal/menu"
 	"graft/server/internal/module"
@@ -174,60 +174,36 @@ func registerManagementRoutes(
 	guards managementGuards,
 	savedViews moduleapi.SavedViewService,
 ) {
-	registerRoleRoutes(ctx, moduleName, reader, writer, guards, savedViews)
-	registerPermissionRoutes(ctx, moduleName, reader, guards.permissionRead, savedViews)
-	registerUserRoleRoutes(ctx, moduleName, reader, writer, guards)
-}
+	server := rbacStrictServer{ctx: ctx, moduleName: moduleName, reader: reader, writer: writer, roles: newRBACSavedViewHandlers(ctx.I18n, savedViews, roleSavedViewDefinition), permissions: newRBACSavedViewHandlers(ctx.I18n, savedViews, permissionSavedViewDefinition)}
+	wrapper := newRBACStrictWrapper(ctx, server)
+	roles := ctx.Router.Group(rbaccontract.RolesGroup)
+	roles.Use(httpx.RequestIDMiddleware())
+	roles.GET(rbaccontract.RoleCollection, guards.roleRead, strictsupport.Route(wrapper.GetRoles, server.handleListRoles))
+	registerRoleSavedViewRoutes(roles, server.roles, wrapper, guards.roleRead)
+	roles.GET(rbaccontract.RoleDetailRoute, guards.roleRead, strictsupport.Route(wrapper.GetRole, server.handleGetRole))
+	roles.GET(rbaccontract.RolePermissionBindingRoute, guards.permissionRead, strictsupport.Route(wrapper.GetRolePermissions, server.handleListRolePermissionBindings))
+	roles.POST(rbaccontract.RoleCollection, guards.roleCreate, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostRoles, server.handleCreateRoleRoute))
+	roles.POST(rbaccontract.RoleUpdateRoute, guards.roleUpdate, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostRoleUpdate, server.handleUpdateRoleRoute))
+	roles.POST(rbaccontract.RoleCloneRoute, guards.roleCreate, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostRoleClone, server.handleCloneRoleRoute))
+	roles.POST(rbaccontract.RoleStatusRoute, guards.roleStatus, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostRoleStatus, server.handleUpdateRoleStatusRoute))
+	roles.POST(rbaccontract.RoleDeleteRoute, guards.roleDelete, strictsupport.Route(wrapper.PostRoleDelete, server.handleDeleteRoleRoute))
+	roles.POST(rbaccontract.RolePermissionReplaceRoute, guards.rolePermissionAssign, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostRolePermissionsReplace, server.handleReplaceRolePermissionsRoute))
+	roles.POST(rbaccontract.RolePermissionAddRoute, guards.rolePermissionAssign, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostRolePermissionsAdd, server.handleAddRolePermissionsRoute))
+	roles.DELETE(rbaccontract.RolePermissionRemoveRoute, guards.rolePermissionAssign, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.DeleteRolePermissions, server.handleRemoveRolePermissionsRoute))
 
-func registerRoleRoutes(
-	ctx *module.Context,
-	moduleName string,
-	reader readManagementService,
-	writer writeManagementService,
-	guards managementGuards,
-	savedViews moduleapi.SavedViewService,
-) {
-	group := ctx.Router.Group(rbaccontract.RolesGroup)
-	group.Use(httpx.RequestIDMiddleware())
-	group.GET(rbaccontract.RoleCollection, guards.roleRead, handleListRoles(ctx, moduleName, reader))
-	registerRBACSavedViewRoutes(group, ctx, savedViews, guards.roleRead, roleSavedViewDefinition)
-	group.GET(rbaccontract.RoleDetailRoute, guards.roleRead, handleGetRole(ctx, moduleName, reader))
-	group.GET(rbaccontract.RolePermissionBindingRoute, guards.permissionRead, handleListRolePermissionBindings(ctx, moduleName, reader))
-	registerRoleWriteRoutes(group, ctx, moduleName, writer, guards)
-}
+	permissions := ctx.Router.Group(rbaccontract.PermissionsGroup)
+	permissions.Use(httpx.RequestIDMiddleware())
+	permissions.GET(rbaccontract.PermissionCollection, guards.permissionRead, strictsupport.Route(wrapper.GetPermissions, server.handleListPermissions))
+	registerPermissionSavedViewRoutes(permissions, server.permissions, wrapper, guards.permissionRead)
+	permissions.GET(rbaccontract.PermissionDetailRoute, guards.permissionRead, strictsupport.Route(wrapper.GetPermission, server.handleGetPermission))
 
-func registerPermissionRoutes(
-	ctx *module.Context,
-	moduleName string,
-	reader readManagementService,
-	authenticated gin.HandlerFunc,
-	savedViews moduleapi.SavedViewService,
-) {
-	group := ctx.Router.Group(rbaccontract.PermissionsGroup)
-	group.Use(httpx.RequestIDMiddleware())
-	group.GET(rbaccontract.PermissionCollection, authenticated, handleListPermissions(ctx, moduleName, reader))
-	registerRBACSavedViewRoutes(group, ctx, savedViews, authenticated, permissionSavedViewDefinition)
-	group.GET(rbaccontract.PermissionDetailRoute, authenticated, handleGetPermission(ctx, moduleName, reader))
+	users := ctx.Router.Group(rbaccontract.UsersGroup)
+	users.Use(httpx.RequestIDMiddleware())
+	users.GET(rbaccontract.UserRoleBindingRoute, guards.userRoleRead, strictsupport.Route(wrapper.GetUserRoles, server.handleListUserRoleBindings))
+	users.POST(rbaccontract.UserRoleReplaceRoute, guards.userRoleAssign, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostUserRolesReplace, server.handleReplaceUserRolesRoute))
+	users.POST(rbaccontract.UserRoleAddRoute, guards.userRoleAssign, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostUserRolesAdd, server.handleAddUserRolesRoute))
+	users.DELETE(rbaccontract.UserRoleRemoveRoute, guards.userRoleAssign, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.DeleteUserRoles, server.handleRemoveUserRolesRoute))
+	users.POST(rbaccontract.BatchUserRoleReplaceRoute, guards.userRoleAssign, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostUsersRolesReplace, server.handleBatchReplaceUserRolesRoute))
+	users.POST(rbaccontract.BatchUserRoleAddRoute, guards.userRoleAssign, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostUsersRolesAdd, server.handleBatchAddUserRolesRoute))
+	users.DELETE(rbaccontract.BatchUserRoleRemoveRoute, guards.userRoleAssign, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.DeleteUsersRoles, server.handleBatchRemoveUserRolesRoute))
 }
-
-func registerUserRoleRoutes(
-	ctx *module.Context,
-	moduleName string,
-	reader readManagementService,
-	writer writeManagementService,
-	guards managementGuards,
-) {
-	group := ctx.Router.Group(rbaccontract.UsersGroup)
-	group.Use(httpx.RequestIDMiddleware())
-	group.GET(rbaccontract.UserRoleBindingRoute, guards.userRoleRead, handleListUserRoleBindings(ctx, moduleName, reader))
-	group.POST(rbaccontract.UserRoleReplaceRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleReplaceUserRolesRoute(ginCtx, ctx, moduleName, writer) })
-	group.POST(rbaccontract.UserRoleAddRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleAddUserRolesRoute(ginCtx, ctx, moduleName, writer) })
-	group.DELETE(rbaccontract.UserRoleRemoveRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleRemoveUserRolesRoute(ginCtx, ctx, moduleName, writer) })
-	group.POST(rbaccontract.BatchUserRoleReplaceRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleBatchReplaceUserRolesRoute(ginCtx, ctx, moduleName, writer) })
-	group.POST(rbaccontract.BatchUserRoleAddRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleBatchAddUserRolesRoute(ginCtx, ctx, moduleName, writer) })
-	group.DELETE(rbaccontract.BatchUserRoleRemoveRoute, guards.userRoleAssign, func(ginCtx *gin.Context) { handleBatchRemoveUserRolesRoute(ginCtx, ctx, moduleName, writer) })
-}
-
-var _ rbacopenapi.ReadServerInterface = rbacReadGeneratedHandler{}
-var _ rbacopenapi.UserRoleServerInterface = rbacUserRoleGeneratedHandler{}
-var _ rbacopenapi.WriteServerInterface = rbacWriteGeneratedHandler{}

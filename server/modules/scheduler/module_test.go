@@ -28,6 +28,7 @@ import (
 	"graft/server/internal/moduleapi"
 	"graft/server/internal/permission"
 	schedulercore "graft/server/internal/scheduler"
+	"graft/server/internal/testassert"
 	schedulercontract "graft/server/modules/scheduler/contract"
 	schedulerlocales "graft/server/modules/scheduler/locales"
 )
@@ -1215,6 +1216,33 @@ func TestScheduledTaskManualRunUsesSlashRunRoute(t *testing.T) {
 		runtimeRecorder.runOnceTriggers[0].Type != schedulercore.TriggerTypeManual ||
 		runtimeRecorder.runOnceTriggers[0].TriggerUserID != 7 {
 		t.Fatalf("unexpected run once triggers: %#v", runtimeRecorder.runOnceTriggers)
+	}
+}
+
+func TestScheduledTaskReadRoutesReportMalformedField(t *testing.T) {
+	ctx, engine := newModuleTestContextWithEngine()
+	moduleInstance := NewModule()
+	moduleInstance.runtime = &schedulerAPIRuntime{}
+	registerAndBootSchedulerModule(t, ctx, moduleInstance)
+
+	for _, test := range []struct {
+		path  string
+		field string
+	}{
+		{"/api/scheduled-tasks?limit=invalid", "limit"},
+		{"/api/scheduled-tasks?offset=invalid", "offset"},
+		{"/api/scheduled-tasks/webhook.health/runs?limit=invalid", "limit"},
+		{"/api/scheduled-tasks/runs/invalid", "runId"},
+	} {
+		t.Run(test.path, func(t *testing.T) {
+			recorder := performSchedulerRequest(engine, http.MethodGet, test.path, "")
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("GET %s returned %d: %s", test.path, recorder.Code, recorder.Body.String())
+			}
+			if got := testassert.DecodeErrorResponse(t, recorder).Details["field"]; got != test.field {
+				t.Fatalf("GET %s reported field %v, want %s", test.path, got, test.field)
+			}
+		})
 	}
 }
 

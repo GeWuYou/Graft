@@ -20,6 +20,8 @@ import (
 
 	messagecontract "graft/server/internal/contract/message"
 	generated "graft/server/internal/contract/openapi/generated"
+	runtimetargetopenapi "graft/server/internal/contract/openapi/runtimetarget"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"graft/server/internal/event"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
@@ -233,20 +235,157 @@ func (m *Module) registerReaders(ctx *module.Context) error {
 
 func (m *Module) registerRoutes(ctx *module.Context, auth moduleapi.AuthService, authorizer moduleapi.Authorizer) {
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleID)
-	ctx.Router.GET("/runtime-targets", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleList)
-	ctx.Router.GET("/runtime-target-saved-views", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewList)
-	ctx.Router.POST("/runtime-target-saved-views", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewCreate)
-	ctx.Router.PUT("/runtime-target-saved-views/:viewId", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewUpdate)
-	ctx.Router.DELETE("/runtime-target-saved-views/:viewId", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleSavedViewDelete)
-	ctx.Router.POST("/runtime-targets/discover-local-docker", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleDiscoverLocal(ctx))
-	ctx.Router.POST("/runtime-target-assignments/batch", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleBatchAssignments)
-	ctx.Router.GET("/runtime-targets/:id", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher), m.handleDetail)
-	ctx.Router.POST("/runtime-targets/:id/refresh", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), m.handleRefresh(ctx))
-	ctx.Router.GET(contract.AssignmentsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleListAssignments)
-	ctx.Router.POST(contract.AssignmentsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleGrantAssignment)
-	ctx.Router.PUT(contract.AssignmentsRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleReplaceAssignments)
-	ctx.Router.GET(contract.AssignmentCandidatesRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleAssignmentCandidates)
-	ctx.Router.POST(contract.AssignmentDeleteRoute, httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher), m.handleRevokeAssignment)
+	// 生成 wrapper 承担路径/请求头与请求体绑定；权限中间件与 handler envelope 写入保持迁移前语义。
+	wrapper := runtimetargetopenapi.ServerInterfaceWrapper{
+		Handler: runtimetargetopenapi.NewStrictHandlerWithOptions(
+			runtimeTargetStrictServer{module: m, moduleCtx: ctx},
+			nil,
+			runtimetargetopenapi.StrictGinServerOptions{
+				RequestErrorHandlerFunc: strictsupport.RequestErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String(), gin.H{"field": "body"}),
+				HandlerErrorFunc:        strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
+			},
+		),
+		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
+	}
+	viewGuard := httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.ViewPermission, publisher)
+	manageGuard := httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.AssignmentManagePermission, publisher)
+	ctx.Router.GET("/runtime-targets", viewGuard, strictsupport.Route(wrapper.GetRuntimeTargets, nil))
+	ctx.Router.GET("/runtime-target-saved-views", viewGuard, strictsupport.Route(wrapper.GetRuntimeTargetSavedViews, nil))
+	ctx.Router.POST("/runtime-target-saved-views", viewGuard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostRuntimeTargetSavedView, nil))
+	ctx.Router.PUT("/runtime-target-saved-views/:viewId", viewGuard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutRuntimeTargetSavedView, nil))
+	ctx.Router.DELETE("/runtime-target-saved-views/:viewId", viewGuard, strictsupport.Route(wrapper.DeleteRuntimeTargetSavedView, nil))
+	ctx.Router.POST("/runtime-targets/discover-local-docker", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), strictsupport.Route(wrapper.PostRuntimeTargetsDiscoverLocalDocker, nil))
+	ctx.Router.POST("/runtime-target-assignments/batch", manageGuard, strictsupport.Route(wrapper.PostRuntimeTargetAssignmentsBatch, nil))
+	ctx.Router.GET("/runtime-targets/:id", viewGuard, strictsupport.Route(wrapper.GetRuntimeTarget, nil))
+	ctx.Router.POST("/runtime-targets/:id/refresh", httpx.RequirePermission(ctx.I18n, auth, authorizer, contract.RefreshPermission, publisher), strictsupport.Route(wrapper.PostRuntimeTargetRefresh, nil))
+	ctx.Router.GET(contract.AssignmentsRoute, manageGuard, strictsupport.Route(wrapper.GetRuntimeTargetAssignments, nil))
+	ctx.Router.POST(contract.AssignmentsRoute, manageGuard, strictsupport.Route(wrapper.PostRuntimeTargetAssignment, nil))
+	ctx.Router.PUT(contract.AssignmentsRoute, manageGuard, strictsupport.Route(wrapper.PutRuntimeTargetAssignments, nil))
+	ctx.Router.GET(contract.AssignmentCandidatesRoute, manageGuard, strictsupport.Route(wrapper.GetRuntimeTargetAssignmentCandidates, nil))
+	ctx.Router.POST(contract.AssignmentDeleteRoute, manageGuard, strictsupport.Route(wrapper.PostRuntimeTargetAssignmentDelete, nil))
+}
+
+// runtimeTargetStrictServer 将运行目标路由主体适配到生成的 strict server 契约；
+// 编译期断言保证 OpenAPI 运行目标操作变化时必须在适配层补齐。
+type runtimeTargetStrictServer struct {
+	module    *Module
+	moduleCtx *module.Context
+}
+
+var _ runtimetargetopenapi.StrictServerInterface = runtimeTargetStrictServer{}
+
+func (s runtimeTargetStrictServer) GetRuntimeTargets(ctx context.Context, _ runtimetargetopenapi.GetRuntimeTargetsRequestObject) (runtimetargetopenapi.GetRuntimeTargetsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.module.handleList)
+}
+
+func (s runtimeTargetStrictServer) GetRuntimeTarget(ctx context.Context, _ runtimetargetopenapi.GetRuntimeTargetRequestObject) (runtimetargetopenapi.GetRuntimeTargetResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.module.handleDetail)
+}
+
+func (s runtimeTargetStrictServer) PostRuntimeTargetRefresh(ctx context.Context, _ runtimetargetopenapi.PostRuntimeTargetRefreshRequestObject) (runtimetargetopenapi.PostRuntimeTargetRefreshResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.module.handleRefresh(s.moduleCtx))
+}
+
+func (s runtimeTargetStrictServer) PostRuntimeTargetsDiscoverLocalDocker(ctx context.Context, _ runtimetargetopenapi.PostRuntimeTargetsDiscoverLocalDockerRequestObject) (runtimetargetopenapi.PostRuntimeTargetsDiscoverLocalDockerResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.module.handleDiscoverLocal(s.moduleCtx))
+}
+
+func (s runtimeTargetStrictServer) PostRuntimeTargetAssignment(ctx context.Context, request runtimetargetopenapi.PostRuntimeTargetAssignmentRequestObject) (runtimetargetopenapi.PostRuntimeTargetAssignmentResponseObject, error) {
+	if request.Body == nil {
+		return nil, strictsupport.ErrMissingRequestBody
+	}
+	userID := request.Body.UserId
+	if userID < 0 {
+		return nil, strictsupport.Dispatch(ctx, s.rejectInvalidAssignment())
+	}
+	assignment := runtimeTargetUserAssignmentRequestHTTP{UserID: uint64(userID)}
+	return nil, strictsupport.Dispatch(ctx, func(c *gin.Context) { s.module.handleGrantAssignment(c, assignment) })
+}
+
+func (s runtimeTargetStrictServer) PutRuntimeTargetAssignments(ctx context.Context, request runtimetargetopenapi.PutRuntimeTargetAssignmentsRequestObject) (runtimetargetopenapi.PutRuntimeTargetAssignmentsResponseObject, error) {
+	if request.Body == nil {
+		return nil, strictsupport.ErrMissingRequestBody
+	}
+	converted, ok := runtimeTargetAssignmentsFromGenerated(request.Body.UserIds, request.Body.Revision)
+	if !ok {
+		return nil, strictsupport.Dispatch(ctx, s.rejectInvalidAssignment())
+	}
+	return nil, strictsupport.Dispatch(ctx, func(c *gin.Context) {
+		s.module.handleReplaceAssignments(c, converted)
+	})
+}
+
+func (s runtimeTargetStrictServer) PostRuntimeTargetAssignmentsBatch(ctx context.Context, request runtimetargetopenapi.PostRuntimeTargetAssignmentsBatchRequestObject) (runtimetargetopenapi.PostRuntimeTargetAssignmentsBatchResponseObject, error) {
+	if request.Body == nil {
+		return nil, strictsupport.ErrMissingRequestBody
+	}
+	targetIDs := make([]uint64, 0, len(request.Body.TargetIds))
+	for _, id := range request.Body.TargetIds {
+		if id < 0 {
+			return nil, strictsupport.Dispatch(ctx, s.rejectInvalidAssignment())
+		}
+		targetIDs = append(targetIDs, uint64(id))
+	}
+	userIDs := make([]uint64, 0, len(request.Body.UserIds))
+	for _, id := range request.Body.UserIds {
+		if id < 0 {
+			return nil, strictsupport.Dispatch(ctx, s.rejectInvalidAssignment())
+		}
+		userIDs = append(userIDs, uint64(id))
+	}
+	return nil, strictsupport.Dispatch(ctx, func(c *gin.Context) {
+		s.module.handleBatchAssignments(c, runtimeTargetAssignmentBatchRequestHTTP{TargetIDs: targetIDs, UserIDs: userIDs, Action: string(request.Body.Action)})
+	})
+}
+
+func (s runtimeTargetStrictServer) GetRuntimeTargetAssignments(ctx context.Context, _ runtimetargetopenapi.GetRuntimeTargetAssignmentsRequestObject) (runtimetargetopenapi.GetRuntimeTargetAssignmentsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.module.handleListAssignments)
+}
+
+func (s runtimeTargetStrictServer) GetRuntimeTargetAssignmentCandidates(ctx context.Context, _ runtimetargetopenapi.GetRuntimeTargetAssignmentCandidatesRequestObject) (runtimetargetopenapi.GetRuntimeTargetAssignmentCandidatesResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.module.handleAssignmentCandidates)
+}
+
+func (s runtimeTargetStrictServer) PostRuntimeTargetAssignmentDelete(ctx context.Context, _ runtimetargetopenapi.PostRuntimeTargetAssignmentDeleteRequestObject) (runtimetargetopenapi.PostRuntimeTargetAssignmentDeleteResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.module.handleRevokeAssignment)
+}
+
+func (s runtimeTargetStrictServer) GetRuntimeTargetSavedViews(ctx context.Context, _ runtimetargetopenapi.GetRuntimeTargetSavedViewsRequestObject) (runtimetargetopenapi.GetRuntimeTargetSavedViewsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.module.handleSavedViewList)
+}
+
+func (s runtimeTargetStrictServer) PostRuntimeTargetSavedView(ctx context.Context, _ runtimetargetopenapi.PostRuntimeTargetSavedViewRequestObject) (runtimetargetopenapi.PostRuntimeTargetSavedViewResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.module.handleSavedViewCreate)
+}
+
+func (s runtimeTargetStrictServer) PutRuntimeTargetSavedView(ctx context.Context, _ runtimetargetopenapi.PutRuntimeTargetSavedViewRequestObject) (runtimetargetopenapi.PutRuntimeTargetSavedViewResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.module.handleSavedViewUpdate)
+}
+
+func (s runtimeTargetStrictServer) DeleteRuntimeTargetSavedView(ctx context.Context, _ runtimetargetopenapi.DeleteRuntimeTargetSavedViewRequestObject) (runtimetargetopenapi.DeleteRuntimeTargetSavedViewResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.module.handleSavedViewDelete)
+}
+
+// runtimeTargetAssignmentsFromGenerated 将生成的赋值请求体转换为模块 DTO；负数 ID 视为非法输入。
+func runtimeTargetAssignmentsFromGenerated(userIDs []int64, revision int64) (runtimeTargetUserAssignmentReplaceRequestHTTP, bool) {
+	converted := make([]uint64, 0, len(userIDs))
+	for _, id := range userIDs {
+		if id < 0 {
+			return runtimeTargetUserAssignmentReplaceRequestHTTP{}, false
+		}
+		converted = append(converted, uint64(id))
+	}
+	if revision < 0 {
+		return runtimeTargetUserAssignmentReplaceRequestHTTP{}, false
+	}
+	return runtimeTargetUserAssignmentReplaceRequestHTTP{UserIDs: converted, Revision: uint64(revision)}, true
+}
+
+// rejectInvalidAssignment 写入统一的赋值请求非法 envelope。
+func (s runtimeTargetStrictServer) rejectInvalidAssignment() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		httpx.AbortLocalizedError(c, s.module.i18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
+	}
 }
 
 // ListAssignedComposeTargets 仅返回指定用户获授权用于部署的目标摘要。

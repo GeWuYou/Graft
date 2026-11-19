@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	scheduleropenapi "graft/server/internal/contract/openapi/scheduler"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/module"
@@ -32,15 +34,38 @@ var schedulerListSavedViewQueryFields = map[string]httpx.SavedViewQueryValueKind
 	"status":  httpx.SavedViewQueryString,
 }
 
+// schedulerSavedViewHandlers 持有定时任务保存视图的既有 gin 处理器，供生成的 strict adapter 复用。
+type schedulerSavedViewHandlers struct {
+	list   gin.HandlerFunc
+	create gin.HandlerFunc
+	update gin.HandlerFunc
+	delete gin.HandlerFunc
+}
+
+// schedulerSavedViewHandlersOf 装配保存视图处理器；服务缺失时处理器保持 nil，对应路由不挂载。
+func schedulerSavedViewHandlersOf(ctx *module.Context, service moduleapi.SavedViewService) schedulerSavedViewHandlers {
+	if ctx == nil || service == nil {
+		return schedulerSavedViewHandlers{}
+	}
+	return schedulerSavedViewHandlers{
+		list:   handleSchedulerSavedViewList(ctx.I18n, service),
+		create: handleSchedulerSavedViewCreate(ctx.I18n, service),
+		update: handleSchedulerSavedViewUpdate(ctx.I18n, service),
+		delete: handleSchedulerSavedViewDelete(ctx.I18n, service),
+	}
+}
+
 // registerSchedulerSavedViewRoutes 注册定时任务列表的用户私有保存视图 CRUD 路由。
-func registerSchedulerSavedViewRoutes(group *gin.RouterGroup, ctx *module.Context, guard gin.HandlerFunc, service moduleapi.SavedViewService) {
-	if group == nil || ctx == nil || service == nil {
+func registerSchedulerSavedViewRoutes(group *gin.RouterGroup, ctx *module.Context, guard gin.HandlerFunc, wrapper scheduleropenapi.ServerInterfaceWrapper, handlers schedulerSavedViewHandlers) {
+	if group == nil || ctx == nil || handlers.list == nil {
 		return
 	}
-	group.GET(schedulercontract.ScheduledTaskSavedViewsRoute, guard, handleSchedulerSavedViewList(ctx.I18n, service))
-	group.POST(schedulercontract.ScheduledTaskSavedViewsRoute, guard, handleSchedulerSavedViewCreate(ctx.I18n, service))
-	group.PUT(schedulercontract.ScheduledTaskSavedViewRoute, guard, handleSchedulerSavedViewUpdate(ctx.I18n, service))
-	group.DELETE(schedulercontract.ScheduledTaskSavedViewRoute, guard, handleSchedulerSavedViewDelete(ctx.I18n, service))
+	group.GET(schedulercontract.ScheduledTaskSavedViewsRoute, guard, strictsupport.Route(wrapper.GetScheduledTaskSavedViews, nil))
+	// 保存视图 create/update 保持 RawMessage query_state 字节不变，路由在生成绑定前缓存原始请求体，
+	// 生成 wrapper 校验后 handler 仍按原始字节重新绑定。
+	group.POST(schedulercontract.ScheduledTaskSavedViewsRoute, guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostScheduledTaskSavedView, nil))
+	group.PUT(schedulercontract.ScheduledTaskSavedViewRoute, guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutScheduledTaskSavedView, nil))
+	group.DELETE(schedulercontract.ScheduledTaskSavedViewRoute, guard, strictsupport.Route(wrapper.DeleteScheduledTaskSavedView, nil))
 }
 
 func validateSchedulerSavedView(request httpx.SavedViewRequest) error {

@@ -18,8 +18,10 @@ import (
 	"graft/server/internal/config"
 	"graft/server/internal/container"
 	"graft/server/internal/contract/httpheader"
+	messagecontract "graft/server/internal/contract/message"
 	generated "graft/server/internal/contract/openapi/generated"
 	monitoropenapi "graft/server/internal/contract/openapi/monitor"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/logger"
@@ -92,8 +94,6 @@ type Module struct {
 	samplerCancel context.CancelFunc
 	samplerDone   chan struct{}
 }
-
-var _ monitoropenapi.ServerInterface = (*monitorServerHandler)(nil)
 
 type monitorServerHandler struct {
 	ctx        *module.Context
@@ -399,24 +399,52 @@ func registerMonitorRoutes(
 ) {
 	group := ctx.Router.Group(monitorcontract.MonitorGroup)
 	group.Use(httpx.RequestIDMiddleware())
+	serverHandler := &monitorServerHandler{
+		ctx:        ctx,
+		instance:   instance,
+		moduleName: moduleName,
+	}
+	// 生成 wrapper 承担查询参数绑定；权限中间件与 handler envelope 写入保持迁移前语义。
+	wrapper := monitoropenapi.ServerInterfaceWrapper{
+		Handler: monitoropenapi.NewStrictHandlerWithOptions(
+			monitorStrictServer{
+				serverStatus:       newServerStatusHandler(serverHandler),
+				requestPerformance: newRequestPerformanceHandler(serverHandler),
+			},
+			nil,
+			monitoropenapi.StrictGinServerOptions{
+				HandlerErrorFunc: strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
+			},
+		),
+		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
+	}
 	group.GET(
 		monitorcontract.ServerStatusRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, monitorcontract.ServerStatusReadPermission.String()),
-		newServerStatusHandler(&monitorServerHandler{
-			ctx:        ctx,
-			instance:   instance,
-			moduleName: moduleName,
-		}),
+		strictsupport.Route(wrapper.GetMonitorServerStatus, nil),
 	)
 	group.GET(
 		monitorcontract.RequestPerformanceRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, monitorcontract.ServerStatusReadPermission.String()),
-		newRequestPerformanceHandler(&monitorServerHandler{
-			ctx:        ctx,
-			instance:   instance,
-			moduleName: moduleName,
-		}),
+		strictsupport.Route(wrapper.GetMonitorRequestPerformance, nil),
 	)
+}
+
+// monitorStrictServer 将监控路由主体适配到生成的 strict server 契约；
+// 编译期断言保证 OpenAPI 监控操作变化时必须在适配层补齐。
+type monitorStrictServer struct {
+	serverStatus       gin.HandlerFunc
+	requestPerformance gin.HandlerFunc
+}
+
+var _ monitoropenapi.StrictServerInterface = monitorStrictServer{}
+
+func (s monitorStrictServer) GetMonitorServerStatus(ctx context.Context, _ monitoropenapi.GetMonitorServerStatusRequestObject) (monitoropenapi.GetMonitorServerStatusResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.serverStatus)
+}
+
+func (s monitorStrictServer) GetMonitorRequestPerformance(ctx context.Context, _ monitoropenapi.GetMonitorRequestPerformanceRequestObject) (monitoropenapi.GetMonitorRequestPerformanceResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.requestPerformance)
 }
 
 // newServerStatusHandler 创建处理服务器状态请求的 Gin 处理函数，并在成功时返回状态数据，发生错误时返回本地化的内部错误。

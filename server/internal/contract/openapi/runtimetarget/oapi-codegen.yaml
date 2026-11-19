@@ -1,0 +1,21 @@
+package: runtimetargetopenapi
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  include-operation-ids:
+    - deleteRuntimeTargetSavedView
+    - getRuntimeTarget
+    - getRuntimeTargetAssignmentCandidates
+    - getRuntimeTargetAssignments
+    - getRuntimeTargetSavedViews
+    - getRuntimeTargets
+    - postRuntimeTargetAssignment
+    - postRuntimeTargetAssignmentDelete
+    - postRuntimeTargetAssignmentsBatch
+    - postRuntimeTargetRefresh
+    - postRuntimeTargetSavedView
+    - postRuntimeTargetsDiscoverLocalDocker
+    - putRuntimeTargetAssignments
+    - putRuntimeTargetSavedView

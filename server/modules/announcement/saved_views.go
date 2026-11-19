@@ -7,6 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	announcementopenapi "graft/server/internal/contract/openapi/announcement"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"graft/server/internal/httpx"
 	"graft/server/internal/i18n"
 	"graft/server/internal/module"
@@ -101,14 +103,36 @@ func announcementManagementSavedViewPageSize(size int) bool {
 	return size == 10 || size == 20 || size == 50 || size == 100
 }
 
-func registerAnnouncementSavedViewRoutes(group *gin.RouterGroup, moduleCtx *module.Context, service moduleapi.SavedViewService, guard gin.HandlerFunc) {
-	if group == nil || moduleCtx == nil || service == nil {
+// announcementSavedViewHandlers 持有公告保存视图的既有 gin 处理器，供生成的 strict adapter 复用。
+type announcementSavedViewHandlers struct {
+	list   gin.HandlerFunc
+	create gin.HandlerFunc
+	update gin.HandlerFunc
+	delete gin.HandlerFunc
+}
+
+// announcementSavedViewHandlersOf 装配保存视图处理器；服务缺失时处理器保持 nil，对应路由不挂载。
+func announcementSavedViewHandlersOf(moduleCtx *module.Context, service moduleapi.SavedViewService) announcementSavedViewHandlers {
+	if moduleCtx == nil || service == nil {
+		return announcementSavedViewHandlers{}
+	}
+	return announcementSavedViewHandlers{
+		list:   handleAnnouncementSavedViewList(moduleCtx.I18n, service),
+		create: handleAnnouncementSavedViewCreate(moduleCtx.I18n, moduleCtx, service),
+		update: handleAnnouncementSavedViewUpdate(moduleCtx.I18n, moduleCtx, service),
+		delete: handleAnnouncementSavedViewDelete(moduleCtx.I18n, service),
+	}
+}
+
+func registerAnnouncementSavedViewRoutes(group *gin.RouterGroup, moduleCtx *module.Context, guard gin.HandlerFunc, wrapper announcementopenapi.ServerInterfaceWrapper) {
+	if group == nil || moduleCtx == nil {
 		return
 	}
-	group.GET(announcementcontract.AnnouncementSavedViewsRoute, guard, handleAnnouncementSavedViewList(moduleCtx.I18n, service))
-	group.POST(announcementcontract.AnnouncementSavedViewsRoute, guard, handleAnnouncementSavedViewCreate(moduleCtx.I18n, moduleCtx, service))
-	group.PUT(announcementcontract.AnnouncementSavedViewRoute, guard, handleAnnouncementSavedViewUpdate(moduleCtx.I18n, moduleCtx, service))
-	group.DELETE(announcementcontract.AnnouncementSavedViewRoute, guard, handleAnnouncementSavedViewDelete(moduleCtx.I18n, service))
+	group.GET(announcementcontract.AnnouncementSavedViewsRoute, guard, strictsupport.Route(wrapper.GetAnnouncementSavedViews, nil))
+	// 保存视图 create/update 保持 RawMessage query_state 字节不变，生成绑定前缓存原始请求体。
+	group.POST(announcementcontract.AnnouncementSavedViewsRoute, guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostAnnouncementSavedView, nil))
+	group.PUT(announcementcontract.AnnouncementSavedViewRoute, guard, strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutAnnouncementSavedView, nil))
+	group.DELETE(announcementcontract.AnnouncementSavedViewRoute, guard, strictsupport.Route(wrapper.DeleteAnnouncementSavedView, nil))
 }
 
 func handleAnnouncementSavedViewList(localizer *i18n.Service, service moduleapi.SavedViewService) gin.HandlerFunc {

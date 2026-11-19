@@ -1,0 +1,14 @@
+package: taskopenapi
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  include-operation-ids:
+    - cancelTask
+    - getTask
+    - listTaskEvents
+    - listTaskLogs
+    - listTaskStages
+    - listTasks
+    - retryTaskStage

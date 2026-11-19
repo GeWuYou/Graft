@@ -3,6 +3,8 @@ package project
 import (
 	"errors"
 	"fmt"
+	projectopenapi "graft/server/internal/contract/openapi/project"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"math"
 	"net/http"
 	"net/url"
@@ -73,65 +75,72 @@ func registerRoutes(ctx *module.Context, moduleName string, service *Service) er
 	publisher := httpx.NewSecurityAuditPublisher(ctx.EventBus, ctx.Logger, moduleName)
 	group := ctx.Router.Group(projectcontract.ApplicationAPIGroup)
 	group.Use(httpx.RequestIDMiddleware())
-	group.GET(projectcontract.ApplicationCollectionRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleList)
-	group.POST(projectcontract.ApplicationComposeContextReferencesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleComposeContextReferences)
-	group.GET(projectcontract.ApplicationSavedViewsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleSavedViewList)
-	group.POST(projectcontract.ApplicationSavedViewsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleSavedViewCreate)
-	group.PUT(projectcontract.ApplicationSavedViewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleSavedViewUpdate)
-	group.DELETE(projectcontract.ApplicationSavedViewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleSavedViewDelete)
-	group.POST(projectcontract.ApplicationImportValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationImportPermission.String(), publisher), routes.handleImportValidate)
-	group.GET(projectcontract.ApplicationImportRuntimeCandidatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationImportPermission.String(), publisher), routes.handleImportRuntimeCandidates)
-	group.POST(projectcontract.ApplicationImportRuntimeInspectRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationImportPermission.String(), publisher), routes.handleImportRuntimeInspect)
-	group.POST(projectcontract.ApplicationImportInspectRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationImportPermission.String(), publisher), routes.handleImportInspect)
-	group.POST(projectcontract.ApplicationImportRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationImportPermission.String(), publisher), routes.handleImport)
-	group.GET(projectcontract.ApplicationImportDirectorySourcesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationImportPermission.String(), publisher), routes.handleImportDirectorySources)
-	group.GET(projectcontract.ApplicationImportDirectoriesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationImportPermission.String(), publisher), routes.handleImportDirectories)
-	group.GET(projectcontract.ApplicationCreationMethodsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreationMethodViewPermission.String(), publisher), routes.handleCreationMethods)
-	group.GET(projectcontract.ApplicationComposeRuntimeTargetsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handleComposeRuntimeTargets)
-	group.GET(projectcontract.ApplicationDiscoveryCandidatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationDiscoveryViewPermission.String(), publisher), routes.handleDiscoveryCandidates)
-	group.GET(projectcontract.ApplicationManagedRootRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handleManagedRoot)
-	group.POST(projectcontract.ApplicationCreateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handleCreateValidate)
-	group.POST(projectcontract.ApplicationNameAvailabilityRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handleApplicationNameAvailability)
-	group.POST(projectcontract.ApplicationCreateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handleCreate)
+	wrapper := projectopenapi.ServerInterfaceWrapper{
+		Handler: projectopenapi.NewStrictHandlerWithOptions(projectStrictServer{routes: routes}, nil, projectopenapi.StrictGinServerOptions{
+			RequestErrorHandlerFunc: strictsupport.RequestErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String(), nil),
+			HandlerErrorFunc:        strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
+		}),
+		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
+	}
+	group.GET(projectcontract.ApplicationCollectionRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), strictsupport.Route(wrapper.GetApplications, routes.handleList))
+	group.POST(projectcontract.ApplicationComposeContextReferencesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostApplicationComposeContextReferences, routes.handleComposeContextReferences))
+	group.GET(projectcontract.ApplicationSavedViewsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationSavedViews, nil))
+	group.POST(projectcontract.ApplicationSavedViewsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostApplicationSavedView, routes.handleSavedViewCreate))
+	group.PUT(projectcontract.ApplicationSavedViewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutApplicationSavedView, routes.handleSavedViewUpdate))
+	group.DELETE(projectcontract.ApplicationSavedViewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), strictsupport.Route(wrapper.DeleteApplicationSavedView, routes.handleSavedViewDelete))
+	group.POST(projectcontract.ApplicationImportValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationImportPermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostApplicationImportValidate, func(c *gin.Context) { routes.handleImportValidate(c, nil) }))
+	group.GET(projectcontract.ApplicationImportRuntimeCandidatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationImportPermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationImportRuntimeCandidates, routes.handleImportRuntimeCandidates))
+	group.POST(projectcontract.ApplicationImportRuntimeInspectRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationImportPermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostApplicationImportRuntimeInspect, func(c *gin.Context) { routes.handleImportRuntimeInspect(c, nil) }))
+	group.POST(projectcontract.ApplicationImportInspectRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationImportPermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostApplicationImportInspect, routes.handleImportInspect))
+	group.POST(projectcontract.ApplicationImportRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationImportPermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostApplicationImport, routes.handleImport))
+	group.GET(projectcontract.ApplicationImportDirectorySourcesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationImportPermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationImportDirectorySources, nil))
+	group.GET(projectcontract.ApplicationImportDirectoriesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationImportPermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationImportDirectories, routes.handleImportDirectories))
+	group.GET(projectcontract.ApplicationCreationMethodsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreationMethodViewPermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationCreationMethods, nil))
+	group.GET(projectcontract.ApplicationComposeRuntimeTargetsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationComposeRuntimeTargets, nil))
+	group.GET(projectcontract.ApplicationDiscoveryCandidatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationDiscoveryViewPermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationDiscoveryCandidates, nil))
+	group.GET(projectcontract.ApplicationManagedRootRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationManagedRoot, nil))
+	group.POST(projectcontract.ApplicationCreateValidateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostApplicationCreateValidate, routes.handleCreateValidate))
+	group.POST(projectcontract.ApplicationNameAvailabilityRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostApplicationNameAvailability, func(c *gin.Context) { routes.handleApplicationNameAvailability(c, nil) }))
+	group.POST(projectcontract.ApplicationCreateRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostApplicationCreate, routes.handleCreate))
 	// Template static routes precede /:applicationId so the Application detail route cannot capture them.
-	group.GET(projectcontract.ApplicationTemplatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handlePublishedTemplates)
-	group.GET(projectcontract.ApplicationTemplatePublishedRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handlePublishedTemplateDetail)
-	group.GET(projectcontract.ApplicationTemplateVersionRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), routes.handlePublishedTemplateVersion)
-	group.GET(projectcontract.ApplicationTemplateManagementRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleManagedTemplates)
-	group.GET(projectcontract.ApplicationTemplateSavedViewsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleTemplateSavedViewList)
-	group.POST(projectcontract.ApplicationTemplateSavedViewsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleTemplateSavedViewCreate)
-	group.PUT(projectcontract.ApplicationTemplateSavedViewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleTemplateSavedViewUpdate)
-	group.DELETE(projectcontract.ApplicationTemplateSavedViewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleTemplateSavedViewDelete)
-	group.POST(projectcontract.ApplicationTemplatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleCreateTemplateDraft)
-	group.GET(projectcontract.ApplicationTemplateDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleTemplateDetail)
-	group.PUT(projectcontract.ApplicationTemplateDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleUpdateTemplateDraft)
-	group.DELETE(projectcontract.ApplicationTemplateDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleDeleteTemplate)
-	group.POST(projectcontract.ApplicationTemplateCloneRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleCloneTemplate)
-	group.POST(projectcontract.ApplicationTemplatePublishRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplatePublishPermission.String(), publisher), routes.handlePublishTemplateDraft)
-	group.POST(projectcontract.ApplicationTemplateWithdrawRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplatePublishPermission.String(), publisher), routes.handleWithdrawTemplate)
-	group.POST(projectcontract.ApplicationTemplateArchiveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), routes.handleArchiveTemplate)
-	group.GET(projectcontract.ApplicationDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleDetail)
-	group.GET(projectcontract.ApplicationOverviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleOverview)
-	group.GET(projectcontract.ApplicationServicesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleServices)
-	group.GET(projectcontract.ApplicationLogsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleLogs)
-	group.GET(projectcontract.ApplicationConfigurationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleConfiguration)
-	group.GET(projectcontract.ApplicationConfigurationPreviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleConfigurationPreview)
-	group.GET(projectcontract.ApplicationWorkspaceFilesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleProjectWorkspaceFiles)
-	group.GET(projectcontract.ApplicationWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), routes.handleProjectWorkspaceFileContent)
-	group.PUT(projectcontract.ApplicationWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationDeployPermission.String(), publisher), routes.handleSaveProjectWorkspaceFileContent)
-	group.PUT(projectcontract.ApplicationWorkspaceFileAnnotationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationDeployPermission.String(), publisher), routes.handleProjectWorkspaceFileAnnotation)
-	group.POST(projectcontract.ApplicationWorkspaceEntryRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationDeployPermission.String(), publisher), routes.handleCreateProjectWorkspaceEntry)
-	group.POST(projectcontract.ApplicationWorkspaceRenameRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationDeployPermission.String(), publisher), routes.handleRenameProjectWorkspaceEntry)
-	group.DELETE(projectcontract.ApplicationWorkspaceEntryRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationDeployPermission.String(), publisher), routes.handleDeleteApplicationWorkspaceEntry)
-	group.POST(projectcontract.ApplicationRefreshRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationRefreshPermission.String(), publisher), routes.handleRefresh)
-	group.POST(projectcontract.ApplicationUpRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationLifecyclePermission.String(), publisher), routes.handleUp)
-	group.POST(projectcontract.ApplicationStopRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationLifecyclePermission.String(), publisher), routes.handleStop)
-	group.POST(projectcontract.ApplicationRestartRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationLifecyclePermission.String(), publisher), routes.handleRestart)
-	group.POST(projectcontract.ApplicationRedeployRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationLifecyclePermission.String(), publisher), routes.handleRedeploy)
-	group.PUT(projectcontract.ApplicationLifecycleConfigurationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationLifecyclePermission.String(), publisher), routes.handleLifecycleConfiguration)
-	group.POST(projectcontract.ApplicationBatchActionsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), routes.handleBatchActions)
-	group.POST(projectcontract.ApplicationUnregisterRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationDestroyPermission.String(), publisher), routes.handleUnregister)
-	group.POST(projectcontract.ApplicationDestroyRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationDestroyPermission.String(), publisher), routes.handleDestroy)
+	group.GET(projectcontract.ApplicationTemplatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationTemplates, routes.handlePublishedTemplates))
+	group.GET(projectcontract.ApplicationTemplatePublishedRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), strictsupport.Route(wrapper.GetPublishedApplicationTemplate, routes.handlePublishedTemplateDetail))
+	group.GET(projectcontract.ApplicationTemplateVersionRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationCreatePermission.String(), publisher), strictsupport.Route(wrapper.GetPublishedApplicationTemplateVersion, routes.handlePublishedTemplateVersion))
+	group.GET(projectcontract.ApplicationTemplateManagementRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationManagedTemplates, routes.handleManagedTemplates))
+	group.GET(projectcontract.ApplicationTemplateSavedViewsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationTemplateSavedViews, nil))
+	group.POST(projectcontract.ApplicationTemplateSavedViewsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostApplicationTemplateSavedView, routes.handleTemplateSavedViewCreate))
+	group.PUT(projectcontract.ApplicationTemplateSavedViewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutApplicationTemplateSavedView, routes.handleTemplateSavedViewUpdate))
+	group.DELETE(projectcontract.ApplicationTemplateSavedViewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), strictsupport.Route(wrapper.DeleteApplicationTemplateSavedView, routes.handleTemplateSavedViewDelete))
+	group.POST(projectcontract.ApplicationTemplatesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostApplicationTemplate, routes.handleCreateTemplateDraft))
+	group.GET(projectcontract.ApplicationTemplateDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationTemplate, routes.handleTemplateDetail))
+	group.PUT(projectcontract.ApplicationTemplateDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutApplicationTemplate, routes.handleUpdateTemplateDraft))
+	group.DELETE(projectcontract.ApplicationTemplateDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), strictsupport.Route(wrapper.DeleteApplicationTemplate, routes.handleDeleteTemplate))
+	group.POST(projectcontract.ApplicationTemplateCloneRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostApplicationTemplateClone, routes.handleCloneTemplate))
+	group.POST(projectcontract.ApplicationTemplatePublishRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplatePublishPermission.String(), publisher), strictsupport.Route(wrapper.PostApplicationTemplatePublish, routes.handlePublishTemplateDraft))
+	group.POST(projectcontract.ApplicationTemplateWithdrawRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplatePublishPermission.String(), publisher), strictsupport.Route(wrapper.PostApplicationTemplateWithdraw, routes.handleWithdrawTemplate))
+	group.POST(projectcontract.ApplicationTemplateArchiveRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationTemplateManagePermission.String(), publisher), strictsupport.Route(wrapper.PostApplicationTemplateArchive, routes.handleArchiveTemplate))
+	group.GET(projectcontract.ApplicationDetailRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), strictsupport.Route(wrapper.GetApplication, routes.handleDetail))
+	group.GET(projectcontract.ApplicationOverviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationOverview, routes.handleOverview))
+	group.GET(projectcontract.ApplicationServicesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationServices, routes.handleServices))
+	group.GET(projectcontract.ApplicationLogsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationLogs, routes.handleLogs))
+	group.GET(projectcontract.ApplicationConfigurationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationConfiguration, routes.handleConfiguration))
+	group.GET(projectcontract.ApplicationConfigurationPreviewRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationConfigurationPreview, routes.handleConfigurationPreview))
+	group.GET(projectcontract.ApplicationWorkspaceFilesRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationFiles, routes.handleProjectWorkspaceFiles))
+	group.GET(projectcontract.ApplicationWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationViewPermission.String(), publisher), strictsupport.Route(wrapper.GetApplicationFileContent, routes.handleProjectWorkspaceFileContent))
+	group.PUT(projectcontract.ApplicationWorkspaceFileContentRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationDeployPermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutApplicationFileContent, func(c *gin.Context) { routes.handleSaveProjectWorkspaceFileContent(c, nil) }))
+	group.PUT(projectcontract.ApplicationWorkspaceFileAnnotationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationDeployPermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutApplicationFileAnnotation, func(c *gin.Context) { routes.handleProjectWorkspaceFileAnnotation(c, nil) }))
+	group.POST(projectcontract.ApplicationWorkspaceEntryRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationDeployPermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostApplicationWorkspaceEntry, routes.handleCreateProjectWorkspaceEntry))
+	group.POST(projectcontract.ApplicationWorkspaceRenameRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationDeployPermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostApplicationWorkspaceEntryRename, routes.handleRenameProjectWorkspaceEntry))
+	group.DELETE(projectcontract.ApplicationWorkspaceEntryRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationDeployPermission.String(), publisher), strictsupport.Route(wrapper.DeleteApplicationWorkspaceEntry, routes.handleDeleteApplicationWorkspaceEntry))
+	group.POST(projectcontract.ApplicationRefreshRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationRefreshPermission.String(), publisher), strictsupport.Route(wrapper.PostApplicationRefresh, routes.handleRefresh))
+	group.POST(projectcontract.ApplicationUpRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationLifecyclePermission.String(), publisher), strictsupport.Route(wrapper.PostApplicationUp, routes.handleUp))
+	group.POST(projectcontract.ApplicationStopRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationLifecyclePermission.String(), publisher), strictsupport.Route(wrapper.PostApplicationStop, routes.handleStop))
+	group.POST(projectcontract.ApplicationRestartRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationLifecyclePermission.String(), publisher), strictsupport.Route(wrapper.PostApplicationRestart, routes.handleRestart))
+	group.POST(projectcontract.ApplicationRedeployRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationLifecyclePermission.String(), publisher), strictsupport.Route(wrapper.PostApplicationRedeploy, routes.handleRedeploy))
+	group.PUT(projectcontract.ApplicationLifecycleConfigurationRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationLifecyclePermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PutApplicationLifecycleConfiguration, routes.handleLifecycleConfiguration))
+	group.POST(projectcontract.ApplicationBatchActionsRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, "", publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostApplicationBatchActions, routes.handleBatchActions))
+	group.POST(projectcontract.ApplicationUnregisterRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationDestroyPermission.String(), publisher), strictsupport.Route(wrapper.PostApplicationUnregister, routes.handleUnregister))
+	group.POST(projectcontract.ApplicationDestroyRoute, httpx.RequirePermission(ctx.I18n, authService, authorizer, projectcontract.ApplicationDestroyPermission.String(), publisher), strictsupport.CacheRequestBody(), strictsupport.Route(wrapper.PostApplicationDestroy, func(c *gin.Context) { routes.handleDestroy(c, nil) }))
 	return nil
 }
 
@@ -141,7 +150,6 @@ func (r routeRuntime) handleList(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	applicationGeneratedHandler{}.GetApplications(params)
 	result, err := r.service.List(ginCtx.Request.Context(), ListQuery{
 		Limit:                 intPtrValue(params.Limit),
 		Offset:                intPtrValue(params.Offset),
@@ -166,10 +174,6 @@ func (r routeRuntime) handleComposeContextReferences(ginCtx *gin.Context) {
 	if !bindJSON(ginCtx, r.ctx, &request) {
 		return
 	}
-	applicationGeneratedHandler{}.PostApplicationComposeContextReferences(
-		bindPostApplicationComposeContextReferencesParams(ginCtx),
-		request,
-	)
 	contexts := make([]ComposeContextReferenceRequest, 0, len(request.Contexts))
 	for _, item := range request.Contexts {
 		if item.RuntimeTargetId < 1 {
@@ -206,13 +210,13 @@ func (r routeRuntime) handleComposeRuntimeTargets(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, generated.ApplicationComposeRuntimeTargetCatalogResponse{DeploymentType: generated.ApplicationComposeRuntimeTargetCatalogResponseDeploymentTypeCompose, Items: items})
 }
 
+//nolint:dupl // 应用与模板的保存视图使用独立权限、查询模型和响应类型。
 func (r routeRuntime) handleSavedViewList(ginCtx *gin.Context) {
 	ownerID, ok := currentUserID(ginCtx)
 	if !ok {
 		r.writeInvalidArgumentError(ginCtx)
 		return
 	}
-	applicationGeneratedHandler{}.GetApplicationSavedViews(generated.GetApplicationSavedViewsParams{})
 	items, err := r.service.listSavedViews(ginCtx.Request.Context(), ownerID)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -230,6 +234,7 @@ func (r routeRuntime) handleSavedViewList(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, generated.ApplicationSavedViewListResponse{Items: mapped})
 }
 
+//nolint:dupl // 应用与模板的保存视图使用独立权限、查询模型和响应类型。
 func (r routeRuntime) handleSavedViewCreate(ginCtx *gin.Context) {
 	ownerID, ok := currentUserID(ginCtx)
 	if !ok {
@@ -245,7 +250,6 @@ func (r routeRuntime) handleSavedViewCreate(ginCtx *gin.Context) {
 		r.writeSavedViewError(ginCtx, err)
 		return
 	}
-	applicationGeneratedHandler{}.PostApplicationSavedView(generated.PostApplicationSavedViewParams{}, body)
 	item, err := r.service.createSavedView(ginCtx.Request.Context(), ownerID, request)
 	if err != nil {
 		r.writeSavedViewError(ginCtx, err)
@@ -279,12 +283,11 @@ func (r routeRuntime) handleSavedViewUpdate(ginCtx *gin.Context) {
 		r.writeSavedViewError(ginCtx, err)
 		return
 	}
-	generatedID, ok := generatedSavedViewID(id)
+	_, ok = generatedSavedViewID(id)
 	if !ok {
 		r.writeInvalidArgumentError(ginCtx)
 		return
 	}
-	applicationGeneratedHandler{}.PutApplicationSavedView(generatedID, generated.PutApplicationSavedViewParams{}, body)
 	item, err := r.service.updateSavedView(ginCtx.Request.Context(), ownerID, id, request)
 	if err != nil {
 		r.writeSavedViewError(ginCtx, err)
@@ -309,12 +312,11 @@ func (r routeRuntime) handleSavedViewDelete(ginCtx *gin.Context) {
 		r.writeInvalidArgumentError(ginCtx)
 		return
 	}
-	generatedID, ok := generatedSavedViewID(id)
+	_, ok = generatedSavedViewID(id)
 	if !ok {
 		r.writeInvalidArgumentError(ginCtx)
 		return
 	}
-	applicationGeneratedHandler{}.DeleteApplicationSavedView(generatedID, generated.DeleteApplicationSavedViewParams{})
 	if err := r.service.deleteSavedView(ginCtx.Request.Context(), ownerID, id); err != nil {
 		r.writeSavedViewError(ginCtx, err)
 		return
@@ -322,6 +324,7 @@ func (r routeRuntime) handleSavedViewDelete(ginCtx *gin.Context) {
 	ginCtx.Status(http.StatusNoContent)
 }
 
+//nolint:dupl // 应用与模板的保存视图使用独立权限、查询模型和响应类型。
 func (r routeRuntime) handleTemplateSavedViewList(c *gin.Context) {
 	owner, ok := currentUserID(c)
 	if !ok {
@@ -344,6 +347,8 @@ func (r routeRuntime) handleTemplateSavedViewList(c *gin.Context) {
 	}
 	httpx.WriteSuccess(c, http.StatusOK, generated.SavedViewListResponse{Items: mapped})
 }
+
+//nolint:dupl // 应用与模板的保存视图使用独立权限、查询模型和响应类型。
 func (r routeRuntime) handleTemplateSavedViewCreate(c *gin.Context) {
 	owner, ok := currentUserID(c)
 	if !ok {
@@ -421,12 +426,15 @@ func (r routeRuntime) handleTemplateSavedViewDelete(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-func (r routeRuntime) handleImportValidate(ginCtx *gin.Context) {
+func (r routeRuntime) handleImportValidate(ginCtx *gin.Context, bound *generated.PostApplicationImportValidateJSONRequestBody) {
 	var request generated.PostApplicationImportValidateJSONRequestBody
-	if !bindJSON(ginCtx, r.ctx, &request) {
-		return
+	if bound != nil {
+		request = *bound
+	} else {
+		if !bindJSON(ginCtx, r.ctx, &request) {
+			return
+		}
 	}
-	applicationGeneratedHandler{}.PostApplicationImportValidate(bindImportValidateParams(ginCtx), request)
 	result, err := r.service.ValidateImport(ginCtx.Request.Context(), toImportRequest(ginCtx, request))
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -441,7 +449,6 @@ func (r routeRuntime) handleImportRuntimeCandidates(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	applicationGeneratedHandler{}.GetApplicationImportRuntimeCandidates(params)
 	result, err := r.service.ListRuntimeImportCandidates(ginCtx.Request.Context(), RuntimeImportCandidateListQuery{
 		Availability: runtimeCandidateAvailabilityFromGenerated(params.Availability),
 		Keyword:      stringPtrValue(params.Keyword),
@@ -455,12 +462,15 @@ func (r routeRuntime) handleImportRuntimeCandidates(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toRuntimeImportCandidatesResponse(result))
 }
 
-func (r routeRuntime) handleImportRuntimeInspect(ginCtx *gin.Context) {
+func (r routeRuntime) handleImportRuntimeInspect(ginCtx *gin.Context, bound *generated.PostApplicationImportRuntimeInspectJSONRequestBody) {
 	var request generated.PostApplicationImportRuntimeInspectJSONRequestBody
-	if !bindJSON(ginCtx, r.ctx, &request) {
-		return
+	if bound != nil {
+		request = *bound
+	} else {
+		if !bindJSON(ginCtx, r.ctx, &request) {
+			return
+		}
 	}
-	applicationGeneratedHandler{}.PostApplicationImportRuntimeInspect(bindPostApplicationImportRuntimeInspectParams(ginCtx), request)
 	result, err := r.service.InspectRuntimeCandidate(ginCtx.Request.Context(), RuntimeImportInspectRequest{
 		CandidateKey:               request.CandidateKey,
 		DisplayName:                request.DisplayName,
@@ -478,7 +488,6 @@ func (r routeRuntime) handleImport(ginCtx *gin.Context) {
 	if !bindJSON(ginCtx, r.ctx, &request) {
 		return
 	}
-	applicationGeneratedHandler{}.PostApplicationImport(bindPostApplicationImportParams(ginCtx), request)
 	lifecycleConfig, err := lifecycleStandardConfigFromGenerated(request.LifecycleConfiguration)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -503,7 +512,6 @@ func (r routeRuntime) handleImportInspect(ginCtx *gin.Context) {
 	if !bindJSON(ginCtx, r.ctx, &request) {
 		return
 	}
-	applicationGeneratedHandler{}.PostApplicationImportInspect(bindPostApplicationImportInspectParams(ginCtx), request)
 	result, err := r.service.InspectImportDirectory(ginCtx.Request.Context(), ImportInspectRequest{
 		DirectoryRef: ImportDirectoryReference{
 			Provider: request.DirectoryRef.Provider,
@@ -543,7 +551,6 @@ func (r routeRuntime) handleImportDirectories(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleCreationMethods(ginCtx *gin.Context) {
-	applicationGeneratedHandler{}.GetApplicationCreationMethods(bindGetApplicationCreationMethodsParams(ginCtx))
 	result, err := r.service.CreationMethodCatalog(ginCtx.Request.Context())
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -553,7 +560,6 @@ func (r routeRuntime) handleCreationMethods(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleDiscoveryCandidates(ginCtx *gin.Context) {
-	applicationGeneratedHandler{}.GetApplicationDiscoveryCandidates(bindGetApplicationDiscoveryCandidatesParams(ginCtx))
 	result, err := r.service.DiscoveryCandidates(ginCtx.Request.Context())
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -563,7 +569,6 @@ func (r routeRuntime) handleDiscoveryCandidates(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleManagedRoot(ginCtx *gin.Context) {
-	applicationGeneratedHandler{}.GetApplicationManagedRoot(bindGetApplicationManagedRootParams(ginCtx))
 	result, err := r.service.ManagedRoot(ginCtx.Request.Context())
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -577,7 +582,6 @@ func (r routeRuntime) handleCreateValidate(ginCtx *gin.Context) {
 	if !bindJSON(ginCtx, r.ctx, &request) {
 		return
 	}
-	applicationGeneratedHandler{}.PostApplicationCreateValidate(bindPostApplicationCreateValidateParams(ginCtx), request)
 	managedRequest, err := toManagedCreateRequest(request)
 	if err != nil {
 		r.logManagedCreateFailure(ginCtx, "request_mapping", err)
@@ -593,12 +597,15 @@ func (r routeRuntime) handleCreateValidate(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toManagedCreateValidateResponse(result))
 }
 
-func (r routeRuntime) handleApplicationNameAvailability(ginCtx *gin.Context) {
+func (r routeRuntime) handleApplicationNameAvailability(ginCtx *gin.Context, bound *generated.PostApplicationNameAvailabilityJSONRequestBody) {
 	var request generated.PostApplicationNameAvailabilityJSONRequestBody
-	if !bindJSON(ginCtx, r.ctx, &request) {
-		return
+	if bound != nil {
+		request = *bound
+	} else {
+		if !bindJSON(ginCtx, r.ctx, &request) {
+			return
+		}
 	}
-	applicationGeneratedHandler{}.PostApplicationNameAvailability(bindPostApplicationNameAvailabilityParams(ginCtx), request)
 	result, err := r.service.CheckApplicationNameAvailability(ginCtx.Request.Context(), ApplicationNameAvailabilityRequest{ApplicationName: request.ApplicationName})
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -612,7 +619,6 @@ func (r routeRuntime) handleCreate(ginCtx *gin.Context) {
 	if !bindJSON(ginCtx, r.ctx, &request) {
 		return
 	}
-	applicationGeneratedHandler{}.PostApplicationCreate(bindPostApplicationCreateParams(ginCtx), request)
 	managedRequest, err := toManagedCreateExecuteRequest(request)
 	if err != nil {
 		r.logManagedCreateFailure(ginCtx, "request_mapping", err)
@@ -629,11 +635,10 @@ func (r routeRuntime) handleCreate(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleDetail(ginCtx *gin.Context) {
-	projectID, generatedID, ok := r.bindApplicationRecordID(ginCtx)
+	projectID, _, ok := r.bindApplicationRecordID(ginCtx)
 	if !ok {
 		return
 	}
-	applicationGeneratedHandler{}.GetApplication(generatedID, bindGetApplicationParams(ginCtx))
 	result, err := r.service.Get(ginCtx.Request.Context(), projectID)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -643,11 +648,10 @@ func (r routeRuntime) handleDetail(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleOverview(ginCtx *gin.Context) {
-	projectID, generatedID, ok := r.bindApplicationRecordID(ginCtx)
+	projectID, _, ok := r.bindApplicationRecordID(ginCtx)
 	if !ok {
 		return
 	}
-	applicationGeneratedHandler{}.GetApplicationOverview(generatedID, bindGetApplicationOverviewParams(ginCtx))
 	result, err := r.service.Overview(ginCtx.Request.Context(), projectID)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -657,11 +661,10 @@ func (r routeRuntime) handleOverview(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleServices(ginCtx *gin.Context) {
-	projectID, generatedID, ok := r.bindApplicationRecordID(ginCtx)
+	projectID, _, ok := r.bindApplicationRecordID(ginCtx)
 	if !ok {
 		return
 	}
-	applicationGeneratedHandler{}.GetApplicationServices(generatedID, bindGetApplicationServicesParams(ginCtx))
 	result, err := r.service.Services(ginCtx.Request.Context(), projectID)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -671,7 +674,7 @@ func (r routeRuntime) handleServices(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleLogs(ginCtx *gin.Context) {
-	projectID, generatedID, ok := r.bindApplicationRecordID(ginCtx)
+	projectID, _, ok := r.bindApplicationRecordID(ginCtx)
 	if !ok {
 		return
 	}
@@ -679,7 +682,6 @@ func (r routeRuntime) handleLogs(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	applicationGeneratedHandler{}.GetApplicationLogs(generatedID, params)
 	result, err := r.service.Logs(ginCtx.Request.Context(), projectID, LogQuery{
 		Tail:       intPtrValue(params.Tail),
 		Since:      stringValue(params.Since),
@@ -695,11 +697,10 @@ func (r routeRuntime) handleLogs(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleConfiguration(ginCtx *gin.Context) {
-	projectID, generatedID, ok := r.bindApplicationRecordID(ginCtx)
+	projectID, _, ok := r.bindApplicationRecordID(ginCtx)
 	if !ok {
 		return
 	}
-	applicationGeneratedHandler{}.GetApplicationConfiguration(generatedID, bindGetApplicationConfigurationParams(ginCtx))
 	result, err := r.service.ConfigurationMetadata(ginCtx.Request.Context(), projectID)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -709,11 +710,10 @@ func (r routeRuntime) handleConfiguration(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleConfigurationPreview(ginCtx *gin.Context) {
-	projectID, generatedID, ok := r.bindApplicationRecordID(ginCtx)
+	projectID, _, ok := r.bindApplicationRecordID(ginCtx)
 	if !ok {
 		return
 	}
-	applicationGeneratedHandler{}.GetApplicationConfigurationPreview(generatedID, bindGetApplicationConfigurationPreviewParams(ginCtx))
 	result, err := r.service.ConfigurationPreview(ginCtx.Request.Context(), projectID)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -723,7 +723,7 @@ func (r routeRuntime) handleConfigurationPreview(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleProjectWorkspaceFiles(ginCtx *gin.Context) {
-	projectID, generatedID, ok := r.bindApplicationRecordID(ginCtx)
+	projectID, _, ok := r.bindApplicationRecordID(ginCtx)
 	if !ok {
 		return
 	}
@@ -731,7 +731,6 @@ func (r routeRuntime) handleProjectWorkspaceFiles(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	applicationGeneratedHandler{}.GetApplicationFiles(generatedID, bindGetApplicationFilesParams(ginCtx, query))
 	result, err := r.service.browseProjectFiles(ginCtx.Request.Context(), projectID, query)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -741,7 +740,7 @@ func (r routeRuntime) handleProjectWorkspaceFiles(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleProjectWorkspaceFileContent(ginCtx *gin.Context) {
-	projectID, generatedID, ok := r.bindApplicationRecordID(ginCtx)
+	projectID, _, ok := r.bindApplicationRecordID(ginCtx)
 	if !ok {
 		return
 	}
@@ -749,7 +748,6 @@ func (r routeRuntime) handleProjectWorkspaceFileContent(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	applicationGeneratedHandler{}.GetApplicationFileContent(generatedID, bindGetApplicationFileContentParams(ginCtx, path))
 	result, err := r.service.projectFileContent(ginCtx.Request.Context(), projectID, path)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -758,8 +756,8 @@ func (r routeRuntime) handleProjectWorkspaceFileContent(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toProjectWorkspaceFileContentResponse(result))
 }
 
-func (r routeRuntime) handleSaveProjectWorkspaceFileContent(ginCtx *gin.Context) {
-	projectID, generatedID, ok := r.bindApplicationRecordID(ginCtx)
+func (r routeRuntime) handleSaveProjectWorkspaceFileContent(ginCtx *gin.Context, bound *generated.PutApplicationFileContentJSONRequestBody) {
+	projectID, _, ok := r.bindApplicationRecordID(ginCtx)
 	if !ok {
 		return
 	}
@@ -768,10 +766,13 @@ func (r routeRuntime) handleSaveProjectWorkspaceFileContent(ginCtx *gin.Context)
 		return
 	}
 	var request generated.PutApplicationFileContentJSONRequestBody
-	if !bindJSON(ginCtx, r.ctx, &request) {
-		return
+	if bound != nil {
+		request = *bound
+	} else {
+		if !bindJSON(ginCtx, r.ctx, &request) {
+			return
+		}
 	}
-	applicationGeneratedHandler{}.PutApplicationFileContent(generatedID, bindPutApplicationFileContentParams(ginCtx, path), request)
 	result, err := r.service.saveProjectFileContent(ginCtx.Request.Context(), projectID, path, workspaceFileSaveRequest{
 		Content: request.Content,
 	})
@@ -782,8 +783,8 @@ func (r routeRuntime) handleSaveProjectWorkspaceFileContent(ginCtx *gin.Context)
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toProjectWorkspaceFileSaveResponse(result))
 }
 
-func (r routeRuntime) handleProjectWorkspaceFileAnnotation(ginCtx *gin.Context) {
-	projectID, generatedID, ok := r.bindApplicationRecordID(ginCtx)
+func (r routeRuntime) handleProjectWorkspaceFileAnnotation(ginCtx *gin.Context, bound *generated.PutApplicationFileAnnotationJSONRequestBody) {
+	projectID, _, ok := r.bindApplicationRecordID(ginCtx)
 	if !ok {
 		return
 	}
@@ -792,10 +793,13 @@ func (r routeRuntime) handleProjectWorkspaceFileAnnotation(ginCtx *gin.Context) 
 		return
 	}
 	var request generated.PutApplicationFileAnnotationJSONRequestBody
-	if !bindJSON(ginCtx, r.ctx, &request) {
-		return
+	if bound != nil {
+		request = *bound
+	} else {
+		if !bindJSON(ginCtx, r.ctx, &request) {
+			return
+		}
 	}
-	applicationGeneratedHandler{}.PutApplicationFileAnnotation(generatedID, bindPutApplicationFileAnnotationParams(ginCtx, path), request)
 	result, err := r.service.updateProjectWorkspaceAnnotation(
 		ginCtx.Request.Context(),
 		projectID,
@@ -888,7 +892,6 @@ func (r routeRuntime) handleRefresh(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	applicationGeneratedHandler{}.PostApplicationRefresh(generatedID, bindPostApplicationRefreshParams(ginCtx))
 	result, err := r.service.Refresh(ginCtx.Request.Context(), projectID, currentUserIDPointer(ginCtx))
 	result.ApplicationID = generatedID
 	if err != nil {
@@ -903,7 +906,6 @@ func (r routeRuntime) handleUp(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	applicationGeneratedHandler{}.PostApplicationUp(generatedID, bindPostApplicationUpParams(ginCtx))
 	result, err := r.service.Up(ginCtx.Request.Context(), projectID, currentUserIDPointer(ginCtx))
 	result.ApplicationID = generatedID
 	if err != nil {
@@ -918,7 +920,6 @@ func (r routeRuntime) handleStop(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	applicationGeneratedHandler{}.PostApplicationStop(generatedID, bindPostApplicationStopParams(ginCtx))
 	result, err := r.service.Stop(ginCtx.Request.Context(), projectID, currentUserIDPointer(ginCtx))
 	result.ApplicationID = generatedID
 	if err != nil {
@@ -933,7 +934,6 @@ func (r routeRuntime) handleRestart(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	applicationGeneratedHandler{}.PostApplicationRestart(generatedID, bindPostApplicationRestartParams(ginCtx))
 	result, err := r.service.Restart(ginCtx.Request.Context(), projectID, currentUserIDPointer(ginCtx))
 	result.ApplicationID = generatedID
 	if err != nil {
@@ -948,7 +948,6 @@ func (r routeRuntime) handleRedeploy(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	applicationGeneratedHandler{}.PostApplicationRedeploy(generatedID, bindPostApplicationRedeployParams(ginCtx))
 	result, err := r.service.Redeploy(ginCtx.Request.Context(), projectID, currentUserIDPointer(ginCtx))
 	result.ApplicationID = generatedID
 	if err != nil {
@@ -959,7 +958,7 @@ func (r routeRuntime) handleRedeploy(ginCtx *gin.Context) {
 }
 
 func (r routeRuntime) handleLifecycleConfiguration(ginCtx *gin.Context) {
-	projectID, generatedID, ok := r.bindApplicationRecordID(ginCtx)
+	projectID, _, ok := r.bindApplicationRecordID(ginCtx)
 	if !ok {
 		return
 	}
@@ -967,11 +966,6 @@ func (r routeRuntime) handleLifecycleConfiguration(ginCtx *gin.Context) {
 	if !bindJSON(ginCtx, r.ctx, &request) {
 		return
 	}
-	applicationGeneratedHandler{}.PutApplicationLifecycleConfiguration(
-		generatedID,
-		bindPutApplicationLifecycleConfigurationParams(ginCtx),
-		request,
-	)
 	result, err := r.service.UpdateLifecycleConfiguration(
 		ginCtx.Request.Context(),
 		projectID,
@@ -993,7 +987,6 @@ func (r routeRuntime) handleBatchActions(ginCtx *gin.Context) {
 	if !r.authorizeBatchAction(ginCtx, request.Action) {
 		return
 	}
-	applicationGeneratedHandler{}.PostApplicationBatchActions(bindPostApplicationBatchActionsParams(ginCtx), request)
 	projectIDs, err := r.resolveBatchApplicationRecordIDs(ginCtx, request.ApplicationIds)
 	if err != nil {
 		r.writeRouteError(ginCtx, err)
@@ -1103,7 +1096,6 @@ func (r routeRuntime) handleUnregister(ginCtx *gin.Context) {
 	if !ok {
 		return
 	}
-	applicationGeneratedHandler{}.PostApplicationUnregister(generatedID, bindPostApplicationUnregisterParams(ginCtx))
 	result, err := r.service.Unregister(ginCtx.Request.Context(), projectID, currentUserIDPointer(ginCtx))
 	result.ApplicationID = generatedID
 	if err != nil {
@@ -1113,16 +1105,19 @@ func (r routeRuntime) handleUnregister(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toActionResponse(result))
 }
 
-func (r routeRuntime) handleDestroy(ginCtx *gin.Context) {
+func (r routeRuntime) handleDestroy(ginCtx *gin.Context, bound *generated.PostApplicationDestroyJSONRequestBody) {
 	projectID, generatedID, ok := r.bindApplicationRecordID(ginCtx)
 	if !ok {
 		return
 	}
 	var request generated.PostApplicationDestroyJSONRequestBody
-	if !bindJSON(ginCtx, r.ctx, &request) {
-		return
+	if bound != nil {
+		request = *bound
+	} else {
+		if !bindJSON(ginCtx, r.ctx, &request) {
+			return
+		}
 	}
-	applicationGeneratedHandler{}.PostApplicationDestroy(generatedID, bindPostApplicationDestroyParams(ginCtx), request)
 	result, err := r.service.Destroy(ginCtx.Request.Context(), projectID, DestroyRequest{
 		RemoveNamedVolumes:        request.RemoveNamedVolumes,
 		AutoUnregister:            boolValue(request.AutoUnregister),
@@ -1254,75 +1249,6 @@ func (r routeRuntime) writeLocalizedProjectError(ginCtx *gin.Context, status int
 
 func (r routeRuntime) writeLocalizedActionError(ginCtx *gin.Context, status int, code string, details map[string]any) {
 	httpx.WriteLocalizedErrorCode(ginCtx, r.ctx.I18n, status, code, projectErrorMessageKey(code), details)
-}
-
-type applicationGeneratedHandler struct{}
-
-func (applicationGeneratedHandler) GetApplications(generated.GetApplicationsParams) {}
-func (applicationGeneratedHandler) GetApplicationSavedViews(generated.GetApplicationSavedViewsParams) {
-}
-func (applicationGeneratedHandler) PostApplicationSavedView(generated.PostApplicationSavedViewParams, generated.PostApplicationSavedViewJSONRequestBody) {
-}
-func (applicationGeneratedHandler) PutApplicationSavedView(int64, generated.PutApplicationSavedViewParams, generated.PutApplicationSavedViewJSONRequestBody) {
-}
-func (applicationGeneratedHandler) DeleteApplicationSavedView(int64, generated.DeleteApplicationSavedViewParams) {
-}
-func (applicationGeneratedHandler) GetApplicationCreationMethods(generated.GetApplicationCreationMethodsParams) {
-}
-func (applicationGeneratedHandler) GetApplicationDiscoveryCandidates(generated.GetApplicationDiscoveryCandidatesParams) {
-}
-func (applicationGeneratedHandler) GetApplicationImportRuntimeCandidates(generated.GetApplicationImportRuntimeCandidatesParams) {
-}
-func (applicationGeneratedHandler) PostApplicationImportValidate(generated.PostApplicationImportValidateParams, generated.PostApplicationImportValidateJSONRequestBody) {
-}
-func (applicationGeneratedHandler) PostApplicationImportRuntimeInspect(generated.PostApplicationImportRuntimeInspectParams, generated.PostApplicationImportRuntimeInspectJSONRequestBody) {
-}
-func (applicationGeneratedHandler) PostApplicationImport(generated.PostApplicationImportParams, generated.PostApplicationImportJSONRequestBody) {
-}
-func (applicationGeneratedHandler) PostApplicationImportInspect(generated.PostApplicationImportInspectParams, generated.PostApplicationImportInspectJSONRequestBody) {
-}
-func (applicationGeneratedHandler) GetApplicationManagedRoot(generated.GetApplicationManagedRootParams) {
-}
-func (applicationGeneratedHandler) PostApplicationCreateValidate(generated.PostApplicationCreateValidateParams, generated.PostApplicationCreateValidateJSONRequestBody) {
-}
-func (applicationGeneratedHandler) PostApplicationNameAvailability(generated.PostApplicationNameAvailabilityParams, generated.PostApplicationNameAvailabilityJSONRequestBody) {
-}
-func (applicationGeneratedHandler) PostApplicationComposeContextReferences(generated.PostApplicationComposeContextReferencesParams, generated.PostApplicationComposeContextReferencesJSONRequestBody) {
-}
-func (applicationGeneratedHandler) PostApplicationCreate(generated.PostApplicationCreateParams, generated.PostApplicationCreateJSONRequestBody) {
-}
-func (applicationGeneratedHandler) GetApplication(string, generated.GetApplicationParams) {}
-func (applicationGeneratedHandler) GetApplicationOverview(string, generated.GetApplicationOverviewParams) {
-}
-func (applicationGeneratedHandler) GetApplicationServices(string, generated.GetApplicationServicesParams) {
-}
-func (applicationGeneratedHandler) GetApplicationLogs(string, generated.GetApplicationLogsParams) {}
-func (applicationGeneratedHandler) GetApplicationConfiguration(string, generated.GetApplicationConfigurationParams) {
-}
-func (applicationGeneratedHandler) GetApplicationConfigurationPreview(string, generated.GetApplicationConfigurationPreviewParams) {
-}
-func (applicationGeneratedHandler) GetApplicationFiles(string, generated.GetApplicationFilesParams) {}
-func (applicationGeneratedHandler) GetApplicationFileContent(string, generated.GetApplicationFileContentParams) {
-}
-func (applicationGeneratedHandler) PutApplicationFileContent(string, generated.PutApplicationFileContentParams, generated.PutApplicationFileContentJSONRequestBody) {
-}
-func (applicationGeneratedHandler) PutApplicationFileAnnotation(string, generated.PutApplicationFileAnnotationParams, generated.PutApplicationFileAnnotationJSONRequestBody) {
-}
-func (applicationGeneratedHandler) PostApplicationRefresh(string, generated.PostApplicationRefreshParams) {
-}
-func (applicationGeneratedHandler) PostApplicationUp(string, generated.PostApplicationUpParams)     {}
-func (applicationGeneratedHandler) PostApplicationStop(string, generated.PostApplicationStopParams) {}
-func (applicationGeneratedHandler) PostApplicationRestart(string, generated.PostApplicationRestartParams) {
-}
-func (applicationGeneratedHandler) PostApplicationRedeploy(string, generated.PostApplicationRedeployParams) {
-}
-func (applicationGeneratedHandler) PutApplicationLifecycleConfiguration(string, generated.PutApplicationLifecycleConfigurationParams, generated.ApplicationLifecycleConfigurationRequest) {
-}
-func (applicationGeneratedHandler) PostApplicationBatchActions(generated.PostApplicationBatchActionsParams, generated.ApplicationBatchActionRequest) {
-}
-func (applicationGeneratedHandler) PostApplicationUnregister(string, generated.PostApplicationUnregisterParams) {
-}
-func (applicationGeneratedHandler) PostApplicationDestroy(string, generated.PostApplicationDestroyParams, generated.PostApplicationDestroyJSONRequestBody) {
 }
 
 // bindListParams 绑定项目列表查询参数和公共请求头。
@@ -1489,14 +1415,6 @@ func runtimeCandidateAvailabilityFromGenerated(
 	return &availability
 }
 
-func bindPostApplicationImportRuntimeInspectParams(ginCtx *gin.Context) generated.PostApplicationImportRuntimeInspectParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostApplicationImportRuntimeInspectParams{
-		XGraftLocale: locale,
-		XRequestId:   requestID,
-	}
-}
-
 // bindJSON 绑定请求体中的 JSON 到目标对象。
 //
 // 绑定失败时中止请求，并返回字段为 body 的本地化无效参数错误。
@@ -1538,39 +1456,6 @@ func (r routeRuntime) bindApplicationRecordID(ginCtx *gin.Context) (uint64, stri
 	return projectID, raw, true
 }
 
-// bindImportValidateParams 组装导入校验接口的请求参数，包含请求语言和请求 ID。
-func bindImportValidateParams(ginCtx *gin.Context) generated.PostApplicationImportValidateParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostApplicationImportValidateParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-// bindPostApplicationImportParams 组装应用导入接口的请求参数。
-// 它从请求头中提取 `XGraftLocale` 和 `XRequestId` 并填充到返回值中。
-func bindPostApplicationImportParams(ginCtx *gin.Context) generated.PostApplicationImportParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostApplicationImportParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-// bindPostApplicationImportInspectParams 构造应用导入检查请求参数，并填充本地化语言和请求 ID。
-func bindPostApplicationImportInspectParams(ginCtx *gin.Context) generated.PostApplicationImportInspectParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostApplicationImportInspectParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-// bindGetApplicationCreationMethodsParams 为创建方式目录组装公共请求头。
-func bindGetApplicationCreationMethodsParams(ginCtx *gin.Context) generated.GetApplicationCreationMethodsParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.GetApplicationCreationMethodsParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-// bindGetApplicationDiscoveryCandidatesParams 构造应用发现候选列表请求参数。
-//
-// 它从请求头中提取语言和请求 ID，并填充到生成的参数中。
-func bindGetApplicationDiscoveryCandidatesParams(ginCtx *gin.Context) generated.GetApplicationDiscoveryCandidatesParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.GetApplicationDiscoveryCandidatesParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
 // 当分页参数无效时会中止当前请求并返回 false。
 func bindImportDirectoryBrowseQuery(ginCtx *gin.Context, ctx *module.Context) (ImportDirectoryBrowseQuery, bool) {
 	query := ginCtx.Request.URL.Query()
@@ -1593,18 +1478,6 @@ func bindImportDirectoryBrowseQuery(ginCtx *gin.Context, ctx *module.Context) (I
 		SortBy:   strings.TrimSpace(query.Get("sort")),
 		Order:    strings.TrimSpace(query.Get("order")),
 	}, true
-}
-
-// bindGetApplicationParams 生成获取应用接口的请求参数，包含语言和请求 ID。
-func bindGetApplicationParams(ginCtx *gin.Context) generated.GetApplicationParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.GetApplicationParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-// bindGetApplicationServicesParams 构造获取应用服务列表请求的公共参数。
-func bindGetApplicationServicesParams(ginCtx *gin.Context) generated.GetApplicationServicesParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.GetApplicationServicesParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // bindGetApplicationLogsParams 绑定应用日志查询参数，并在参数无效时中止请求。
@@ -1642,26 +1515,6 @@ func bindGetApplicationLogsParams(ginCtx *gin.Context, ctx *module.Context) (gen
 	return params, true
 }
 
-func bindGetApplicationOverviewParams(ginCtx *gin.Context) generated.GetApplicationOverviewParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.GetApplicationOverviewParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-// bindGetApplicationConfigurationParams 组装获取应用配置接口的请求参数。
-//
-// 它从请求头提取 locale 和 request ID，并填充到对应的生成参数中。
-func bindGetApplicationConfigurationParams(ginCtx *gin.Context) generated.GetApplicationConfigurationParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.GetApplicationConfigurationParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-// bindGetApplicationConfigurationPreviewParams 构造应用配置预览接口的公共请求参数。
-// 它包含从请求头提取的语言区域和请求 ID。
-func bindGetApplicationConfigurationPreviewParams(ginCtx *gin.Context) generated.GetApplicationConfigurationPreviewParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.GetApplicationConfigurationPreviewParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
 func bindProjectWorkspaceFilesQuery(ginCtx *gin.Context, ctx *module.Context) (workspaceFileBrowseQuery, bool) {
 	query := ginCtx.Request.URL.Query()
 	showHidden, ok := optionalBoolQuery(query.Get("show_hidden"))
@@ -1682,125 +1535,6 @@ func bindProjectWorkspaceFilePath(ginCtx *gin.Context, ctx *module.Context) (str
 		return "", false
 	}
 	return path, true
-}
-
-func bindGetApplicationFilesParams(ginCtx *gin.Context, query workspaceFileBrowseQuery) generated.GetApplicationFilesParams {
-	locale, requestID := commonHeaders(ginCtx)
-	params := generated.GetApplicationFilesParams{XGraftLocale: locale, XRequestId: requestID}
-	if trimmed := strings.TrimSpace(query.Path); trimmed != "" {
-		params.Path = &trimmed
-	}
-	if query.ShowHidden {
-		showHidden := true
-		params.ShowHidden = &showHidden
-	}
-	return params
-}
-
-func bindGetApplicationFileContentParams(ginCtx *gin.Context, path string) generated.GetApplicationFileContentParams {
-	locale, requestID := commonHeaders(ginCtx)
-	queryPath := generated.ApplicationWorkspacePathQuery(path)
-	return generated.GetApplicationFileContentParams{XGraftLocale: locale, XRequestId: requestID, Path: &queryPath}
-}
-
-func bindPutApplicationFileContentParams(ginCtx *gin.Context, path string) generated.PutApplicationFileContentParams {
-	locale, requestID := commonHeaders(ginCtx)
-	queryPath := generated.ApplicationWorkspacePathQuery(path)
-	return generated.PutApplicationFileContentParams{XGraftLocale: locale, XRequestId: requestID, Path: &queryPath}
-}
-
-// bindPutApplicationFileAnnotationParams 构造更新应用文件注释所需的请求参数。
-//
-// Path 会被编码为工作区路径查询参数。
-func bindPutApplicationFileAnnotationParams(ginCtx *gin.Context, path string) generated.PutApplicationFileAnnotationParams {
-	locale, requestID := commonHeaders(ginCtx)
-	queryPath := generated.ApplicationWorkspacePathQuery(path)
-	return generated.PutApplicationFileAnnotationParams{XGraftLocale: locale, XRequestId: requestID, Path: &queryPath}
-}
-
-// bindGetApplicationManagedRootParams 构造获取托管根信息请求的公共参数。
-//
-// 它包含请求的语言环境和请求 ID。
-func bindGetApplicationManagedRootParams(ginCtx *gin.Context) generated.GetApplicationManagedRootParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.GetApplicationManagedRootParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-// bindPostApplicationCreateValidateParams 构造应用创建校验接口的公共请求参数。
-// 它包含语言信息和请求 ID。
-func bindPostApplicationCreateValidateParams(ginCtx *gin.Context) generated.PostApplicationCreateValidateParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostApplicationCreateValidateParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindPostApplicationNameAvailabilityParams(ginCtx *gin.Context) generated.PostApplicationNameAvailabilityParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostApplicationNameAvailabilityParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindPostApplicationComposeContextReferencesParams(ginCtx *gin.Context) generated.PostApplicationComposeContextReferencesParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostApplicationComposeContextReferencesParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-// bindPostApplicationCreateParams 构造应用创建请求的公共请求头参数。
-func bindPostApplicationCreateParams(ginCtx *gin.Context) generated.PostApplicationCreateParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostApplicationCreateParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-// bindPostApplicationRefreshParams 构造应用刷新接口的请求头参数。
-func bindPostApplicationRefreshParams(ginCtx *gin.Context) generated.PostApplicationRefreshParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostApplicationRefreshParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-// bindPostApplicationUpParams 组装应用启动接口的请求参数，包含语言环境和请求 ID。
-func bindPostApplicationUpParams(ginCtx *gin.Context) generated.PostApplicationUpParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostApplicationUpParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-// bindPostApplicationStopParams 组装应用停止接口的公共请求参数。
-// 它包含请求的语言标识和请求 ID。
-func bindPostApplicationStopParams(ginCtx *gin.Context) generated.PostApplicationStopParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostApplicationStopParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-// bindPostApplicationRestartParams 构造应用重启接口的公共请求参数。
-// 其中包含从请求头提取的语言环境和请求 ID。
-func bindPostApplicationRestartParams(ginCtx *gin.Context) generated.PostApplicationRestartParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostApplicationRestartParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindPostApplicationRedeployParams(ginCtx *gin.Context) generated.PostApplicationRedeployParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostApplicationRedeployParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindPutApplicationLifecycleConfigurationParams(ginCtx *gin.Context) generated.PutApplicationLifecycleConfigurationParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PutApplicationLifecycleConfigurationParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-func bindPostApplicationBatchActionsParams(ginCtx *gin.Context) generated.PostApplicationBatchActionsParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostApplicationBatchActionsParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-// bindPostApplicationUnregisterParams 构造应用注销接口的请求参数。
-// 它包含请求语言和请求 ID。
-func bindPostApplicationUnregisterParams(ginCtx *gin.Context) generated.PostApplicationUnregisterParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostApplicationUnregisterParams{XGraftLocale: locale, XRequestId: requestID}
-}
-
-// bindPostApplicationDestroyParams 构造应用销毁接口的公共请求参数。
-func bindPostApplicationDestroyParams(ginCtx *gin.Context) generated.PostApplicationDestroyParams {
-	locale, requestID := commonHeaders(ginCtx)
-	return generated.PostApplicationDestroyParams{XGraftLocale: locale, XRequestId: requestID}
 }
 
 // 返回语言环境头与请求 ID 的指针；请求 ID 会在缺失时生成并写回请求上下文。

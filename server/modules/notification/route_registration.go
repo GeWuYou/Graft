@@ -1,8 +1,8 @@
 package notification
 
 import (
+	"context"
 	"errors"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 	messagecontract "graft/server/internal/contract/message"
 	notificationopenapi "graft/server/internal/contract/openapi/notification"
+	"graft/server/internal/contract/openapi/strictsupport"
 	"graft/server/internal/httpx"
 	"graft/server/internal/logger"
 	"graft/server/internal/module"
@@ -32,11 +33,51 @@ func registerNotificationRoutes(ctx *module.Context, service *Service, guards no
 	runtime := notificationRouteRuntime{ctx: ctx, service: service}
 	group := ctx.Router.Group("/notifications")
 	group.Use(httpx.RequestIDMiddleware())
-	group.GET("", guards.view, runtime.handleList)
-	group.GET("/unread-count", guards.view, runtime.handleUnreadCount)
-	group.POST("/:delivery_id/read", guards.read, runtime.handleRead)
-	group.POST("/read-all", guards.read, runtime.handleReadAll)
-	group.DELETE("/:delivery_id", guards.read, runtime.handleDelete)
+	// 生成 wrapper 承担路径参数绑定；guard 与 handler envelope 写入保持迁移前语义。
+	wrapper := notificationopenapi.ServerInterfaceWrapper{
+		Handler: notificationopenapi.NewStrictHandlerWithOptions(
+			notificationStrictServer{runtime: runtime},
+			nil,
+			notificationopenapi.StrictGinServerOptions{
+				RequestErrorHandlerFunc: strictsupport.RequestErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String(), nil),
+				HandlerErrorFunc:        strictsupport.HandlerErrorHandler(ctx.I18n, ctx.Logger),
+			},
+		),
+		ErrorHandler: strictsupport.BindingErrorHandler(ctx.I18n, messagecontract.CommonInvalidArgument.String()),
+	}
+	group.GET("", guards.view, strictsupport.Route(wrapper.GetNotifications, nil))
+	group.GET("/unread-count", guards.view, strictsupport.Route(wrapper.GetNotificationsUnreadCount, nil))
+	group.POST("/:delivery_id/read", guards.read, strictsupport.Route(wrapper.PostNotificationRead, nil))
+	group.POST("/read-all", guards.read, strictsupport.Route(wrapper.PostNotificationsReadAll, nil))
+	group.DELETE("/:delivery_id", guards.read, strictsupport.Route(wrapper.DeleteNotification, nil))
+}
+
+// notificationStrictServer 将通知路由主体适配到生成的 strict server 契约；
+// 编译期断言保证 OpenAPI 通知操作变化时必须在适配层补齐。
+type notificationStrictServer struct {
+	runtime notificationRouteRuntime
+}
+
+var _ notificationopenapi.StrictServerInterface = notificationStrictServer{}
+
+func (s notificationStrictServer) GetNotifications(ctx context.Context, _ notificationopenapi.GetNotificationsRequestObject) (notificationopenapi.GetNotificationsResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.runtime.handleList)
+}
+
+func (s notificationStrictServer) GetNotificationsUnreadCount(ctx context.Context, _ notificationopenapi.GetNotificationsUnreadCountRequestObject) (notificationopenapi.GetNotificationsUnreadCountResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.runtime.handleUnreadCount)
+}
+
+func (s notificationStrictServer) PostNotificationRead(ctx context.Context, _ notificationopenapi.PostNotificationReadRequestObject) (notificationopenapi.PostNotificationReadResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.runtime.handleRead)
+}
+
+func (s notificationStrictServer) PostNotificationsReadAll(ctx context.Context, request notificationopenapi.PostNotificationsReadAllRequestObject) (notificationopenapi.PostNotificationsReadAllResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, func(ginCtx *gin.Context) { s.runtime.handleReadAll(ginCtx, request.Body) })
+}
+
+func (s notificationStrictServer) DeleteNotification(ctx context.Context, _ notificationopenapi.DeleteNotificationRequestObject) (notificationopenapi.DeleteNotificationResponseObject, error) {
+	return nil, strictsupport.Dispatch(ctx, s.runtime.handleDelete)
 }
 
 func (r notificationRouteRuntime) handleList(ginCtx *gin.Context) {
@@ -101,17 +142,15 @@ func (r notificationRouteRuntime) handleRead(ginCtx *gin.Context) {
 	httpx.WriteSuccess(ginCtx, http.StatusOK, toNotificationItem(item))
 }
 
-func (r notificationRouteRuntime) handleReadAll(ginCtx *gin.Context) {
+func (r notificationRouteRuntime) handleReadAll(ginCtx *gin.Context, body *notificationopenapi.PostNotificationsReadAllJSONRequestBody) {
 	userID, ok := currentUserID(ginCtx, r.ctx)
 	if !ok {
 		return
 	}
-	var body notificationopenapi.PostNotificationsReadAllJSONRequestBody
-	if err := ginCtx.ShouldBindJSON(&body); err != nil && !errors.Is(err, io.EOF) {
-		httpx.AbortLocalizedError(ginCtx, r.ctx.I18n, http.StatusBadRequest, messagecontract.CommonInvalidArgument.String(), nil)
-		return
+	var query ListQuery
+	if body != nil {
+		query = readAllQueryFromBody(*body)
 	}
-	query := readAllQueryFromBody(body)
 	query.RecipientUserID = userID
 	count, err := r.service.MarkAllReadMatching(ginCtx.Request.Context(), query, time.Now().UTC())
 	if err != nil {

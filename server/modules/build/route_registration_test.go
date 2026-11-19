@@ -71,6 +71,15 @@ func TestBuildInputSnapshotUploadRoute(t *testing.T) {
 	if invalidResponse.Code != http.StatusBadRequest {
 		t.Fatalf("expected invalid snapshot upload to return 400, got %d", invalidResponse.Code)
 	}
+	mixedBody, mixedType := buildSnapshotMultipart(t, archive.Bytes())
+	mixedRequest := httptest.NewRequest(http.MethodPost, "/api/build/input-snapshots", mixedBody)
+	mixedRequest.Header.Set("Authorization", "Bearer route-test-token")
+	mixedRequest.Header.Set("Content-Type", strings.Replace(mixedType, "multipart/form-data", "multipart/mixed", 1))
+	mixedResponse := httptest.NewRecorder()
+	engine.ServeHTTP(mixedResponse, mixedRequest)
+	if mixedResponse.Code != http.StatusBadRequest {
+		t.Fatalf("expected multipart/mixed upload to return 400, got %d: %s", mixedResponse.Code, mixedResponse.Body.String())
+	}
 }
 
 func TestBuildInputSnapshotListRoutePaginationAndValidation(t *testing.T) {

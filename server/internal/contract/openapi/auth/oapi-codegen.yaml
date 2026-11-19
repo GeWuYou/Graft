@@ -1,0 +1,20 @@
+package: authopenapi
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  include-operation-ids:
+    - getAuthBootstrap
+    - getAuthPersonalAccessTokens
+    - getAuthSessions
+    - postAuthChangePassword
+    - postAuthCompleteRequiredPasswordChange
+    - postAuthLogin
+    - postAuthLogout
+    - postAuthPersonalAccessTokenRevoke
+    - postAuthPersonalAccessTokens
+    - postAuthRefresh
+    - postAuthSessionRevoke
+    - postAuthSessionsRevokeAll
+    - postAuthSessionsRevokeOthers
