@@ -267,7 +267,7 @@ def make_plan(
                 seen.add(item)
                 ordered.append(item)
         coverage[name] = ordered
-    all_selected = sorted(set(names) | tests)
+    all_selected = sorted(set(names) | tests | python_tests | node_tests)
     digests = {name: file_digest(root, name) for name in all_selected}
     selection = [{"file": name, "reason": reasons.get(name, selection_reason),
                   "covered_by": coverage.get(name, [])} for name in all_selected]

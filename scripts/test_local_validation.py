@@ -263,6 +263,52 @@ class LocalValidationTests(unittest.TestCase):
         self.assertEqual([item["name"] for item in report["results"]], ["whitespace"])
         self.assertEqual(report["results"][0]["exit"], 0)
 
+    def test_derived_python_test_is_bound_into_digests_and_selection(self):
+        self.write("scripts/check_suite.py", "value")
+        self.write("scripts/test_check_suite.py", "value")
+        plan = make_plan(self.root, ["scripts/check_suite.py"], [])
+        self.assertIn("scripts/test_check_suite.py", plan["digests"])
+        selection = {item["file"]: item for item in plan["selection"]}
+        self.assertIn("scripts/test_check_suite.py", selection)
+        self.assertEqual(selection["scripts/test_check_suite.py"]["reason"],
+                         "derived consumer test for scripts/check_suite.py")
+
+    def test_derived_node_test_is_bound_into_digests(self):
+        self.write("scripts/probe.mjs")
+        self.write("scripts/test-probe.mjs")
+        plan = make_plan(self.root, ["scripts/probe.mjs"], [])
+        self.assertIn("scripts/test-probe.mjs", plan["digests"])
+        self.assertIn("scripts/test-probe.mjs", plan["tests"])
+
+    def test_toolchain_selection_binds_declared_consumers(self):
+        self.write("package.json")
+        self.write("scripts/test-turbo.mjs")
+        self.write("scripts/test_local_validation.py")
+        plan = make_plan(self.root, ["package.json"], [])
+        self.assertIn("scripts/test-turbo.mjs", plan["digests"])
+        self.assertIn("scripts/test_local_validation.py", plan["digests"])
+        self.assertIn("scripts/test-turbo.mjs", plan["tests"])
+        self.assertIn("scripts/test_local_validation.py", plan["tests"])
+
+    def test_execute_report_round_trip_covers_derived_tests(self):
+        self.init_repo()
+        self.write("scripts/check_suite.py", "value")
+        self.write("scripts/test_check_suite.py",
+                   "import unittest\n\n\nclass DerivedTests(unittest.TestCase):\n"
+                   "    def test_placeholder(self):\n        self.assertTrue(True)\n")
+        report_path = self.root / "check-report.json"
+        with patch("scripts.local_validation.ROOT", self.root):
+            self.assertEqual(main(["--execute", "--file", "scripts/check_suite.py",
+                                   "--report-out", str(report_path)]), 0)
+            report = json.loads(report_path.read_text())
+            self.assertIn("scripts/test_check_suite.py", report["digests"])
+            self.assertEqual(main(["--plan", "--file", "scripts/check_suite.py",
+                                   "--compare-report", str(report_path)]), 0)
+        self.write("scripts/test_check_suite.py", "modified")
+        with patch("scripts.local_validation.ROOT", self.root):
+            self.assertEqual(main(["--plan", "--file", "scripts/check_suite.py",
+                                   "--compare-report", str(report_path)]), 2)
+
     def test_execute_with_results_reports_each_check(self):
         plan = {"checks": [vars(Check("first", ["one"])), vars(Check("second", ["two"]))], "gaps": []}
         with patch("scripts.local_validation.subprocess.run", side_effect=[
