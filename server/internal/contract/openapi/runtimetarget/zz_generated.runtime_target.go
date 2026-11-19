@@ -616,6 +616,27 @@ func (e PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentCapabil
 	}
 }
 
+// Defines values for PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentClaimAdmissionClass.
+const (
+	PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassIdentityRejected PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentClaimAdmissionClass = "identity_rejected"
+	PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassNoWork           PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentClaimAdmissionClass = "no_work"
+	PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassTransportFailed  PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentClaimAdmissionClass = "transport_failed"
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentClaimAdmissionClass enum.
+func (e PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentClaimAdmissionClass) Valid() bool {
+	switch e {
+	case PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassIdentityRejected:
+		return true
+	case PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassNoWork:
+		return true
+	case PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassTransportFailed:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentDiagnosticCode.
 const (
 	PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded    PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentDiagnosticCode = "agent_degraded"
@@ -898,6 +919,27 @@ func (e GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatus) Valid() 
 	case GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatusRuntimeTargetAgentCapabilityStatusReady:
 		return true
 	case GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatusRuntimeTargetAgentCapabilityStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetRuntimeTarget200JSONResponseBodyDataAgentClaimAdmissionClass.
+const (
+	GetRuntimeTarget200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassIdentityRejected GetRuntimeTarget200JSONResponseBodyDataAgentClaimAdmissionClass = "identity_rejected"
+	GetRuntimeTarget200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassNoWork           GetRuntimeTarget200JSONResponseBodyDataAgentClaimAdmissionClass = "no_work"
+	GetRuntimeTarget200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassTransportFailed  GetRuntimeTarget200JSONResponseBodyDataAgentClaimAdmissionClass = "transport_failed"
+)
+
+// Valid indicates whether the value is a known member of the GetRuntimeTarget200JSONResponseBodyDataAgentClaimAdmissionClass enum.
+func (e GetRuntimeTarget200JSONResponseBodyDataAgentClaimAdmissionClass) Valid() bool {
+	switch e {
+	case GetRuntimeTarget200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassIdentityRejected:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassNoWork:
+		return true
+	case GetRuntimeTarget200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassTransportFailed:
 		return true
 	default:
 		return false
@@ -1447,6 +1489,27 @@ func (e PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatus) 
 	}
 }
 
+// Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataAgentClaimAdmissionClass.
+const (
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassIdentityRejected PostRuntimeTargetRefresh200JSONResponseBodyDataAgentClaimAdmissionClass = "identity_rejected"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassNoWork           PostRuntimeTargetRefresh200JSONResponseBodyDataAgentClaimAdmissionClass = "no_work"
+	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassTransportFailed  PostRuntimeTargetRefresh200JSONResponseBodyDataAgentClaimAdmissionClass = "transport_failed"
+)
+
+// Valid indicates whether the value is a known member of the PostRuntimeTargetRefresh200JSONResponseBodyDataAgentClaimAdmissionClass enum.
+func (e PostRuntimeTargetRefresh200JSONResponseBodyDataAgentClaimAdmissionClass) Valid() bool {
+	switch e {
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassIdentityRejected:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassNoWork:
+		return true
+	case PostRuntimeTargetRefresh200JSONResponseBodyDataAgentClaimAdmissionClassRuntimeTargetAgentClaimAdmissionClassTransportFailed:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCode.
 const (
 	PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCodeRuntimeTargetAgentDiagnosticCodeDegraded    PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCode = "agent_degraded"
@@ -1850,6 +1913,9 @@ type PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentCapabiliti
 // PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentCapabilitiesStatus defines parameters for PostRuntimeTargetsDiscoverLocalDocker.
 type PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentCapabilitiesStatus string
 
+// PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentClaimAdmissionClass defines parameters for PostRuntimeTargetsDiscoverLocalDocker.
+type PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentClaimAdmissionClass string
+
 // PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentDiagnosticCode defines parameters for PostRuntimeTargetsDiscoverLocalDocker.
 type PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentDiagnosticCode string
 
@@ -1904,6 +1970,9 @@ type GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesDiagnosticCode stri
 
 // GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatus defines parameters for GetRuntimeTarget.
 type GetRuntimeTarget200JSONResponseBodyDataAgentCapabilitiesStatus string
+
+// GetRuntimeTarget200JSONResponseBodyDataAgentClaimAdmissionClass defines parameters for GetRuntimeTarget.
+type GetRuntimeTarget200JSONResponseBodyDataAgentClaimAdmissionClass string
 
 // GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCode defines parameters for GetRuntimeTarget.
 type GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCode string
@@ -2076,6 +2145,9 @@ type PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesDiagnosticC
 
 // PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatus defines parameters for PostRuntimeTargetRefresh.
 type PostRuntimeTargetRefresh200JSONResponseBodyDataAgentCapabilitiesStatus string
+
+// PostRuntimeTargetRefresh200JSONResponseBodyDataAgentClaimAdmissionClass defines parameters for PostRuntimeTargetRefresh.
+type PostRuntimeTargetRefresh200JSONResponseBodyDataAgentClaimAdmissionClass string
 
 // PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCode defines parameters for PostRuntimeTargetRefresh.
 type PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCode string
@@ -4237,6 +4309,15 @@ type PostRuntimeTargetsDiscoverLocalDocker200JSONResponse struct {
 				// Version Frozen capability protocol version exposed by Runtime Target.
 				Version string `json:"version"`
 			} `json:"capabilities"`
+
+			// ClaimAdmission Latest fresh claim admission evidence from agent telemetry; null when no fresh receipt exists yet.
+			ClaimAdmission *struct {
+				// Class Stable claim admission class; no_work keeps the agent ready while the rejection classes degrade readiness.
+				Class PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentClaimAdmissionClass `json:"class"`
+
+				// ObservedAt Backend-recorded observation time of the last claim conclusion.
+				ObservedAt time.Time `json:"observed_at"`
+			} `json:"claim_admission,omitempty"`
 			DiagnosticCode PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentDiagnosticCode `json:"diagnostic_code"`
 			Generation     int64                                                                           `json:"generation"`
 			Status         PostRuntimeTargetsDiscoverLocalDocker200JSONResponseBodyDataAgentStatus         `json:"status"`
@@ -4526,6 +4607,15 @@ type GetRuntimeTarget200JSONResponse struct {
 				// Version Frozen capability protocol version exposed by Runtime Target.
 				Version string `json:"version"`
 			} `json:"capabilities"`
+
+			// ClaimAdmission Latest fresh claim admission evidence from agent telemetry; null when no fresh receipt exists yet.
+			ClaimAdmission *struct {
+				// Class Stable claim admission class; no_work keeps the agent ready while the rejection classes degrade readiness.
+				Class GetRuntimeTarget200JSONResponseBodyDataAgentClaimAdmissionClass `json:"class"`
+
+				// ObservedAt Backend-recorded observation time of the last claim conclusion.
+				ObservedAt time.Time `json:"observed_at"`
+			} `json:"claim_admission,omitempty"`
 			DiagnosticCode GetRuntimeTarget200JSONResponseBodyDataAgentDiagnosticCode `json:"diagnostic_code"`
 			Generation     int64                                                      `json:"generation"`
 			Status         GetRuntimeTarget200JSONResponseBodyDataAgentStatus         `json:"status"`
@@ -5857,6 +5947,15 @@ type PostRuntimeTargetRefresh200JSONResponse struct {
 				// Version Frozen capability protocol version exposed by Runtime Target.
 				Version string `json:"version"`
 			} `json:"capabilities"`
+
+			// ClaimAdmission Latest fresh claim admission evidence from agent telemetry; null when no fresh receipt exists yet.
+			ClaimAdmission *struct {
+				// Class Stable claim admission class; no_work keeps the agent ready while the rejection classes degrade readiness.
+				Class PostRuntimeTargetRefresh200JSONResponseBodyDataAgentClaimAdmissionClass `json:"class"`
+
+				// ObservedAt Backend-recorded observation time of the last claim conclusion.
+				ObservedAt time.Time `json:"observed_at"`
+			} `json:"claim_admission,omitempty"`
 			DiagnosticCode PostRuntimeTargetRefresh200JSONResponseBodyDataAgentDiagnosticCode `json:"diagnostic_code"`
 			Generation     int64                                                              `json:"generation"`
 			Status         PostRuntimeTargetRefresh200JSONResponseBodyDataAgentStatus         `json:"status"`
