@@ -113,7 +113,6 @@ func (r authRouteRegistrar) handleSessionsRevokeOthersRoute(ginCtx *gin.Context)
 		return
 	}
 
-	r.cookies.ClearRefreshCookie(ginCtx)
 	httpx.WriteSuccess[any](ginCtx, http.StatusOK, nil)
 }
 

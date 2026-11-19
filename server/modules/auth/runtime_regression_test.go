@@ -8,7 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"graft/server/internal/config"
+	"graft/server/internal/module"
 	"graft/server/internal/moduleapi"
 	authstore "graft/server/modules/auth/store"
 )
@@ -127,6 +130,51 @@ func TestAuthRuntimeRevokeOtherSessionsUsesCollectionWrite(t *testing.T) {
 	result, err := service.RevokeOtherSessionsByUserID(context.Background(), user.ID, currentClaims.SessionID)
 	if err != nil || result.Revoked {
 		t.Fatalf("repeat collection revoke = %#v, %v; want no affected sessions", result, err)
+	}
+}
+
+func TestMountedSessionRevocationPreservesCallerCookieOnlyForRevokeOthers(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service, _, user := newRuntimeRegressionService(t, false)
+	current, err := service.LoginWithRefresh(context.Background(), user.Username, runtimeTestPassword)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.LoginWithRefresh(context.Background(), user.Username, runtimeTestPassword); err != nil {
+		t.Fatal(err)
+	}
+
+	const cookieName = "refresh-fixture"
+	engine := gin.New()
+	cfg := &config.Config{Auth: config.AuthConfig{RefreshCookieName: cookieName, RefreshCookiePath: "/api/auth", RefreshCookieSecure: true}}
+	ctx := &module.Context{Config: cfg, Router: engine.Group("/api")}
+	if err := registerAuthRoutes(ctx, moduleID, service, service, authFlowBridge{auth: service}); err != nil {
+		t.Fatal(err)
+	}
+	revoke := func(path string) *httptest.ResponseRecorder {
+		t.Helper()
+		request := httptest.NewRequest(http.MethodPost, "https://graft.test"+path, nil)
+		request.Header.Set("Authorization", "Bearer "+current.AccessToken)
+		request.AddCookie(&http.Cookie{
+			Name: cookieName, Value: current.RefreshToken,
+			Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode,
+		})
+		response := httptest.NewRecorder()
+		engine.ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			t.Fatalf("revocation %q returned %d: %s", path, response.Code, response.Body.String())
+		}
+		return response
+	}
+
+	others := revoke("/api/auth/sessions/revoke-others")
+	if values := others.Header().Values("Set-Cookie"); len(values) != 0 {
+		t.Fatal("revoke-others must preserve the caller's refresh cookie")
+	}
+	all := revoke("/api/auth/sessions/revoke-all")
+	clear, err := http.ParseSetCookie(all.Header().Get("Set-Cookie"))
+	if err != nil || clear.Name != cookieName || clear.Path != "/api/auth" || clear.MaxAge >= 0 || clear.Value != "" {
+		t.Fatalf("revoke-all must clear the caller's refresh cookie: %v", err)
 	}
 }
 

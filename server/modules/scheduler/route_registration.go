@@ -82,7 +82,7 @@ func registerSchedulerRoutesWithRuntime(
 	group.GET(
 		schedulercontract.ScheduledTaskCollectionRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
-		strictsupport.Route(wrapper.GetScheduledTasks, nil),
+		strictsupport.Route(wrapper.GetScheduledTasks, routeRuntime.handleListTasks),
 	)
 	if err := registerSchedulerSavedViews(group, ctx, authService, authorizer, publisher, wrapper); err != nil {
 		return err
@@ -105,7 +105,7 @@ func registerSchedulerRoutesWithRuntime(
 	group.GET(
 		schedulercontract.ScheduledTaskRunDetailRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
-		strictsupport.Route(wrapper.GetScheduledTaskRun, nil),
+		strictsupport.Route(wrapper.GetScheduledTaskRun, routeRuntime.handleGetRun),
 	)
 	group.GET(
 		schedulercontract.ScheduledTaskDetailRoute,
@@ -122,11 +122,12 @@ func registerSchedulerRoutesWithRuntime(
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskDeletePermission.String(), publisher),
 		strictsupport.Route(wrapper.DeleteScheduledTask, nil),
 	)
-	registerScheduledTaskActionRoutes(group, ctx, authService, authorizer, publisher, wrapper)
+	registerScheduledTaskActionRoutes(group, routeRuntime, authService, authorizer, publisher, wrapper)
 	return nil
 }
 
-func registerScheduledTaskActionRoutes(group *gin.RouterGroup, ctx *module.Context, authService moduleapi.AuthService, authorizer moduleapi.Authorizer, publisher httpx.SecurityAuditPublisher, wrapper scheduleropenapi.ServerInterfaceWrapper) {
+func registerScheduledTaskActionRoutes(group *gin.RouterGroup, runtime schedulerRouteRuntime, authService moduleapi.AuthService, authorizer moduleapi.Authorizer, publisher httpx.SecurityAuditPublisher, wrapper scheduleropenapi.ServerInterfaceWrapper) {
+	ctx := runtime.ctx
 	group.POST(
 		schedulercontract.ScheduledTaskEnableRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskEnablePermission.String(), publisher),
@@ -140,7 +141,7 @@ func registerScheduledTaskActionRoutes(group *gin.RouterGroup, ctx *module.Conte
 	group.GET(
 		schedulercontract.ScheduledTaskRunsRoute,
 		httpx.RequirePermission(ctx.I18n, authService, authorizer, schedulercontract.ScheduledTaskReadPermission.String(), publisher),
-		strictsupport.Route(wrapper.GetScheduledTaskRuns, nil),
+		strictsupport.Route(wrapper.GetScheduledTaskRuns, runtime.handleListRuns),
 	)
 	group.POST(
 		schedulercontract.ScheduledTaskRunRoute,
