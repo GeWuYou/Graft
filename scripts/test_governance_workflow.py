@@ -192,12 +192,22 @@ class GovernanceWorkflowTests(unittest.TestCase):
         self.assertEqual(env["RUN_ATTEMPT"], "${{ github.run_attempt }}")
         self.assertEqual(env["HEAD_SHA"], "${{ github.sha }}")
         self.assertEqual(env["EVENT_NAME"], "${{ github.event_name }}")
+        self.assertEqual(env["GITHUB_TOKEN"], "${{ secrets.GITHUB_TOKEN }}")
         program = "\n".join(cross["run"].splitlines()[1:-1])
+        self.assertIn('"gh", "api"', program)
         self.assertIn("attempts/{attempt}/jobs", program)
         self.assertIn('job.get("head_sha") != head_sha', program)
         self.assertIn('conclusion == "success"', program)
         self.assertIn('conclusion == "skipped" and name in allowed_skips', program)
         self.assertIn('allowed_skips = {"Secret Scan"} if event_name == "push" else set()', program)
+        # No raw HTTP header literals or direct HTTP clients in the cross-check.
+        self.assertNotIn("Authorization", cross["run"])
+        self.assertNotIn("urllib", program)
+
+    def test_workflow_has_no_hard_coded_authorization_header_literals(self):
+        text = (ROOT / ".github/workflows/pull-request-validation.yml").read_text()
+        self.assertNotIn("Authorization", text)
+        self.assertNotIn("Bearer ", text)
 
     def test_every_step_job_declares_a_timeout(self):
         for name, job in self.jobs.items():
