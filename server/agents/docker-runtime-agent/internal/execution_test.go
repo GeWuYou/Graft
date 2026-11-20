@@ -285,17 +285,17 @@ func TestRecoverExecutionJournalsSettlesExpiredJournalInterruptionAndUnblocksCla
 		w.Header().Set("Content-Type", "application/json")
 		mu.Lock()
 		defer mu.Unlock()
-		switch {
-		case r.URL.Path == "/agent/v1/execution-leases/lease-expired/receipts":
+		switch r.URL.Path {
+		case "/agent/v1/execution-leases/lease-expired/receipts":
 			receipts++
 			_ = json.NewDecoder(r.Body).Decode(&receipt)
 			_ = json.NewEncoder(w).Encode(executionSettlement{TaskID: expired.TaskID, StageID: expired.StageID})
-		case r.URL.Path == executionClaimPath:
+		case executionClaimPath:
 			claims++
 			w.WriteHeader(http.StatusNoContent)
-		case r.URL.Path == ledgerSnapshotPath:
+		case ledgerSnapshotPath:
 			_ = json.NewEncoder(w).Encode(ledgerSnapshot{Generation: 1, SnapshotID: strings.Repeat("a", 64), SnapshotDigest: strings.Repeat("b", 64), ExpiresAt: time.Now().Add(time.Minute), ObservedAt: time.Now()})
-		case r.URL.Path == telemetryPath:
+		case telemetryPath:
 			w.WriteHeader(http.StatusNoContent)
 		default:
 			t.Fatalf("unexpected path %s", r.URL.Path)
