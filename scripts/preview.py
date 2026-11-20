@@ -305,6 +305,12 @@ def start(args: argparse.Namespace) -> dict:
     image_tag = args.image_tag
     if not image_tag:
         raise PreviewError("--image-tag is required (the compose file refuses an empty GRAFT_IMAGE_TAG)")
+    # compose.yml already prefixes the registry image name; a full ref here
+    # would produce a double image reference.
+    if "/" in image_tag or ":" in image_tag:
+        raise PreviewError(
+            "--image-tag must be a bare tag without '/' or ':' (compose.yml already "
+            "prefixes the image name), for example: candidate-v1.2.3-abc")
     directory = instance_dir(root, identity)
     env_file = directory / ".env"
     compose_file = directory / "compose.yml"
@@ -350,6 +356,14 @@ def start(args: argparse.Namespace) -> dict:
             write_registry(root, document)
             return {"identity": identity, "state": "running", "already_running": True,
                     "health": converged, "web_url": web_url(entry)}
+        # A restart re-occupies the cap: count running instances excluding
+        # this entry so a stopped instance cannot bypass PREVIEW_MAX_RUNNING.
+        cap = parse_max_running()
+        running_others = running_count(document, exclude=identity)
+        if running_others >= cap:
+            raise PreviewError(
+                f"PREVIEW_MAX_RUNNING={cap} reached ({running_others} other running instances); "
+                "restart refuses to exceed the cap, stop or destroy one first")
 
     entry["state"] = "starting"
     entry["updated_at"] = utc_now()

@@ -71,7 +71,7 @@ def command_arguments(arguments):
 
 
 def lifecycle_args(**overrides):
-    values = {"task": "task-one", "image_tag": "graft:test", "port": None, "env": [],
+    values = {"task": "task-one", "image_tag": "graft-test", "port": None, "env": [],
               "health_timeout": 5}
     values.update(overrides)
     return argparse.Namespace(**values)
@@ -245,7 +245,7 @@ class StartStopDestroyTests(unittest.TestCase):
         self.assertEqual(entry["state"], "running")
         directory = preview.instance_dir(self.root, identity)
         env_text = (directory / ".env").read_text(encoding="utf-8")
-        self.assertIn("GRAFT_IMAGE_TAG=graft:test", env_text)
+        self.assertIn("GRAFT_IMAGE_TAG=graft-test", env_text)
         self.assertIn("GRAFT_DATABASE_URL=x", env_text)
         self.assertIn(f"GRAFT_BUILD_SNAPSHOT_VOLUME=graft-preview-{identity}-build-snapshots", env_text)
         self.assertIn(f"GRAFT_UPDATE_STATE_VOLUME=graft-preview-{identity}-update-state", env_text)
@@ -274,12 +274,59 @@ class StartStopDestroyTests(unittest.TestCase):
             with self.assertRaises(PreviewError):
                 preview.start(lifecycle_args(task="pinned-port", port=38100))
 
+    def test_start_refuses_restart_at_the_running_cap(self):
+        # Restarting a stopped instance re-occupies the cap; a running sibling
+        # must block the restart instead of the stopped entry bypassing it.
+        identity = preview.identity_for(preview.checkout_root(), "restart-at-cap")
+        self.register(identity, state="stopped")
+        document = preview.read_registry(self.root)
+        document["instances"]["running-sibling"] = {
+            "identity": "running-sibling", "task_id": "running-sibling",
+            "state": "running", "web_port": 38021,
+            "compose_project": "graft-preview-running-sibling",
+            "checkout": str(preview.checkout_root())}
+        preview.write_registry(self.root, document)
+        with self.env(PREVIEW_MAX_RUNNING="1"):
+            with self.assertRaises(PreviewError) as context:
+                preview.start(lifecycle_args(task="restart-at-cap"))
+        self.assertIn("PREVIEW_MAX_RUNNING", str(context.exception))
+        self.assertEqual(self.calls, [])
+        self.assertEqual(preview.read_registry(self.root)["instances"][identity]["state"],
+                         "stopped")
+
+    def test_start_allows_restart_when_the_cap_has_room(self):
+        identity = preview.identity_for(preview.checkout_root(), "restart-with-room")
+        self.register(identity, state="stopped")
+        with self.env(PREVIEW_MAX_RUNNING="1"):
+            result = preview.start(lifecycle_args(task="restart-with-room"))
+        self.assertEqual(result["state"], "running")
+        up_calls = [call for call in self.calls if call["arguments"] == ["up", "-d", "--wait"]]
+        self.assertEqual(len(up_calls), 1)
+
     def test_start_refuses_reserved_and_malformed_env_overrides(self):
         with self.env():
             with self.assertRaises(PreviewError):
                 preview.start(lifecycle_args(task="reserved-env", env=["GRAFT_IMAGE_TAG=evil"]))
             with self.assertRaises(PreviewError):
                 preview.start(lifecycle_args(task="malformed-env", env=["bad-key=1"]))
+
+    def test_start_rejects_full_image_refs_in_favor_of_bare_tags(self):
+        # compose.yml already prefixes the registry image name; a full ref
+        # would produce a double image reference.
+        with self.env():
+            for bad in ("ghcr.io/gewuyou/graft-server:candidate-v1.2.3-abc",
+                        "graft-server:candidate-v1.2.3-abc",
+                        "sha256:deadbeef"):
+                with self.assertRaises(PreviewError) as context:
+                    preview.start(lifecycle_args(task="full-ref", image_tag=bad))
+            self.assertEqual(self.calls, [])
+        with self.env():
+            result = preview.start(lifecycle_args(task="bare-tag",
+                                                  image_tag="candidate-v1.2.3-abc"))
+        self.assertEqual(result["state"], "running")
+        identity = result["identity"]
+        env_text = (preview.instance_dir(self.root, identity) / ".env").read_text(encoding="utf-8")
+        self.assertIn("GRAFT_IMAGE_TAG=candidate-v1.2.3-abc", env_text)
 
     def test_compose_failure_marks_the_instance_failed(self):
         def failing_run(arguments, **kwargs):
