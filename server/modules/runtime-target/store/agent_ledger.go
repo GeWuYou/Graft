@@ -121,7 +121,10 @@ func (r *SQLRepository) RecordAgentTelemetryReceipt(ctx context.Context, identit
 // from the current active Docker Agent generation. It is the sole scheduling read
 // path for Builder telemetry; legacy telemetry rows and host/provider metrics stay
 // outside this boundary. An idle agent reports the bounded no_work admission class
-// and remains schedulable.
+// and remains schedulable. Eligibility is decided by each target's LATEST snapshot:
+// the query ranks snapshots per target by sequence first, then applies the receipt
+// diagnostic/expiry filter to that latest row, so a stale healthy receipt can never
+// mask a newer degraded or expired one.
 //
 //nolint:cyclop // 动态账本投影必须在一个边界内限制目标集合、活动世代和每目标最新回执。
 func (r *SQLRepository) ListActiveDockerAgentLedgerSnapshots(ctx context.Context, targetIDs []int64, now time.Time) ([]AgentLedgerSnapshot, error) {
@@ -143,21 +146,31 @@ func (r *SQLRepository) ListActiveDockerAgentLedgerSnapshots(ctx context.Context
 		placeholders = append(placeholders, fmt.Sprintf("$%d", len(args)))
 	}
 	args = append(args, now.UTC())
-	query := `SELECT i.identity_id, i.runtime_target_id, i.agent_id, g.generation,
-  s.sequence, s.snapshot_id, s.snapshot_digest, s.builder_scope, s.provider_id,
-  s.capability_profile, s.capability_version, s.affinity_key, s.available,
-  s.running, s.queued, s.allocatable_slots, s.receipt_observed_at,
-  s.receipt_expires_at, s.issued_at
-FROM runtime_target_agent_ledger_snapshots s
-INNER JOIN runtime_target_agent_generations g ON g.id = s.generation_id
-INNER JOIN runtime_target_agent_identities i ON i.id = g.identity_id
-WHERE i.runtime_target_id IN (` + strings.Join(placeholders, ",") + `)
-  AND i.provider_id = 'docker'
-  AND g.status = 'active' AND g.expires_at > $` + fmt.Sprint(len(args)) + `
-  AND s.consumed_at IS NOT NULL AND s.receipt_available = true
-  AND s.receipt_diagnostic IN ('', '` + AgentLedgerDiagnosticNoWork + `') AND s.receipt_expires_at > $` + fmt.Sprint(len(args)) + `
-  AND s.deleted_at = 0 AND g.deleted_at = 0 AND i.deleted_at = 0
-ORDER BY i.runtime_target_id ASC, s.sequence DESC`
+	nowIndex := fmt.Sprint(len(args))
+	query := `SELECT identity_id, runtime_target_id, agent_id, generation,
+  sequence, snapshot_id, snapshot_digest, builder_scope, provider_id,
+  capability_profile, capability_version, affinity_key, available,
+  running, queued, allocatable_slots, receipt_observed_at,
+  receipt_expires_at, issued_at
+FROM (
+  SELECT i.identity_id, i.runtime_target_id, i.agent_id, g.generation,
+    s.sequence, s.snapshot_id, s.snapshot_digest, s.builder_scope, s.provider_id,
+    s.capability_profile, s.capability_version, s.affinity_key, s.available,
+    s.running, s.queued, s.allocatable_slots, s.receipt_observed_at,
+    s.receipt_expires_at, s.issued_at, s.receipt_diagnostic,
+    ROW_NUMBER() OVER (PARTITION BY i.runtime_target_id ORDER BY s.sequence DESC, s.id DESC) AS ledger_rank
+  FROM runtime_target_agent_ledger_snapshots s
+  INNER JOIN runtime_target_agent_generations g ON g.id = s.generation_id
+  INNER JOIN runtime_target_agent_identities i ON i.id = g.identity_id
+  WHERE i.runtime_target_id IN (` + strings.Join(placeholders, ",") + `)
+    AND i.provider_id = 'docker'
+    AND g.status = 'active' AND g.expires_at > $` + nowIndex + `
+    AND s.consumed_at IS NOT NULL AND s.receipt_available = true
+    AND s.deleted_at = 0 AND g.deleted_at = 0 AND i.deleted_at = 0
+) latest
+WHERE latest.ledger_rank = 1
+  AND latest.receipt_diagnostic IN ('', '` + AgentLedgerDiagnosticNoWork + `') AND latest.receipt_expires_at > $` + nowIndex + `
+ORDER BY latest.runtime_target_id ASC`
 	rows, err := r.executor(ctx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list active Docker agent ledger snapshots: %w", err)
