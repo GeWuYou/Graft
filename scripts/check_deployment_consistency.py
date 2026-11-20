@@ -74,11 +74,13 @@ def fetch(url: str, timeout: float, insecure: bool) -> dict:
         with urlrequest.urlopen(request, timeout=timeout, context=context) as response:
             return {"status": response.status,
                     "content_type": response.headers.get("Content-Type", ""),
-                    "body": response.read()}
+                    "body": response.read(),
+                    "final_url": response.geturl()}
     except urlerror.HTTPError as exc:
         return {"status": exc.code,
                 "content_type": exc.headers.get("Content-Type", "") if exc.headers else "",
-                "body": exc.read() if exc.fp else b""}
+                "body": exc.read() if exc.fp else b"",
+                "final_url": getattr(exc, "url", None) or url}
 
 
 def status_failure(kind: str, url: str, status: int, acceptable: set[int]) -> str | None:
@@ -130,7 +132,9 @@ def check(args: argparse.Namespace) -> dict:
         raise ConsistencyError(f"entry HTML {base_url} is unreachable: {exc}") from exc
     html_status = html_response["status"]
     html_type = media_type(html_response["content_type"])
-    html_report = {"url": base_url, "status": html_status, "content_type": html_type,
+    final_url = html_response.get("final_url", base_url)
+    html_report = {"url": base_url, "final_url": final_url, "status": html_status,
+                   "content_type": html_type,
                    "sha256": hashlib.sha256(html_response["body"]).hexdigest()}
     reason = status_failure("entry HTML", base_url, html_status, acceptable)
     if reason:
@@ -138,7 +142,10 @@ def check(args: argparse.Namespace) -> dict:
     if html_type != "text/html":
         failures.append(f"entry HTML content type {html_type or 'missing'} is not text/html")
 
-    assets, markers = collect_assets(html_response["body"].decode("utf-8", "replace"), base_url)
+    # Browsers resolve relative references against the FINAL URL served
+    # after redirects; the checker must do the same or it inspects the
+    # wrong files on redirecting deployments.
+    assets, markers = collect_assets(html_response["body"].decode("utf-8", "replace"), final_url)
     if not assets:
         failures.append(
             "no entry JS/CSS assets discovered in the HTML; an SPA entry must reference "

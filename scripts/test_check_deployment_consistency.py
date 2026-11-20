@@ -28,14 +28,22 @@ GOOD_HTML = (
 
 
 class DeploymentServer:
-    """Ephemeral in-process HTTP server with per-path responses."""
+    """Ephemeral in-process HTTP server with per-path responses and redirects."""
 
-    def __init__(self, routes: dict[str, tuple[int, str, bytes]]):
+    def __init__(self, routes: dict[str, tuple[int, str, bytes]], redirects=None):
         outer = self
         self.routes = routes
+        self.redirects = redirects or {}
 
         class Handler(BaseHTTPRequestHandler):
             def do_GET(self):
+                location = outer.redirects.get(self.path)
+                if location:
+                    self.send_response(302)
+                    self.send_header("Location", location)
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
                 route = outer.routes.get(self.path)
                 if route is None:
                     self.send_response(404)
@@ -131,6 +139,25 @@ class HappyPathTests(unittest.TestCase):
         self.assertEqual(report["verdict"], "pass")
         self.assertEqual({tuple(asset["url"].rsplit("/", 2)[-2:]) for asset in report["assets"]},
                          {("nested", "app.js"), ("nested", "style.css")})
+
+    def test_relative_assets_resolve_against_the_final_url_after_redirects(self):
+        # A deployment that redirects / to /app/ serves relative asset
+        # references from /app/; browsers resolve them against the final
+        # URL, so the checker must too or it fetches the wrong paths.
+        html = ('<html><head><link rel="stylesheet" href="assets/app.css"></head>'
+                "<body><script src='assets/app.js'></script></body></html>")
+        routes = {
+            "/app/": (200, "text/html", html.encode("utf-8")),
+            "/app/assets/app.js": (200, "text/javascript", b"a"),
+            "/app/assets/app.css": (200, "text/css", b"b"),
+        }
+        with DeploymentServer(routes, redirects={"/": "/app/"}) as server:
+            report = checker.check(check_args(base_url=server.base_url))
+        self.assertEqual(report["verdict"], "pass")
+        self.assertEqual(report["html"]["final_url"], server.base_url + "/app/")
+        self.assertEqual({asset["url"] for asset in report["assets"]},
+                         {server.base_url + "/app/assets/app.js",
+                          server.base_url + "/app/assets/app.css"})
 
 
 class FalseSuccessPreventionTests(unittest.TestCase):
