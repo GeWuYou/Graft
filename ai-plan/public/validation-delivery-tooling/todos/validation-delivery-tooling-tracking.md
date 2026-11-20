@@ -6,17 +6,14 @@ Validation Delivery Tooling
 
 ## Scope
 
-Make scoped local validation evidence reusable and SHA-bound, run grouped check suites with dependencies and a deadline, map changed paths to CI jobs conservatively, and discipline the pull-request validation workflow with grouping, timeouts, and a complete summary gate. Preserve required check names and existing blocking gates.
+SHA-bound validation evidence reuse, grouped suites with a deadline, conservative CI impact mapping, a verified pull-request summary gate, the browser acceptance harness, and the same discipline for preview lifecycle, deployment consistency and release candidates.
 
 ## Repository Truth
 
-- `AGENTS.md`
-- `docs/development/validation.md`
-- `scripts/local_validation.py`
-- `scripts/check_suite.py`
-- `scripts/ci_impact.py`
-- `.github/workflows/pull-request-validation.yml`
-- `Justfile`
+- `AGENTS.md`; `docs/development/validation.md`, `preview-lifecycle.md`, `browser-acceptance.md`; `docs/operations/release-deployment-consistency.md`
+- `scripts/`: `local_validation.py`, `check_suite.py`, `ci_impact.py`, `preview.py`, `preview_recovery.py`, `check_deployment_consistency.py`, `browser_acceptance.py`
+- `tests/browser/**`; test-only Go seeds in `server/modules/*` `browser_seed_test.go`
+- `.github/workflows/pull-request-validation.yml`, `release-candidate.yml`; `Justfile`
 
 ## Work Contract
 
@@ -24,7 +21,7 @@ Make scoped local validation evidence reusable and SHA-bound, run grouped check 
 version: 1
 kind: optimize
 scope: long-running
-authority_summary: Scoped validation tooling owns evidence reuse semantics; the grouped suite runner and CI impact mapper own their selection rules; the pull-request workflow owns job orchestration and the run summary gate.
+authority_summary: Validation tooling scripts own scoped evidence, suite, impact, preview lifecycle, recovery and deployment-consistency semantics; the two workflows own job orchestration, summary gates and tagging discipline.
 requires:
   design: false
   topic: true
@@ -46,31 +43,23 @@ closeout:
 
 ## Current Recovery Point
 
-- Current batch: correction 3 (PR head SHA binding in the summary cross-check) committed on `chore/validation-ci-discipline`, awaiting lead integration.
-- Completed: evidence reuse, check suite + CI impact, workflow discipline, documentation, and corrections 1-2 (cross-check hardening, GET pin).
-- Pending: observe one real pull-request run after integration and push.
-- Risk: `kind: optimize` extends the ADR-003 v1 documented kind vocabulary; the ADR owner should reconcile the vocabulary in a later governance batch.
+- Current batch: PR 3 (evidence reuse + suite + impact + workflow), PR 4 (browser acceptance harness) and PR 5 (preview lifecycle + release consistency) delivered into main; per-PR corrections recorded in the trace with thread dispositions (full detail in git history).
+- Pending: observe a real pull-request run and one release-candidate dispatch; primary-checkout follow-ups (preview smoke, deployment consistency, chromium local-tier browser run); CI impact gating decision.
+- Risk: `kind: optimize` extends the ADR-003 v1 vocabulary; ADR owner reconciles later.
 
 ## Task Checklist
 
-- [x] Bind scoped validation plans to head SHA and selected file digests with per-file reasons and coverage.
-- [x] Add `--compare-report` evidence verification and `--report-out` executed check reports; plan mode fails on gaps.
-- [x] Add `scripts/check_suite.py` grouped runner with requires, deadline, JSON summary and artifact logs.
-- [x] Add `scripts/ci_impact.py` conservative path-to-job mapping with FULL-forcing shared surfaces.
-- [x] Regroup pull-request-validation jobs, add missing timeout, extend summary needs to every job, add the run/attempt/SHA API cross-check.
-- [x] Update `docs/development/validation.md` for evidence reuse, suite, impact and summary semantics.
-- [ ] Observe a real pull-request run after integration and record the evidence in the trace.
-- [ ] Decide whether CI impact selection should later gate workflow job paths (separate batch, requires roadmap consideration).
+- [x] PR 3: evidence reuse, check-suite groups, ci-impact selection, workflow regroup + summary cross-check, corrections 1-3.
+- [x] PR 4: browser acceptance harness, tests/browser fixtures + specs, test-only seeds, docs, corrections 1-3.
+- [x] PR 5: preview lifecycle + recovery + deployment consistency + release-candidate workflow, docs, corrections 1-4.
+- [ ] Observe a real pull-request run and one release dispatch; record evidence in the trace.
+- [ ] Primary-checkout follow-ups: preview smoke, deployment consistency, chromium local-tier browser run.
+- [ ] Later: CI impact gating workflow job paths (separate batch).
 
 ## Acceptance Conditions
 
-- `just check-local-plan` exits nonzero on empty selection, missing consumer tests, or coverage gaps, and never falls back to full gates.
-- `--compare-report` fails with per-file reasons when the recorded head moved, selected files changed, or the current selection is uncovered.
-- `scripts/check_suite.py` resolves groups and dependencies with cycle and unknown-name rejection, aggregates independent failures, kills timed-out checks at the process level, and exits nonzero on any failure or deadline overrun.
-- `scripts/ci_impact.py` forces FULL for unknown paths and shared surfaces and always includes hygiene and summary jobs in subsets.
-- The pull-request summary fails on any job that is not successful for the current run, attempt and SHA, except the documented push-event Secret Scan skip; required check names are unchanged.
-- `actionlint` passes on the modified workflow and unit tests cover the changed script behavior.
-
-## Correction Detail
-
-- Correction 1-2 specifics (severity split, just positional-args quirk, run 44589471488 repro, stale finding) live in trace history at 8977741a0/763b05fdd.
+- Scoped validation and comparisons fail closed; suites resolve dependencies, aggregate failures and enforce a deadline; CI impact stays conservative and advisory.
+- PR summary verifies every job of run/attempt/SHA except documented skips; check names unchanged.
+- Browser acceptance: risk-tiered suites x engines, zero retries, sanitized per-attempt reports, per-attempt session state and daemon page assertions; primary-checkout only.
+- Preview/deployment/release semantics per the delivered docs: deterministic identity and guarded destroy, flock-serialized registry, post-redirect asset resolution, compose child env stripped of reserved keys, idempotent `rc-` tags with unfixed-scan evidence.
+- actionlint passes on both workflows; script tests cover changed behavior.

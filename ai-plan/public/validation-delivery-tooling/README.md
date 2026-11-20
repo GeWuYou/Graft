@@ -2,13 +2,13 @@
 
 ## Current Status Summary
 
-- Topic objective: make scoped local validation evidence reusable and make pull-request validation runs disciplined, grouped, and fully verified without weakening required gates.
+- Topic objective: make scoped local validation evidence reusable and make pull-request validation runs disciplined, grouped, and fully verified without weakening required gates; extend the same discipline to preview instance lifecycle, deployment consistency and the release candidate flow.
 - Current status: `active`
 - Task class: `docs/automation`
-- Intake summary: long-running optimize topic covering evidence reuse, a grouped check-suite runner, conservative CI impact selection, and pull-request workflow discipline.
-- Canonical authority: `scripts/local_validation.py`, `scripts/check_suite.py`, `scripts/ci_impact.py`, `.github/workflows/pull-request-validation.yml`, `docs/development/validation.md`.
-- Completed so far: PR 3 slices for evidence reuse, check suite + CI impact tooling, and workflow regroup are committed on branch `chore/validation-ci-discipline`.
-- Not started yet: observe a real pull-request run with the new summary verification; decide whether `ci_impact` selection should later gate workflow jobs.
+- Intake summary: long-running optimize topic covering evidence reuse, a grouped check-suite runner, conservative CI impact selection, pull-request workflow discipline, and the preview/release consistency batch (PR 5).
+- Canonical authority: `scripts/local_validation.py`, `scripts/check_suite.py`, `scripts/ci_impact.py`, `scripts/preview.py`, `scripts/preview_recovery.py`, `scripts/check_deployment_consistency.py`, `.github/workflows/pull-request-validation.yml`, `.github/workflows/release-candidate.yml`, `docs/development/validation.md`, `docs/development/preview-lifecycle.md`, `docs/operations/release-deployment-consistency.md`.
+- Completed so far: PR 3 slices committed on `chore/validation-ci-discipline` (merged as PR #374); PR 5 slices committed on `chore/preview-release-consistency`.
+- Not started yet: observe a real pull-request run and one release-candidate dispatch; primary-checkout preview smoke and deployment consistency runs; decide whether `ci_impact` selection should later gate workflow jobs.
 
 ## Recovery Receipt
 
@@ -37,5 +37,5 @@ Out of scope: `server/`, `web/src/`, `openapi/`, `scripts/validate_docker_isolat
 
 ## Current Recovery Point
 
-- Branch `chore/validation-ci-discipline` carries the PR 3 implementation commits; the lead integrates.
-- Next step: after integration and push, observe one pull-request run that exercises the extended `Required checks passed` verification and record the result in the trace.
+- Branch `chore/preview-release-consistency` carries the PR 5 implementation commits (preview lifecycle, recovery, deployment consistency, release-candidate workflow, docs); the lead integrates.
+- Next step: after integration and push, observe one pull-request run with the fixed cross-check and one release-candidate dispatch, then run the documented primary-checkout follow-ups; record results in the trace.

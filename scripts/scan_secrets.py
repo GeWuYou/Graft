@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scan the complete PR history and recognize one exact synthetic test finding."""
+"""Scan the complete PR history and recognize known synthetic test findings."""
 from __future__ import annotations
 
 import argparse
@@ -12,31 +12,51 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SCANNER_IMAGE = "ghcr.io/trufflesecurity/trufflehog@sha256:2ec535840f860aa27f11fee20222fb790326ecd66325c96bd49d02ec6af46eca"
-SYNTHETIC_FINDING = {
-    "detector": "Postgres",
-    "raw_sha256": "bbdae61f9b06d7ba875710ecf5b5573b085f30143a90ef32444a70e50c935c2e",
-    "file": "scripts/test_runtime_failure_diagnostics.py",
-    "commit": "d8172f6eafac645051c832e81e8b0ba22d153bb6",
-    "line": 45,
-    "reason": "Historical test fixture uses a fixed invented URI solely to verify credential redaction. Its invented host can produce a verification error. Verified findings still block. The current test composes it at runtime.",
-}
+SYNTHETIC_FINDINGS = [
+    {
+        "detector": "Postgres",
+        "raw_sha256": "bbdae61f9b06d7ba875710ecf5b5573b085f30143a90ef32444a70e50c935c2e",
+        "file": "scripts/test_runtime_failure_diagnostics.py",
+        "commit": "d8172f6eafac645051c832e81e8b0ba22d153bb6",
+        "line": 45,
+        "reason": "Historical test fixture uses a fixed invented URI solely to verify credential redaction. Its invented host can produce a verification error. Verified findings still block. The current test composes it at runtime.",
+    },
+    {
+        "detector": "Postgres",
+        "raw_sha256": "f70d79c0964d779078ce1d8890c855a879f79d59d13cb912b26a074455facf58",
+        "file": "scripts/test_browser_acceptance.py",
+        "commit": "c1501a2b55cb4a3561e8e61362f0895743dfdade",
+        "line": 245,
+        "reason": "Historical sanitization test fixture used a fixed invented DSN solely to verify credential redaction. Verified findings still block. The current test composes the credential at runtime.",
+    },
+]
 
 
-def known_synthetic_finding(finding: dict) -> bool:
+def match_synthetic_finding(finding: dict) -> dict | None:
+    """Return the registered synthetic entry this finding matches exactly, or None."""
     try:
         location = finding.get("SourceMetadata", {}).get("Data", {}).get("Git", {})
     except AttributeError:
-        return False
+        return None
     if not isinstance(location, dict):
-        return False
+        return None
     raw = finding.get("Raw")
-    return (
-        finding.get("DetectorName") == SYNTHETIC_FINDING["detector"]
-        and finding.get("Verified") is False
-        and isinstance(raw, str)
-        and hashlib.sha256(raw.encode()).hexdigest() == SYNTHETIC_FINDING["raw_sha256"]
-        and all(location.get(key) == SYNTHETIC_FINDING[key] for key in ("file", "commit", "line"))
-    )
+    if not isinstance(raw, str):
+        return None
+    digest = hashlib.sha256(raw.encode()).hexdigest()
+    for entry in SYNTHETIC_FINDINGS:
+        if (
+            finding.get("DetectorName") == entry["detector"]
+            and finding.get("Verified") is False
+            and digest == entry["raw_sha256"]
+            and all(location.get(key) == entry[key] for key in ("file", "commit", "line"))
+        ):
+            return entry
+    return None
+
+
+def known_synthetic_finding(finding: dict) -> bool:
+    return match_synthetic_finding(finding) is not None
 
 
 def evaluate_scan(output: str, exit_code: int) -> tuple[int, int]:
@@ -70,10 +90,20 @@ def scan(root: Path, base: str, head: str) -> int:
     with tempfile.TemporaryFile(mode="w+t") as output, tempfile.TemporaryFile(mode="w+t") as diagnostics:
         result = subprocess.run(command, cwd=root, stdout=output, stderr=diagnostics, timeout=480)
         output.seek(0)
-        blocked, accepted = evaluate_scan(output.read(), result.returncode)
+        scanned_output = output.read()
+    blocked, accepted = evaluate_scan(scanned_output, result.returncode)
     print(f"Secret scan completed with {blocked} blocking findings and {accepted} exact synthetic fixture findings")
     if accepted:
-        print(SYNTHETIC_FINDING["reason"])
+        # evaluate_scan already validated every line, so re-parsing for reasons is safe.
+        reasons: list[str] = []
+        for line in scanned_output.splitlines():
+            if not line.strip():
+                continue
+            entry = match_synthetic_finding(json.loads(line))
+            if entry is not None and entry["reason"] not in reasons:
+                reasons.append(entry["reason"])
+        for reason in reasons:
+            print(reason)
     return 1 if blocked else 0
 
 

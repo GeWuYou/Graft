@@ -1,27 +1,38 @@
 # Validation Delivery Tooling Trace
 
-## 2026-11-20 Intake and PR 3 implementation batch
+## 2026-11-20 Intake and PR 3 batch
 
-- Long-running `optimize` work, `docs/automation`; active topic only (no design, roadmap, or ADR). `kind: optimize` extends the ADR-003 v1 vocabulary; left for the ADR owner to reconcile.
-- Evidence reuse: plans bind head SHA and SHA-256 digests with per-file reasons and coverage; plan mode fails on empty selection, missing tests, or coverage gaps; `--compare-report` verifies previous reports fail-closed; `--report-out` persists executed reports; `just check-local-verify` verifies then executes.
-- Check suite: six groups from Justfile/workflow reality; cross-group `requires=` with auto-include and cycle/unknown rejection; independent failures; process-level deadline with process-group kill; JSON + terminal summary; self-ignored logs under `.artifacts/checks/<group>/`.
-- CI impact: conservative path-to-job mapping; unknown/workflow/script/toolchain/image surfaces force FULL; subsets always include hygiene and summary jobs. Advisory only.
-- Workflow: grouped jobs; `web-check` timeout; `Required checks passed` needs every other job and verifies every job of the current run/attempt/SHA via the Actions API with only the push-event Secret Scan skip allowed; job names unchanged; push runs never cancelled.
-- Commits (base 270c2fb3c): 2edcdc3f6, 7902543de, 2e0cc9734, c621ce40c. The lead pushes and integrates.
+- Long-running `optimize` work, `docs/automation`; `kind: optimize` extends the ADR-003 v1 vocabulary; ADR owner to reconcile.
+- Evidence reuse (SHA-bound, fail-closed), grouped suite, conservative CI impact, `Required checks passed` run/attempt/SHA cross-check with PR-head binding; push runs never cancelled.
+- Commits (base 270c2fb3c): 2edcdc3f6, 7902543de, 2e0cc9734, c621ce40c; corrections 8cb4d491c, 8bc145d60, d6b912342, 8977741a0, 56f7df274, ae83ae328. Detail in trace git history and `archive/trace-history-corrections.md`.
 
-## 2026-11-20 Corrections 1-2 (cross-check hardening)
+## 2026-11-20 PR 5 batch (preview lifecycle + deployment consistency + release candidates)
 
-- Correction 1: cross-check rewritten from a hard-coded `Authorization` header onto `gh api` with `GITHUB_TOKEN`; restored the emptied `check-governance` recipe; bound derived python/node consumer tests into digests/selection; fixed `--json` stdout purity and external `--artifacts-dir` resolution. Commits: 8cb4d491c, 8bc145d60, d6b912342, 8977741a0.
-- Correction 2: `gh api` with field flags defaults to POST and the jobs-list endpoint only supports GET, so the cross-check failed with HTTP 404 on run 44589471488; pinned `--method GET` with `-f` fields, semantics unchanged; regression test pins GET and forbids `-F`. Commit 56f7df274. Re-posted check-governance finding disposed `stale`.
-- Severity split, tooling notes and validation evidence: summarized in the tracking file, full text in this trace's git history.
+- `preview.py`: deterministic identity; common-dir registry; port refusal; cap; guarded destroy with evidence archives. `preview_recovery.py`: read-only reconciliation, ownership-proof gating, digest verification. `check_deployment_consistency.py`: no-acceptable-5xx default, fail-closed revision markers. `release-candidate.yml`: pinned trivy, ghcr candidate tags, `release.json` binding, idempotent `rc-` tags avoiding `v*`. Justfile section; two docs.
+- Commits: 25613647d, 69a9123d0, 30a0617d7, 3d8a622ab, 68dcd57c7, ff5ca9070.
 
-## 2026-11-20 Correction 3 (PR head SHA binding)
+## 2026-11-20 PR 4 batch (browser acceptance harness)
 
-- Confirmed by CI: on pull_request events `github.sha` is the merge commit (3652e9e33) while every job's `head_sha` in the Actions jobs-list is the PR branch head (763b05fdd), so the `job.head_sha != HEAD_SHA` check failed for all 13 jobs (run 44592526857).
-- Fixed: `HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}` — PR head on pull_request events, `github.sha` otherwise; GET with `-f` fields, conclusion==success, push-only Secret Scan skip, fail-closed behavior and the summary-job exclusion unchanged. Regression test pins the binding and the fallback.
-- Disposition: fixed. Commit: ae83ae328 (fix). Validation: nine-module bundle 100 tests OK; actionlint clean; heredoc compile check clean.
+- `browser_acceptance.py` (suite/engine/tier registry, zero retries, sanitized per-attempt reports), `browser/serve_dist.py`, `tests/browser/` overlay + specs, `TestSeedBrowserFixture` test-only seeds, docs, Justfile section.
+- Commits: c1501a2b5, 77612a329, 9c335138c, 1c3b193f5, 997d43575, 16fe0722b.
+
+## 2026-11-20/21 PR 5 corrections 1-4 (2-4 standing-authorized per D1)
+
+- C1 (7 fixed, 1 partial): identity suggestions, orphan baseline, IDENTITY=TASK_ID claims, restart cap, bare tag, `accepted_status`, non-blocking unfixed scan bound into `release.json`, docs. Commits: 2cd8ed20d, 35b13d50a, e832f0f77, 476f49f1b, a93444916, 27bad57c1.
+- C2 (5 P1 real): workspace release-binary path (4634415765); registry flock + in-lock allocation/cap (4634415791); instance-scoped backups (4634415825); unhealthy running restored (4634415848); destroy reclaims container-owned data, retryable `cleanup_failed` (4634415808). Commits: 4adf9e6d4, 09848a85b.
+- C3 (3 P1 real): assets resolve against the final URL after redirects; missing-files destroy tears down by recorded project, retryable; recovery withholds suggestions for running-or-unknown stacks. Commits: 2fb131273, f562536fd, 2666dc4b7.
+- C4 (1 P1 real, thread 4645472263): compose child env strips every key the instance `.env` owns plus file-selection controls; exported settings cannot override port, image or per-instance volumes (shell env beats `--env-file`).
+- Validation after C4: 87 tests OK, `git diff --check` clean.
+
+## 2026-11-20 PR 4 corrections 1-3 (1 lead-verified + 2 standing-authorized per D1)
+
+- C1 (Secret Scan + 15 Greptile findings, all real): proof anchors in `archive/trace-history-corrections.md`. Secret Scan = invented DSN in the sanitization fixture (c1501a2b5, raw_sha256 f70d79c0…acf58), registered per synthetic-fixture policy in 7ac2f3c8c; current test composes the credential at runtime. eda72736d streaming proxy + per-run project + suite parsing; 39ab2e5f5 authenticated fixture session + envelope-correct specs; 45 unit tests incl. in-process proxy servers.
+- C2: teardown test contained in `TemporaryDirectory`; unused `browserEnv` import removed (CodeQL). Commit 915b507b0.
+- C3: per-attempt session state files with regression-pinned harness↔TS contract; daemon suites assert live list state on real pages. Commit 501b0e6ed.
 
 ## Next Steps
 
-- Observe a real pull-request run with the fixed cross-check after the lead pushes.
-- Later batch: evaluate gating workflow jobs with `scripts/ci_impact.py` output; that changes CI behavior and needs its own scope and acceptance.
+- After integration: observe a real pull-request run and one release-candidate dispatch.
+- Primary-checkout follow-ups (commands in docs): preview smoke, deployment consistency with `--expect-revision` once web declares markers, chromium local-tier browser run.
+- Later batch: gating workflow jobs with `ci_impact.py` output (own scope).
+- ADR owner: reconcile the `kind: optimize` vocabulary.
