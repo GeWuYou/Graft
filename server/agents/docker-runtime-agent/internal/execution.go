@@ -534,12 +534,41 @@ func recoverExecutionJournals(ctx context.Context, client *http.Client, c config
 	if err != nil {
 		return err
 	}
+	now := time.Now().UTC()
 	for _, journal := range journals {
+		if executionJournalLeaseExpired(journal, now) {
+			if err := recoverExpiredExecutionJournal(ctx, client, c, journal); err != nil {
+				return err
+			}
+			continue
+		}
 		if err := executeLease(ctx, client, c, journal.Lease); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// executionJournalLeaseExpired 判断持久化租约是否已经整体过期；到期续租必被服务器拒绝。
+func executionJournalLeaseExpired(journal executionJournal, now time.Time) bool {
+	return !journal.Lease.LeaseExpiresAt.After(now) || !journal.Lease.AbsoluteDeadlineAt.After(now)
+}
+
+// recoverExpiredExecutionJournal 把已过期租约的执行日志收敛为交付的中断回执并清除。
+// 保留该日志会让每轮恢复都从必被拒绝的续租开始返回，服务器已重新武装的恢复阶段永远无法被领取。
+// 身份失效继续失败关闭；其余回执拒绝表示服务器已按自身事实收敛该阶段，此时清除过时日志并放行本轮领取。
+func recoverExpiredExecutionJournal(ctx context.Context, client *http.Client, c config, journal executionJournal) error {
+	if journal.Phase != executionJournalTerminal {
+		journal.Phase, journal.Outcome, journal.FailureCode, journal.FailureClass = executionJournalTerminal, "needs_attention", failureInterrupted, string(moduleapi.ExecutionFailureClassUnknown)
+		if err := saveExecutionJournal(c.StateDir, journal); err != nil {
+			return err
+		}
+	}
+	err := replayTerminalExecution(ctx, client, c, journal)
+	if err == nil || errors.Is(err, errAgentIdentityRejected) {
+		return err
+	}
+	return removeExecutionJournal(c.StateDir, journal.Lease.ID)
 }
 
 func waitExecutionPoll(ctx context.Context, interval time.Duration) error {

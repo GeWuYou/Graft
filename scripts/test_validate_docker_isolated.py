@@ -14,7 +14,7 @@ import subprocess
 from unittest.mock import Mock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from validate_docker_isolated import Fixture, OfficialFixture, LOCAL_REQUIRED_SCENARIOS, completed_official_install, controller_receipt, image_archive_identity, require_local_acceptance, validate_topology
+from validate_docker_isolated import Fixture, OfficialFixture, AGENT_REQUIRED_SCENARIOS, LOCAL_REQUIRED_SCENARIOS, completed_official_install, controller_receipt, image_archive_identity, require_agent_acceptance, require_local_acceptance, validate_topology
 
 
 def image_archive_fixture(path, *, index=False, revision="a" * 40, architecture="amd64", tamper=False):
@@ -605,6 +605,214 @@ class RuntimeRepairEvidenceTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "invalid application identity"):
                 fixture.persisted_application("app_'; DELETE FROM applications")
             fixture.compose.assert_not_called()
+
+
+class RecoveryScenarioTests(unittest.TestCase):
+    """Bounded automatic recovery acceptance: scenario registration, probe wiring and assertion helpers."""
+
+    def fixture(self, directory):
+        fixture = Fixture.__new__(Fixture)
+        fixture.directory = Path(directory)
+        fixture.state = {"project": "graft-isolated-recovery-test", "execution_mode": "agent"}
+        fixture.environment = {"GRAFT_CONFORMANCE_BACKEND_PORT": "28080"}
+        fixture.token = "synthetic-fixture-token"
+        fixture.compose = Mock(return_value="")
+        fixture.record = Mock()
+        return fixture
+
+    def clock(self, ticks):
+        fake = Mock()
+        fake.monotonic = Mock(side_effect=list(ticks))
+        fake.sleep = Mock()
+        return patch("validate_docker_isolated.time", fake)
+
+    def test_recovery_scenarios_register_in_both_gates(self):
+        self.assertIn("compose-material-stage-code", LOCAL_REQUIRED_SCENARIOS)
+        for scenario in ("agent-claim-admission-rejected", "agent-recovery-resume", "agent-recovery-budget-exhausted"):
+            self.assertIn(scenario, AGENT_REQUIRED_SCENARIOS)
+        complete = [{"scenario": name, "status": "passed"} for name in sorted(AGENT_REQUIRED_SCENARIOS)]
+        require_agent_acceptance(complete)
+        for status in ("unverified", "failed", "observed"):
+            with self.subTest(status=status):
+                incomplete = [item for item in complete if item["scenario"] != "agent-recovery-resume"]
+                incomplete.append({"scenario": "agent-recovery-resume", "status": status})
+                with self.assertRaisesRegex(RuntimeError, "agent-recovery-resume"):
+                    require_agent_acceptance(incomplete)
+        with self.assertRaisesRegex(RuntimeError, "agent-recovery-resume"):
+            require_agent_acceptance([item for item in complete if item["scenario"] != "agent-recovery-resume"])
+
+    def test_material_stage_code_asserts_the_delivered_owner_shape(self):
+        # CI correction (run 44777511166): local settlements fold the bounded stage into the stable failure
+        # code local_material_resolve_failed and keep failure_stage empty; agent settlements project
+        # failure_stage=material_resolve. The probe must assert each owner's delivered shape exactly.
+        for execution_mode, task_detail, stage_items, expected in (
+                ("agent", {"failure_stage": "material_resolve"},
+                 [{"failure_stage": "material_resolve"}], "passed"),
+                ("agent", {"failure_stage": "material_resolve"}, [{"failure_stage": None}], "failed"),
+                ("local", {"failure_code": "local_material_resolve_failed", "failure_stage": None},
+                 [{"failure_code": "local_material_resolve_failed", "failure_stage": None}], "passed"),
+                ("local", {"failure_code": "local_material_resolve_failed", "failure_stage": None},
+                 [{"failure_code": "provider_operation_failed", "failure_stage": None}], "failed"),
+                ("local", {"failure_code": "local_material_resolve_failed", "failure_stage": None}, [], "failed"),
+                ("agent", {"failure_code": "local_material_resolve_failed", "failure_stage": None},
+                 [{"failure_code": "local_material_resolve_failed"}], "failed")):
+            with self.subTest(execution_mode=execution_mode, expected=expected), tempfile.TemporaryDirectory() as directory:
+                fixture = self.fixture(directory)
+                fixture.state["execution_mode"] = execution_mode
+                fixture.api = Mock(side_effect=[
+                    (200, {"data": {"id": 3, "status": "failed", **task_detail}}),
+                    (200, {"data": {"items": stage_items}})])
+                fixture.material_stage_code_probe(3)
+                self.assertEqual(fixture.record.call_args.args, ("compose-material-stage-code", expected))
+
+    def test_latest_claim_admission_reads_only_target_detail_projection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            fixture.api = Mock(side_effect=[
+                (200, {"data": {"items": [{"id": 4}]}}),
+                (200, {"data": {"agent": {"claim_admission": {"class": "identity_rejected"}}}})])
+            self.assertEqual(fixture.latest_claim_admission(), {"class": "identity_rejected"})
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            fixture.api = Mock(side_effect=[
+                (200, {"data": {"items": [{"id": 4}]}}),
+                (200, {"data": {"agent": {}}}),
+                (200, {"data": {"items": [{"id": 5}]}}),
+                (200, {"data": {"agent": {"claim_admission": None}}})])
+            self.assertIsNone(fixture.latest_claim_admission())
+
+    def test_claim_admission_probe_diverges_capability_version_and_restores_it(self):
+        # Generation mutation cannot reject fresh claims (the identity middleware derives the generation
+        # from the server binding), so the probe must diverge the capability binding version and restore
+        # the original value exactly.
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            fixture.sql = Mock(side_effect=lambda statement: "5|runtime/v1" if statement.startswith("SELECT") else "")
+            fixture.latest_claim_admission = Mock(side_effect=[None, {"class": "identity_rejected", "observed_at": "t"}])
+            with self.clock([0, 1, 2, 10 ** 9]):
+                fixture.claim_admission_probe()
+            self.assertEqual(fixture.record.call_args.args, ("agent-claim-admission-rejected", "passed"))
+            statements = [call.args[0] for call in fixture.sql.call_args_list]
+            self.assertIn("runtime_target_agent_capability_bindings", statements[0])
+            self.assertIn("capability_version = 'graft-claim-rejection-fixture'", statements[1])
+            self.assertIn("capability_version = 'runtime/v1'", statements[-1])
+            self.assertIn("WHERE id = 5", statements[-1])
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            fixture.sql = Mock(side_effect=lambda statement: "5|runtime/v1" if statement.startswith("SELECT") else "")
+            fixture.latest_claim_admission = Mock(return_value={"class": "no_work"})
+            with self.clock([0, 10 ** 9]):
+                fixture.claim_admission_probe()
+            self.assertEqual(fixture.record.call_args.args, ("agent-claim-admission-rejected", "failed"))
+            statements = [call.args[0] for call in fixture.sql.call_args_list]
+            self.assertEqual(statements[-1], "UPDATE runtime_target_agent_capability_bindings SET capability_version = 'runtime/v1' WHERE id = 5")
+
+    def test_wait_task_failure_code_matches_converged_diagnostics_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            fixture.api = Mock(side_effect=[
+                (200, {"data": {"status": "needs_attention", "failure_code": "external_execution_lease_expired"}}),
+                (200, {"data": {"status": "needs_attention", "failure_code": "auto_recovery_budget_exhausted",
+                                "failure_stage": None, "failure_class": "internal"}})])
+            with self.clock([0, 1, 2]):
+                converged = fixture.wait_task_failure_code(9, "auto_recovery_budget_exhausted", timeout=300)
+            self.assertEqual(converged["failure_code"], "auto_recovery_budget_exhausted")
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            fixture.api = Mock(return_value=(200, {"data": {"status": "needs_attention", "failure_code": "other"}}))
+            with self.clock([0, 1, 10 ** 9]):
+                timed_out = fixture.wait_task_failure_code(9, "auto_recovery_budget_exhausted", timeout=300)
+            self.assertEqual(timed_out["status"], "timeout")
+            self.assertEqual(timed_out["observed_failure_code"], "other")
+
+    def test_wait_for_engine_container_polls_until_the_effect_is_visible(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            fixture.engine = Mock(side_effect=["other", "graft-recovery-probe-test-app"])
+            with self.clock([0, 1, 2]):
+                self.assertTrue(fixture.wait_for_engine_container("graft-recovery-probe-test-app"))
+
+    def test_recovery_resume_probe_passes_only_on_single_idempotent_replay(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            (fixture.directory / "trust-evidence.json").write_text(json.dumps({"bootstrap": {"target_id": 1}}))
+            fixture.api = Mock(side_effect=[
+                (201, {"data": {"application_id": "app-x", "workspace_path": "/workspace"}}),
+                (202, {"data": {"task_id": 9}}),
+                (200, {"data": {"items": [{"attempt": 2, "max_attempts": 2, "status": "success"}]}})])
+            fixture.engine = Mock(side_effect=["graft-recovery-resume-probe-test-app", "id started", "id started"])
+            fixture.sql = Mock(return_value="")
+            fixture.wait_task = Mock(return_value={"id": 9, "status": "needs_attention"})
+            fixture.wait_task_status = Mock(return_value={"id": 9, "status": "success"})
+            with patch("validate_docker_isolated.secrets.token_hex", return_value="test"):
+                fixture.recovery_resume_probe()
+            record = fixture.record.call_args
+            self.assertEqual(record.args, ("agent-recovery-resume", "passed"))
+            self.assertTrue(record.kwargs["same_container_and_started_at"])
+            self.assertEqual(record.kwargs["resumed_stage_attempt"], 2)
+            statements = [call.args[0] for call in fixture.sql.call_args_list]
+            self.assertIn("retry_if_idempotent", statements[0])
+            self.assertIn("GREATEST(max_attempts, attempt + 1)", statements[0])
+            self.assertIn("task_id = 9", statements[0])
+            compose_calls = [call.args for call in fixture.compose.call_args_list]
+            self.assertEqual(compose_calls.count(("kill", "--signal", "SIGKILL", "docker-runtime-agent")), 1)
+            self.assertEqual(compose_calls.count(("up", "-d", "--wait", "docker-runtime-agent")), 1)
+        for resumed, attempt, expected in (({"status": "timeout"}, 2, "failed"), ({"status": "success"}, 3, "failed"),
+                                           ({"status": "success"}, 2, "passed")):
+            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as directory:
+                fixture = self.fixture(directory)
+                (fixture.directory / "trust-evidence.json").write_text(json.dumps({"bootstrap": {"target_id": 1}}))
+                fixture.api = Mock(side_effect=[
+                    (201, {"data": {"application_id": "app-x", "workspace_path": "/workspace"}}),
+                    (202, {"data": {"task_id": 9}}),
+                    (200, {"data": {"items": [{"attempt": attempt, "max_attempts": 2, "status": "success"}]}})])
+                fixture.engine = Mock(side_effect=["graft-recovery-resume-probe-test-app", "id started", "id started"])
+                fixture.sql = Mock(return_value="")
+                fixture.wait_task = Mock(return_value={"id": 9, "status": "needs_attention"})
+                fixture.wait_task_status = Mock(return_value=resumed)
+                with patch("validate_docker_isolated.secrets.token_hex", return_value="test"):
+                    fixture.recovery_resume_probe()
+                self.assertEqual(fixture.record.call_args.args, ("agent-recovery-resume", expected))
+
+    def test_recovery_budget_probe_requires_converged_exhaustion_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            (fixture.directory / "trust-evidence.json").write_text(json.dumps({"bootstrap": {"target_id": 1}}))
+            fixture.api = Mock(side_effect=[
+                (201, {"data": {"application_id": "app-y", "workspace_path": "/workspace"}}),
+                (202, {"data": {"task_id": 11}})])
+            fixture.task_stages = Mock(side_effect=[
+                [{"status": "running", "attempt": 2, "max_attempts": 2}],
+                [{"status": "unknown", "attempt": 2, "max_attempts": 2}]])
+            fixture.engine = Mock(side_effect=["graft-recovery-budget-probe-test-app", "id started", "id started"])
+            fixture.sql = Mock(return_value="")
+            fixture.wait_task = Mock(return_value={"id": 11, "status": "needs_attention"})
+            fixture.wait_task_failure_code = Mock(return_value={"id": 11, "status": "needs_attention",
+                "failure_code": "auto_recovery_budget_exhausted", "failure_stage": None, "failure_class": "internal"})
+            with patch("validate_docker_isolated.secrets.token_hex", return_value="test"), self.clock([0, 1, 2, 3]):
+                fixture.recovery_budget_probe()
+            record = fixture.record.call_args
+            self.assertEqual(record.args, ("agent-recovery-budget-exhausted", "passed"))
+            self.assertEqual((record.kwargs["stage_attempt"], record.kwargs["stage_max_attempts"]), (2, 2))
+            self.assertTrue(record.kwargs["same_container_and_started_at"])
+            statements = [call.args[0] for call in fixture.sql.call_args_list]
+            self.assertIn("GREATEST(max_attempts, 2)", statements[0])
+            compose_calls = [call.args for call in fixture.compose.call_args_list]
+            self.assertEqual(compose_calls.count(("kill", "--signal", "SIGKILL", "docker-runtime-agent")), 2)
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            (fixture.directory / "trust-evidence.json").write_text(json.dumps({"bootstrap": {"target_id": 1}}))
+            fixture.api = Mock(side_effect=[
+                (201, {"data": {"application_id": "app-y", "workspace_path": "/workspace"}}),
+                (202, {"data": {"task_id": 11}})])
+            fixture.task_stages = Mock(return_value=[{"status": "unknown", "attempt": 2, "max_attempts": 2}])
+            fixture.engine = Mock(side_effect=["graft-recovery-budget-probe-test-app", "id started", "id started"])
+            fixture.sql = Mock(return_value="")
+            fixture.wait_task = Mock(return_value={"id": 11, "status": "needs_attention"})
+            fixture.wait_task_failure_code = Mock(return_value={"id": 11, "status": "timeout", "observed_failure_code": None})
+            with patch("validate_docker_isolated.secrets.token_hex", return_value="test"), self.clock([0, 1, 2, 3, 10 ** 9]):
+                fixture.recovery_budget_probe()
+            self.assertEqual(fixture.record.call_args.args, ("agent-recovery-budget-exhausted", "failed"))
 
 
 if __name__ == "__main__":

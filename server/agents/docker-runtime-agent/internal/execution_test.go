@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"graft/server/internal/moduleapi"
 )
 
 func TestExecutionTransportRenewsLogsAndSettlesWithoutSecrets(t *testing.T) {
@@ -264,6 +266,114 @@ func TestExecutionLoopRetriesTransientClientFailureUntilCancellation(t *testing.
 	err := runExecutionLoop(ctx, config{StateDir: t.TempDir(), PollInterval: time.Millisecond, RenewBefore: time.Minute}, state, newAdmissionTracker(t.TempDir()))
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("execution loop error=%v", err)
+	}
+}
+
+func TestRecoverExecutionJournalsSettlesExpiredJournalInterruptionAndUnblocksClaims(t *testing.T) {
+	stateDir := t.TempDir()
+	// 代理被杀后租约整体过期；服务器已把阶段收敛为 unknown，持久化日志不得阻塞恢复后的领取。
+	expired := executionLease{ID: "lease-expired", FenceToken: "fence-expired", OperationID: "application.compose.up.v1", Protocol: "runtime-agent/v1", Capability: "compose_execution", LeaseTTLMS: 1000,
+		LeaseExpiresAt: time.Now().Add(-time.Minute), AbsoluteDeadlineAt: time.Now().Add(-time.Second)}
+	if err := saveExecutionJournal(stateDir, executionJournal{Lease: expired, Phase: executionJournalRunning}); err != nil {
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	receipts := 0
+	var receipt executionReceipt
+	claims := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		mu.Lock()
+		defer mu.Unlock()
+		switch r.URL.Path {
+		case "/agent/v1/execution-leases/lease-expired/receipts":
+			receipts++
+			_ = json.NewDecoder(r.Body).Decode(&receipt)
+			_ = json.NewEncoder(w).Encode(executionSettlement{TaskID: expired.TaskID, StageID: expired.StageID})
+		case executionClaimPath:
+			claims++
+			w.WriteHeader(http.StatusNoContent)
+		case ledgerSnapshotPath:
+			_ = json.NewEncoder(w).Encode(ledgerSnapshot{Generation: 1, SnapshotID: strings.Repeat("a", 64), SnapshotDigest: strings.Repeat("b", 64), ExpiresAt: time.Now().Add(time.Minute), ObservedAt: time.Now()})
+		case telemetryPath:
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	if err := recoverExecutionJournals(context.Background(), server.Client(), config{AgentURL: server.URL, StateDir: stateDir}); err != nil {
+		t.Fatalf("recover expired journal: %v", err)
+	}
+	if receipts != 1 || receipt.Outcome != "needs_attention" || receipt.FailureCode != failureInterrupted || receipt.FailureClass != string(moduleapi.ExecutionFailureClassUnknown) {
+		t.Fatalf("interrupted receipt = count:%d %#v", receipts, receipt)
+	}
+	if _, err := os.Stat(executionJournalPath(stateDir, expired.ID)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expired journal not cleared: %v", err)
+	}
+	// 恢复不再提前返回：同一轮后续领取可以拿到服务器已重新武装的阶段。
+	pollExecutionCapabilities(context.Background(), server.Client(), config{AgentURL: server.URL, StateDir: stateDir, ProviderID: "docker", CapabilityVersion: "docker/v1", Capabilities: []string{"compose_execution"}}, persistedState{}, newAdmissionTracker(stateDir))
+	mu.Lock()
+	defer mu.Unlock()
+	if claims == 0 {
+		t.Fatal("expired journal blocked the recovery cycle from claiming the recovered stage")
+	}
+}
+
+func TestRecoverExecutionJournalsClearsExpiredJournalWhenServerSupersedes(t *testing.T) {
+	stateDir := t.TempDir()
+	expired := executionLease{ID: "lease-superseded", FenceToken: "fence-superseded", OperationID: "application.compose.up.v1", Protocol: "runtime-agent/v1", Capability: "compose_execution", LeaseTTLMS: 1000,
+		LeaseExpiresAt: time.Now().Add(-time.Hour), AbsoluteDeadlineAt: time.Now().Add(-time.Minute)}
+	if err := saveExecutionJournal(stateDir, executionJournal{Lease: expired, Phase: executionJournalRunning}); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 服务器已按自身事实收敛该阶段（例如预算耗尽或更晚的回执）：中断回执被整体拒绝。
+		if r.URL.Path == "/agent/v1/execution-leases/lease-superseded/receipts" {
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
+		t.Fatalf("unexpected path %s", r.URL.Path)
+	}))
+	defer server.Close()
+	if err := recoverExecutionJournals(context.Background(), server.Client(), config{AgentURL: server.URL, StateDir: stateDir}); err != nil {
+		t.Fatalf("superseded journal must not block the recovery cycle: %v", err)
+	}
+	if _, err := os.Stat(executionJournalPath(stateDir, expired.ID)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("superseded journal not cleared: %v", err)
+	}
+}
+
+func TestRecoverExecutionJournalsStillFailsClosedForOtherRejections(t *testing.T) {
+	unexpired := executionLease{ID: "lease-active", FenceToken: "fence-active", OperationID: "application.compose.up.v1", Protocol: "runtime-agent/v1", Capability: "compose_execution", LeaseTTLMS: 60000,
+		LeaseExpiresAt: time.Now().Add(time.Minute), AbsoluteDeadlineAt: time.Now().Add(time.Hour)}
+	for _, rejection := range []struct {
+		name, path string
+		status     int
+	}{
+		{name: "identity", path: "/agent/v1/execution-leases/lease-active/renew", status: http.StatusForbidden},
+		{name: "transport", path: "/agent/v1/execution-leases/lease-active/renew", status: http.StatusInternalServerError},
+	} {
+		t.Run(rejection.name, func(t *testing.T) {
+			stateDir := t.TempDir()
+			if err := saveExecutionJournal(stateDir, executionJournal{Lease: unexpired, Phase: executionJournalRunning}); err != nil {
+				t.Fatal(err)
+			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == rejection.path {
+					w.WriteHeader(rejection.status)
+					return
+				}
+				t.Fatalf("unexpected path %s", r.URL.Path)
+			}))
+			defer server.Close()
+			if err := recoverExecutionJournals(context.Background(), server.Client(), config{AgentURL: server.URL, StateDir: stateDir}); err == nil {
+				t.Fatalf("unexpired journal renewal rejection must keep failing closed")
+			}
+			if _, err := os.Stat(executionJournalPath(stateDir, unexpired.ID)); err != nil {
+				t.Fatalf("rejected journal must stay on disk for recovery: %v", err)
+			}
+		})
 	}
 }
 

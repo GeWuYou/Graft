@@ -1,57 +1,53 @@
 # Runtime Diagnostics Recovery Trace
 
-## 2026-11-20 Bootstrap (worker track1-diagnostics)
+## 2026-11-20 Delivered Diagnostics History (PR #376, merged 9abe8cc1c)
 
-- Bounded cross-boundary optimize topic. Locked: additive-only
-  contract, sanitized summary (no paths/credentials/raw stderr), unchanged task ExecutionAdmission semantics.
+- Additive-only contract locked (claim admission via new schema, frozen diagnostic_code enum); delivered
+  settlement diagnostics, agent claim admission telemetry, provider redaction, readiness projection, web
+  presentation; corrections 1-3 fixed admission timing, summary provenance, and latest-snapshot
+  scheduling eligibility (d51d047f5).
 
-## 2026-11-20 Contract Shape Decision
+## 2026-11-21 Bounded Auto-Recovery Round (worker track1-recovery, PR 2)
 
-- Extending RuntimeTargetAgent.diagnostic_code enum fails the ADDITIVE-ONLY gate (enum-value-added level 3;
-  empty approvals ledger). Lead-approved: keep it frozen; surface the tri-state via additive schema
-  runtime-target-agent-claim-admission.yaml as claim_admission.class (no_work/identity_rejected/transport_failed)
-  + observed_at. just openapi-breaking = 0 findings after change.
+- Branch feature/bounded-execution-recovery from main 9abe8cc1c; scope: server/modules/task +
+  scripts/validate_docker_isolated.py + its unit tests + this topic; no openapi edits.
+- Store: candidates cover lease-expired unknown retry_if_idempotent external stages plus unclaimable
+  pending stages at attempt==max (startup hang defect, fixed); ResumeInterruptedRecovery atomically
+  resumes the needs_attention task with all matching unknown stages; ConvergeRecoveryBudgetExhausted
+  converges stage+task to needs_attention with budget-exhaustion diagnostics and exactly-once recovery
+  events. Runtime: reconcileInterruptedRecovery runs on the 30s convergence ticker; per-task dedupe,
+  conflicts skipped as lost races.
+- Decisions: auto path resumes only the runtime-recorded interruption signature
+  (failure_code=external_execution_lease_expired); manual_reconcile and explicit needs_attention
+  verdicts are never auto-replayed. Consumer retry_if_idempotent adoption is deferred to the owning
+  modules per the product roadmap (all current consumers submit manual_reconcile MaxAttempts=1).
+- Harness: compose-material-stage-code joins LOCAL_REQUIRED_SCENARIOS; three agent recovery scenarios
+  join a new AGENT_REQUIRED_SCENARIOS (local fixtures forbid the agent service). Recovery scenarios use
+  a documented store stand-in (RECOVERY_POLICY_STAND_IN_NOTE) solely to exercise the runtime policy path.
+- Primary-checkout follow-up (needs Docker + a registered task fixture): run validate_docker_isolated.py
+  init/up/probe with --execution-mode agent per tests/conformance/docker-runtime-agent/README.md.
 
-## 2026-11-20 Delivery Round (worker track1-diagnostics)
+## 2026-11-21 Correction History (PR #380)
 
-- Six logical commits: docs(ai-plan), feat(task) receipt settlement, feat(runtime) agent claim admission,
-  feat(contract) additive schema, feat(runtime-target) readiness projection, feat(web) presentation.
-- Evidence: openapi-check/breaking 0; validate backend 0 (migration gate, OpenAPI, lint, go test ./..., build);
-  web bun run check 0 (315 files/2202 tests); repo-pinned golangci-lint v2.15.0 installed (stale v2.12.2
-  could not load go1.27.4).
-- Gaps: no live-DB migration (worktree forbids it); projection keeps one bounded per-target read; re-enrollment
-  cadence is pre-existing platform behavior, out of scope.
+- Correction 1 (CI run 44777511166): local settlements deliver the material stage attribution as
+  failure_code=local_material_resolve_failed with failure_stage=NULL; the probe asserts each owner's
+  delivered shape (agent projects failure_stage=material_resolve).
+- Correction 2: admission probe diverges the capability binding version so fresh claims are rejected
+  with telemetry intact; agent expired journals settle the delivered interruption receipt and clear;
+  whole-task resume refuses with ErrRecoveryBlocked while any unknown stage is over budget.
 
-## 2026-11-20 Correction Round 1 (worker track1-diagnostics)
+## 2026-11-21 Correction 3 (threads 4645868796 + 4645868804 + lint)
 
-- Five lead-verified findings fixed, no contract changes: admission persistence refresh keeps an ongoing
-  rejection failing the local healthcheck; unchanged evidence re-reports on a 2-minute interval; concurrent
-  claims merge rejection > transport > no_work, only a fully healthy cycle clears; task store retry/recovery/CAS
-  resets clear failure_stage/failure_class with regressions; web renders the trusted summary with tests.
-  openapi-check 0, validate backend 0, bun check 0.
-
-## 2026-11-20 Correction Round 2 (worker track1-diagnostics)
-
-- REAL 1 (fixed): collectClaimResults delayed admission behind long leases; it now returns its WaitGroup and
-  pollExecutionCapabilities persists the merged conclusion and reports telemetry before waiting. Regression
-  TestPollExecutionCapabilitiesObservesAdmissionBeforeExecutionWait.
-- REAL 2 (fixed): taskDiagnosticSummary trusts failure_message only with failure_stage/failure_class provenance;
-  drawer composes via shared taskFailureDetail; locale + drawer tests prove the gate.
-- STALE: retries keep old details — reset since 0672c14c9 with regressions; summaries never appear — rendered
-  since 350a4e58a; admission.go:97/132 comments — duplicates of 34ae6011f intervals.
-
-## 2026-11-20 Correction Round 3 (worker track1-ledger-fix, user-authorized budget-exceeded)
-
-- REAL (fixed): ListActiveDockerAgentLedgerSnapshots filtered receipt_diagnostic IN ('', no_work) +
-  receipt_expires_at before the per-target pick, so an older unexpired healthy receipt masked the agent's latest
-  transport_failed/identity_rejected (or expired) receipt; the target stayed schedulable while the projection
-  showed degraded. Cause: row-level filter before per-target dedup.
-- Disposition: eligibility decided by each target's LATEST snapshot; the query ranks snapshots per target first
-  (ROW_NUMBER() OVER (PARTITION BY runtime_target_id ORDER BY sequence DESC, id DESC); DISTINCT ON is
-  PostgreSQL-only and would break the SQLite store tests), then applies the diagnostic+expiry filter to the
-  rank-1 row. Kept provider/generation/consumed_at/receipt_available/deleted guards, ordering, contract.
-- Regression TestAgentLedgerSchedulingEligibilityFollowsLatestSnapshot: latest transport_failed + older no_work →
-  not schedulable; latest no_work + older transport_failed → schedulable with latest snapshot; expired latest →
-  not schedulable. Fails against the pre-fix query on both blocking scenarios.
-- Evidence: go test runtime-target/... + build/... + task/store/... exit 0; validate backend exit 0; git diff
-  --check clean; committed in this round's fix(runtime-target) commit (not pushed).
+- Candidate starvation (4645868796): blocked tasks' resumable legs matched every pass and, under the
+  oldest-first limit of 100, starved newer recoverable tasks. The candidate query now excludes resumable
+  legs whose task still holds any unknown over-budget stage; exhausted converge-once legs vacate after
+  one pass, so every candidate slot makes bounded progress. Regression: 100 blocked tasks + 1 newer
+  recoverable task -> the newer leg is the only candidate and the reconcile resumes it.
+- Cancel stranding (4645868804): a cancellation recorded between candidate selection and the resume
+  transaction was overwritten (task reopened running with only a pending external stage). The resume
+  transaction now re-checks cancel_requested_at and its guarded UPDATE rejects recorded cancellations,
+  so the resume rolls back untouched and the cancel path completes; manual retry shares the protection.
+- Lint: ResumeInterruptedRecovery split into begin/guard/resume-stage helpers, all functions in
+  recovery_repository.go under cyclop 10; both golangci configs 0 issues on the moved merge-base.
+- Evidence: go test modules/task + agent internal ok; validate backend 0; harness unittest 45 ok;
+  git diff --check clean. Agent-mode scenarios remain live CI verification.
