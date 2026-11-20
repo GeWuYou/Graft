@@ -830,13 +830,33 @@ func (r *SQLRepository) resumeRetryableTask(ctx context.Context, tx *sql.Tx, tas
 	if task.Status != moduleapi.TaskStatusNeedsAttention && task.Status != moduleapi.TaskStatusFailed {
 		return ErrStateConflict
 	}
+	// 事务内复查取消请求：候选选择与恢复之间记录的取消必须获胜，否则重开的 running 任务
+	// 只剩 pending 外部阶段，取消请求无法完成，任务被永久搁浅。
+	if task.CancelRequestedAt != nil {
+		return ErrStateConflict
+	}
 	if err := r.guardExecutionResources(ctx, tx, task); err != nil {
 		return err
 	}
-	if err := r.transitionTaskWith(ctx, tx, TaskTransitionInput{TaskID: taskID, From: task.Status, To: moduleapi.TaskStatusRunning}); err != nil {
-		return fmt.Errorf("resume task for stage retry: %w", err)
+	if err := r.resumeTaskForRetry(ctx, tx, task); err != nil {
+		return err
 	}
 	return nil
+}
+
+// resumeTaskForRetry 把可恢复 Task 拉回 running 并按既有恢复语义清除失败与完成事实。
+// 取消请求在同一 UPDATE 条件内拒绝，闭合读取与写入之间并发取消的竞争窗口；
+// needs_attention 与 failed 到 running 的迁移合法性由调用方的状态守卫保证。
+func (r *SQLRepository) resumeTaskForRetry(ctx context.Context, tx *sql.Tx, task taskmodel.Task) error {
+	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
+		SET status = ?, current_stage_key = NULL, failure_code = NULL, failure_message = NULL,
+			failure_stage = NULL, failure_class = NULL, finished_at = NULL, duration_ms = NULL, updated_at = ?
+		WHERE id = ? AND status = ? AND cancel_requested_at IS NULL`),
+		moduleapi.TaskStatusRunning, time.Now().UTC(), task.ID, task.Status)
+	if err != nil {
+		return fmt.Errorf("resume task for stage retry: %w", err)
+	}
+	return expectOneAffected(result)
 }
 
 func (r *SQLRepository) markStagePendingForRetry(ctx context.Context, tx *sql.Tx, taskID uint64, stageID uint64, retryAt time.Time) error {
