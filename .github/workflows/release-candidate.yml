@@ -98,11 +98,15 @@ jobs:
         run: |
           set -euo pipefail
           build_time_utc="$(date -u -d "@$(git show -s --format=%ct HEAD)" +%Y-%m-%dT%H:%M:%SZ)"
-          mkdir -p .tmp/release-binary
+          mkdir -p "$GITHUB_WORKSPACE/.tmp/release-binary"
+          # `go -C server` re-roots relative paths under server/, so the
+          # output must be an explicit workspace-level path; the Docker
+          # release-binary build context reads exactly that directory.
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
             go -C server build -trimpath \
             -ldflags="-s -w -X graft/server/internal/buildinfo.version=${VERSION} -X graft/server/internal/buildinfo.gitCommit=${GITHUB_SHA} -X graft/server/internal/buildinfo.buildTimeUTC=${build_time_utc} -X graft/server/internal/buildinfo.gitTreeState=clean" \
-            -o .tmp/release-binary/graft-server-linux-amd64 ./cmd/graft
+            -o "$GITHUB_WORKSPACE/.tmp/release-binary/graft-server-linux-amd64" ./cmd/graft
+          test -f "$GITHUB_WORKSPACE/.tmp/release-binary/graft-server-linux-amd64"
 
       - name: Install workspace dependencies
         run: bun install --frozen-lockfile
