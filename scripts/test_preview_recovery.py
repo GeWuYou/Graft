@@ -120,7 +120,52 @@ class OwnershipProofTests(RecoveryFixture):
         self.assertIsNotNone(instance["destroy_suggestion"])
         command = instance["destroy_suggestion"]["command"]
         self.assertIn("--confirm-instance lost-task-222222222222", command)
-        self.assertIn("destroy --task \"lost-task\"", command)
+
+    def test_lost_worktree_suggestion_names_the_registered_identity(self):
+        # A lost worktree cannot re-derive the identity from --task (that
+        # derivation uses the surviving checkout path), so the suggested
+        # command must target the registered identity directly.
+        args = scan_args(identity="lost-task-222222222222")
+        args.claim_ownership = {"lost-task-222222222222"}
+        args.claim_task_id = {"lost-task-222222222222": "lost-task"}
+        with patch.object(preview_recovery, "resolve_state_dir",
+                          return_value=(self.root, True)):
+            report = preview_recovery.scan(args)
+        command = report["instances"][0]["destroy_suggestion"]["command"]
+        self.assertIn("destroy --identity lost-task-222222222222", command)
+        self.assertIn("--confirm-instance lost-task-222222222222", command)
+        self.assertNotIn(" --task ", command)
+
+    def test_identity_filter_does_not_flag_other_registered_instance_dirs(self):
+        # The --identity filter narrows the reports only; every other
+        # registered instance directory stays registered, and only true
+        # orphans are reported.
+        report = preview_recovery.scan(scan_args(identity="healthy-task-111111111111"))
+        unregistered = [path for path in report["unregistered_instance_dirs"]
+                        if "lost-task-222222222222" in path]
+        self.assertEqual(unregistered, [])
+        self.assertEqual(len(report["unregistered_instance_dirs"]), 1)
+        self.assertIn("orphan-333333333333", report["unregistered_instance_dirs"][0])
+        self.assertEqual([item["identity"] for item in report["instances"]],
+                         ["healthy-task-111111111111"])
+
+    def test_documented_claim_example_parses_and_applies(self):
+        # The documented ownership example in docs/development/preview-lifecycle.md
+        # passes --claim-task-id as an IDENTITY=TASK_ID pair.
+        with patch.object(preview_recovery, "resolve_state_dir",
+                          return_value=(self.root, True)):
+            parsed = preview_recovery.build_parser().parse_args([
+                "--identity", "lost-task-222222222222",
+                "--claim-ownership", "lost-task-222222222222",
+                "--claim-task-id", "lost-task-222222222222=lost-task"])
+            claims = preview_recovery.parse_claim_task_ids(parsed.claim_task_id)
+            self.assertEqual(claims, {"lost-task-222222222222": "lost-task"})
+            parsed.claim_ownership = set(parsed.claim_ownership)
+            parsed.claim_task_id = claims
+            report = preview_recovery.scan(parsed)
+        instance = report["instances"][0]
+        self.assertTrue(instance["ownership"]["proven"])
+        self.assertIsNotNone(instance["destroy_suggestion"])
 
     def test_wrong_task_or_identity_claim_stays_unproven(self):
         args = scan_args(identity="lost-task-222222222222")

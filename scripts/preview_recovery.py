@@ -128,7 +128,9 @@ def instance_report(entry: dict, state_root: Path, repository_bound: bool,
     # healthy running instance is never suggested for destruction.
     if proven and findings:
         suggestion = {
-            "command": (f"python3 scripts/preview.py destroy --task {json.dumps(entry.get('task_id'))} "
+            # A lost worktree cannot re-derive the identity from --task, so
+            # the suggestion must name the registered identity directly.
+            "command": (f"python3 scripts/preview.py destroy --identity {identity} "
                         f"--confirm-instance {identity}"),
             "ownership_proof": reason,
             "warning": "destroy removes containers, volumes and instance data",
@@ -150,6 +152,9 @@ def instance_report(entry: dict, state_root: Path, repository_bound: bool,
 def scan(args: argparse.Namespace) -> dict:
     state_root, repository_bound = resolve_state_dir(args)
     document = preview.read_registry(state_root)
+    # Orphan detection compares against the FULL registry; the --identity
+    # filter only narrows the per-instance reports, never the baseline.
+    registered_dirs = set(document.get("instances", {}).keys())
     entries = document.get("instances", {})
     if args.identity:
         entries = {key: value for key, value in entries.items() if key == args.identity}
@@ -158,7 +163,6 @@ def scan(args: argparse.Namespace) -> dict:
     instances = [instance_report(entry, state_root, repository_bound, args)
                  for entry in entries.values()]
     instance_dirs = state_root / "instances"
-    registered_dirs = {entry["identity"] for entry in entries.values()}
     unregistered_dirs = []
     if instance_dirs.is_dir():
         for path in sorted(instance_dirs.iterdir()):
@@ -197,21 +201,30 @@ def build_parser() -> argparse.ArgumentParser:
                         metavar="IDENTITY", help="Claim ownership of this instance identity")
     parser.add_argument("--claim-task-id", action="append", default=[],
                         metavar="IDENTITY=TASK_ID",
-                        help="Pair an identity claim with the registered task id")
+                        help="Claim the registered task id for one identity, as IDENTITY=TASK_ID")
     return parser
+
+
+def parse_claim_task_ids(items: list[str]) -> dict[str, str]:
+    """Parse repeated IDENTITY=TASK_ID claims into a per-identity mapping."""
+    claims: dict[str, str] = {}
+    for item in items:
+        identity, separator, task_id = item.partition("=")
+        if not separator or not identity or not task_id:
+            raise ValueError(f"--claim-task-id expects IDENTITY=TASK_ID (for example "
+                             f"--claim-task-id my-task-abc123=my-task): {item!r}")
+        claims[identity] = task_id
+    return claims
 
 
 def main(argv: list[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
-    claims: dict[str, str] = {}
-    for item in args.claim_task_id:
-        identity, separator, task_id = item.partition("=")
-        if not separator or not identity or not task_id:
-            parser.error(f"--claim-task-id expects IDENTITY=TASK_ID: {item!r}")
-        claims[identity] = task_id
+    try:
+        args.claim_task_id = parse_claim_task_ids(args.claim_task_id)
+    except ValueError as exc:
+        parser.error(str(exc))
     args.claim_ownership = set(args.claim_ownership)
-    args.claim_task_id = claims
     report = scan(args)
     print(json.dumps(report, indent=2, ensure_ascii=False))
     if report["anomalies"]:
