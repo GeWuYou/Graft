@@ -1064,6 +1064,7 @@ func (r *Runtime) convergeExpiredWork(ctx context.Context) {
 // reconcileInterruptedRecovery 以策略与预算为界自动恢复被中断的幂等阶段：租约中断且预算内时重置为可领取，
 // 预算耗尽或已无法领取时收敛为带稳定诊断的 needs_attention。manual_reconcile 阶段保持人工恢复，
 // 显式 needs_attention 结论（Provider 或本地执行器返回）不进入该恢复路径。
+// 收敛先于恢复执行：超预算 leg 必须先保持可见，仓储才会拒绝把其父任务拉回 running 的整任务恢复。
 func (r *Runtime) reconcileInterruptedRecovery(ctx context.Context) {
 	candidates, err := r.repository.ListInterruptedRecoveryCandidates(ctx, defaultSubmissionExpiryBatch)
 	if err != nil {
@@ -1072,37 +1073,58 @@ func (r *Runtime) reconcileInterruptedRecovery(ctx context.Context) {
 		}
 		return
 	}
-	resumedTasks := make(map[uint64]struct{}, len(candidates))
 	now := time.Now().UTC()
+	// 第一阶段：超预算或已无法领取的候选先收敛，保证阻塞事实在父任务仍处于 needs_attention 时写入诊断。
 	for _, candidate := range candidates {
-		if err := r.reconcileInterruptedCandidate(ctx, candidate, resumedTasks, now); err != nil {
-			if errors.Is(err, context.Canceled) {
-				return
-			}
-			// 状态冲突表示并发恢复、操作员动作或迟到回执已先一步收敛该阶段；跳过并保留获胜者事实。
-			if !errors.Is(err, taskstore.ErrStateConflict) && !errors.Is(err, taskstore.ErrNotFound) {
-				r.logger.Error(ctx, "reconcile interrupted recovery candidate", logger.StringField(logger.FieldOperation, "task_recovery_reconciler"), logger.Uint64Field("task_id", candidate.Task.ID), logger.Uint64Field("stage_id", candidate.Stage.ID), logger.ErrorField(err))
-			}
+		if !recoveryCandidateExhausted(candidate) {
+			continue
+		}
+		convergeErr := r.repository.ConvergeRecoveryBudgetExhausted(ctx, taskstore.RecoveryBudgetExhaustionInput{TaskID: candidate.Task.ID, StageID: candidate.Stage.ID, Now: now})
+		if r.abortReconcilePass(ctx, candidate, convergeErr) {
+			return
+		}
+	}
+	// 第二阶段：预算内的中断阶段按 Task 原子恢复；任一 unknown 阶段超预算时仓储返回 ErrRecoveryBlocked 整体回滚。
+	resumedTasks := make(map[uint64]struct{}, len(candidates))
+	for _, candidate := range candidates {
+		if recoveryCandidateExhausted(candidate) {
+			continue
+		}
+		if _, duplicated := resumedTasks[candidate.Task.ID]; duplicated {
+			continue
+		}
+		resumedTasks[candidate.Task.ID] = struct{}{}
+		// Task 内多个中断 leg 复用同一恢复事务与 retryAt；重试退避沿用冻结计划中的首个候选阶段策略。
+		retryAt := now.Add(time.Duration(candidate.Stage.RetryBackoffMS) * time.Millisecond)
+		_, resumeErr := r.repository.ResumeInterruptedRecovery(ctx, candidate.Task.ID, retryAt)
+		if r.abortReconcilePass(ctx, candidate, resumeErr) {
+			return
 		}
 	}
 }
 
-// reconcileInterruptedCandidate 处理单个候选：超预算收敛，预算内按 Task 原子恢复并唤醒 worker。
-func (r *Runtime) reconcileInterruptedCandidate(ctx context.Context, candidate taskstore.StageClaim, resumedTasks map[uint64]struct{}, now time.Time) error {
-	if candidate.Stage.Status == moduleapi.StageStatusPending || candidate.Stage.Attempt >= candidate.Stage.MaxAttempts {
-		return r.repository.ConvergeRecoveryBudgetExhausted(ctx, taskstore.RecoveryBudgetExhaustionInput{TaskID: candidate.Task.ID, StageID: candidate.Stage.ID, Now: now})
+// recoveryCandidateExhausted 判断候选是否属于先收敛的预算耗尽路径：已无法领取的 pending 超预算阶段，
+// 或已用尽尝试预算的 unknown 中断阶段。
+func recoveryCandidateExhausted(candidate taskstore.StageClaim) bool {
+	return candidate.Stage.Status == moduleapi.StageStatusPending || candidate.Stage.Attempt >= candidate.Stage.MaxAttempts
+}
+
+// abortReconcilePass 记录恢复失败并返回是否应终止本轮巡检：取消终止本轮；可跳过的竞争冲突与
+// 预期中的恢复阻塞静默跳过；其余失败记录有界日志后继续。
+func (r *Runtime) abortReconcilePass(ctx context.Context, candidate taskstore.StageClaim, err error) bool {
+	if err == nil {
+		return false
 	}
-	if _, resumed := resumedTasks[candidate.Task.ID]; resumed {
-		return nil
+	if errors.Is(err, context.Canceled) {
+		return true
 	}
-	resumedTasks[candidate.Task.ID] = struct{}{}
-	// Task 内多个中断 leg 复用同一恢复事务与 retryAt；重试退避沿用冻结计划中的首个候选阶段策略。
-	retryAt := now.Add(time.Duration(candidate.Stage.RetryBackoffMS) * time.Millisecond)
-	if _, err := r.repository.ResumeInterruptedRecovery(ctx, candidate.Task.ID, retryAt); err != nil {
-		return err
+	// 状态冲突表示并发恢复、操作员动作或迟到回执已先一步收敛该阶段；恢复阻塞表示该 Task 仍被
+	// 超预算 unknown 阶段阻断，由收敛路径保持可见。两者都保留获胜者或阻塞事实并继续。
+	if errors.Is(err, taskstore.ErrStateConflict) || errors.Is(err, taskstore.ErrNotFound) || errors.Is(err, taskstore.ErrRecoveryBlocked) {
+		return false
 	}
-	r.signalWake()
-	return nil
+	r.logger.Error(ctx, "reconcile interrupted recovery candidate", logger.StringField(logger.FieldOperation, "task_recovery_reconciler"), logger.Uint64Field("task_id", candidate.Task.ID), logger.Uint64Field("stage_id", candidate.Stage.ID), logger.ErrorField(err))
+	return false
 }
 
 // Stop 请求 worker 和运行中执行器停止并等待其 goroutine；无法确认完成的外部工作留待恢复为 unknown。

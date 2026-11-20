@@ -150,7 +150,7 @@ func TestReconcileSkipsManualReconcileAndExplicitNeedsAttention(t *testing.T) {
 
 func TestResumeInterruptedRecoveryRestoresAllLegsAtomically(t *testing.T) {
 	runtime, repository := newRuntimeForTest(t)
-	legs := createIdempotentExternalLegs(t, repository, "amd64", "arm64")
+	legs := createIdempotentExternalLegs(t, repository, []string{"amd64", "arm64"}, []int{2, 2})
 	first := claimTestExternalExecution(t, runtime)
 	claimTestExternalExecution(t, runtime)
 	// 两个 leg 的租约窗口几乎同时到期；一次过期收敛同时中断两条 leg。
@@ -177,6 +177,53 @@ func TestResumeInterruptedRecoveryRestoresAllLegsAtomically(t *testing.T) {
 	}
 	// 一次 Task 级恢复只追加一条 recovery_resolved，与恢复事务原子可见。
 	assertRecoveryEventCounts(t, repository, legs.ID, 2, 1)
+}
+
+func TestReconcileKeepsBlockedLegVisibleWhenAnyLegExhaustsBudget(t *testing.T) {
+	runtime, repository := newRuntimeForTest(t)
+	// leg-amd64 仍有预算（max 3）；leg-arm64 一次领取后即耗尽预算（max 1）。一次过期收敛同时中断两条 leg。
+	legs := createIdempotentExternalLegs(t, repository, []string{"amd64", "arm64"}, []int{3, 1})
+	first := claimTestExternalExecution(t, runtime)
+	_ = claimTestExternalExecution(t, runtime)
+	if count, err := repository.ExpireExternalExecutionLeases(context.Background(), first.AbsoluteDeadlineAt.Add(time.Second), 10); err != nil || count != 2 {
+		t.Fatalf("expire interrupted legs = count:%d err:%v", count, err)
+	}
+
+	// 收敛先于恢复：预算耗尽的 leg 保持可见，整任务恢复被整体拒绝，父任务不得回到 running。
+	runtime.reconcileInterruptedRecovery(context.Background())
+	assertRecoveryLegState(t, repository, legs.ID, "build-amd64", moduleapi.StageStatusUnknown, "external_execution_lease_expired", 1, 3)
+	assertRecoveryLegState(t, repository, legs.ID, "build-arm64", moduleapi.StageStatusUnknown, taskstore.RecoveryBudgetExhaustedFailureCode, 1, 1)
+	if task := mustTask(t, repository, legs.ID); task.Status != moduleapi.TaskStatusNeedsAttention {
+		t.Fatalf("task with blocked leg after reconcile = %#v", task)
+	}
+	assertRecoveryEventCounts(t, repository, legs.ID, 2, 0)
+
+	// 第二次巡检不得把阻塞任务拉回 running，也不得重复恢复事件。
+	runtime.reconcileInterruptedRecovery(context.Background())
+	assertRecoveryLegState(t, repository, legs.ID, "build-amd64", moduleapi.StageStatusUnknown, "external_execution_lease_expired", 1, 3)
+	assertRecoveryLegState(t, repository, legs.ID, "build-arm64", moduleapi.StageStatusUnknown, taskstore.RecoveryBudgetExhaustedFailureCode, 1, 1)
+	if task := mustTask(t, repository, legs.ID); task.Status != moduleapi.TaskStatusNeedsAttention {
+		t.Fatalf("task with blocked leg after second reconcile = %#v", task)
+	}
+	assertRecoveryEventCounts(t, repository, legs.ID, 2, 0)
+}
+
+// assertRecoveryLegState 校验指定 leg 的持久化状态、失败码与预算事实。
+func assertRecoveryLegState(t *testing.T, repository *taskstore.SQLRepository, taskID uint64, key string, status moduleapi.StageStatus, failureCode string, attempt int, maxAttempts int) {
+	t.Helper()
+	for _, stage := range mustStages(t, repository, taskID) {
+		if stage.Key != key {
+			continue
+		}
+		if stage.Status != status || stage.Attempt != attempt || stage.MaxAttempts != maxAttempts {
+			t.Fatalf("leg %s = status:%s attempt:%d max:%d, want %s/%d/%d", key, stage.Status, stage.Attempt, stage.MaxAttempts, status, attempt, maxAttempts)
+		}
+		if stage.FailureCode == nil || *stage.FailureCode != failureCode {
+			t.Fatalf("leg %s failure code = %v, want %q", key, stage.FailureCode, failureCode)
+		}
+		return
+	}
+	t.Fatalf("leg %s missing from task %d", key, taskID)
 }
 
 func TestResumeInterruptedRecoveryRejectsTaskWithoutResumableStages(t *testing.T) {
@@ -232,13 +279,13 @@ func submitAndExpireIdempotentExternalTask(t *testing.T, attempts int) interrupt
 	return interruptedIdempotentFixture{runtime: runtime, repository: repository, taskID: taskID, lease: lease}
 }
 
-// createIdempotentExternalLegs 通过仓储直接创建携带两个幂等外部 leg 的协调任务；冻结计划必须与持久化 leg 对齐。
-func createIdempotentExternalLegs(t *testing.T, repository *taskstore.SQLRepository, legIDs ...string) taskmodel.Task {
+// createIdempotentExternalLegs 通过仓储直接创建携带幂等外部 leg 的协调任务；冻结计划必须与持久化 leg 对齐。
+func createIdempotentExternalLegs(t *testing.T, repository *taskstore.SQLRepository, legIDs []string, legMaxAttempts []int) taskmodel.Task {
 	t.Helper()
 	stages := make([]taskmodel.Stage, 0, len(legIDs))
 	planStages := make([]moduleapi.StagePlan, 0, len(legIDs))
 	for index, legID := range legIDs {
-		stages = append(stages, taskmodel.Stage{Key: "build-" + legID, Sequence: index + 1, ExecutorType: "test.executor", CoordinationGroup: "build-platforms", LegID: legID, Status: moduleapi.StageStatusPending, MaxAttempts: 2, Input: json.RawMessage(`{}`), RecoveryPolicy: moduleapi.StageRecoveryRetryIfIdempotent, Result: json.RawMessage(`{}`), ExternalExecution: true})
+		stages = append(stages, taskmodel.Stage{Key: "build-" + legID, Sequence: index + 1, ExecutorType: "test.executor", CoordinationGroup: "build-platforms", LegID: legID, Status: moduleapi.StageStatusPending, MaxAttempts: legMaxAttempts[index], Input: json.RawMessage(`{}`), RecoveryPolicy: moduleapi.StageRecoveryRetryIfIdempotent, Result: json.RawMessage(`{}`), ExternalExecution: true})
 		planStages = append(planStages, moduleapi.StagePlan{Key: "build-" + legID, ExecutorType: "test.executor", CoordinationGroup: "build-platforms", LegID: legID, Input: json.RawMessage(`{}`), RecoveryPolicy: moduleapi.StageRecoveryRetryIfIdempotent, ExternalExecution: testExternalExecutionExpectation("recovery-leg-" + legID)})
 	}
 	plan, err := json.Marshal(moduleapi.TaskPlan{Stages: planStages})

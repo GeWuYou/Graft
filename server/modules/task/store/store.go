@@ -18,6 +18,8 @@ var (
 	ErrNotFound = errors.New("task runtime record not found")
 	// ErrStateConflict 表示 compare-and-swap 更新时持久化的前置状态已被其他执行者改变。
 	ErrStateConflict = errors.New("task runtime state conflict")
+	// ErrRecoveryBlocked 表示该 Task 仍存在超出重试预算的 unknown 阶段；自动恢复不得把父任务拉回 running 而隐藏阻塞事实。
+	ErrRecoveryBlocked = errors.New("task recovery is blocked by an over-budget interrupted stage")
 )
 
 // Repository 持久化 Task Runtime 事实，并提供进程内 worker 所需的原子领取、状态迁移和历史追加操作。

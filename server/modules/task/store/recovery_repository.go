@@ -70,6 +70,8 @@ func (r *SQLRepository) ListInterruptedRecoveryCandidates(ctx context.Context, l
 
 // ResumeInterruptedRecovery 在同一事务内恢复 needs_attention 父 Task 及其全部可自动重试的租约中断幂等阶段，
 // 并原子追加一条 recovery_resolved 事件；没有任何可恢复阶段时回滚整个恢复，保留人工恢复事实。
+// 父 Task 仍存在超出重试预算的 unknown 阶段时返回 ErrRecoveryBlocked 并整体回滚：
+// 自动恢复不得把父任务拉回 running 而隐藏阻塞的 leg，预算耗尽 leg 由收敛路径保持可见。
 // 该路径复用 RetryStage 的状态机语义（Task needs_attention -> running，Stage unknown -> pending 并清除失败诊断），
 // 但不推进尝试计数；外部领取路径仍按 attempt < max_attempts 有界发放。
 func (r *SQLRepository) ResumeInterruptedRecovery(ctx context.Context, taskID uint64, retryAt time.Time) (int, error) {
@@ -81,6 +83,14 @@ func (r *SQLRepository) ResumeInterruptedRecovery(ctx context.Context, taskID ui
 		return 0, fmt.Errorf("begin interrupted recovery resume: %w", err)
 	}
 	defer rollback(tx)
+	var blocked int
+	if err := tx.QueryRowContext(ctx, r.placeholder.rebind(`SELECT COUNT(*) FROM task_stages
+		WHERE task_id = ? AND status = ? AND attempt >= max_attempts`), taskID, moduleapi.StageStatusUnknown).Scan(&blocked); err != nil {
+		return 0, fmt.Errorf("count blocked interrupted recovery stages: %w", err)
+	}
+	if blocked > 0 {
+		return 0, ErrRecoveryBlocked
+	}
 	if err := r.resumeRetryableTask(ctx, tx, taskID); err != nil {
 		return 0, err
 	}
