@@ -765,11 +765,13 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                   and exhausted.get("failure_class") == "internal"
                   and stage.get("attempt") == 2 and stage.get("max_attempts") == 2
                   and before == after)
+        # 收敛即终态证据：不重启代理。代理重启会重放第二次终止保存的运行中日志，中断回执会
+        # 在同一 unknown 阶段被结算并覆盖预算诊断（SettleExternalExecution 按设计接受 running/unknown）。
+        # 本场景之后仅剩无需活代理的 socket 与 agent-offline 场景，后者自身会重建代理。
         self.record(scenario, "passed" if passed else "failed", task_id=task_id, task=exhausted,
                     stage_attempt=stage.get("attempt"), stage_max_attempts=stage.get("max_attempts"),
                     same_container_and_started_at=before == after, note=RECOVERY_POLICY_STAND_IN_NOTE,
                     scope="Budget exhaustion converges to needs_attention with stable diagnostics instead of a hang")
-        self.compose("up", "-d", "--wait", "docker-runtime-agent")
 
     def persisted_application(self, identifier: str) -> dict:
         if not re.fullmatch(r"app_[0-9A-HJKMNP-TV-Z]{26}", identifier):
@@ -906,14 +908,15 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                 self.record("shell-command-output", "passed" if shell_passed else "failed")
             except (OSError, ValueError) as exc:
                 self.record("shell-command-output", "failed", error_type=type(exc).__name__)
-        # 恢复探针尽量前置：提交暴露窗口越短，执行所有权监听的瞬时抖动越不可能拦住它们；
-        # claim-admission 探针随后运行，其恢复遥测不会延迟本组场景。
+        # 恢复成功探针尽量前置：提交暴露窗口越短，执行所有权监听的瞬时抖动越不可能拦住它。
         if self.execution_mode == "agent":
             self.recovery_resume_probe()
-            self.recovery_budget_probe()
         self.application_probe()
         if self.execution_mode == "agent":
             self.claim_admission_probe()
+            # 预算耗尽探针是最后一个需要活代理的场景：收敛记录成功后保持代理停止，
+            # 避免代理重启重放已保存日志、用中断回执覆盖预算耗尽诊断（4647483896）。
+            self.recovery_budget_probe()
         backend_uid = self.compose("exec", "-T", "backend", "id", "-u").strip()
         ping = ("exec", "-T", "backend", "curl", "--fail", "--silent", "--show-error", "--max-time", "5",
                 "--unix-socket", "/var/run/docker.sock", "http://localhost/_ping")

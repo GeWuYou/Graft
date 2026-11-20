@@ -839,13 +839,15 @@ class RecoveryScenarioTests(unittest.TestCase):
             self.assertEqual(record.args, ("agent-recovery-budget-exhausted", "passed"))
             self.assertEqual(record.kwargs["task_id"], 11)
             self.assertEqual((record.kwargs["stage_attempt"], record.kwargs["stage_max_attempts"]), (2, 2))
+            self.assertEqual(record.kwargs["task"]["failure_code"], "auto_recovery_budget_exhausted")
             self.assertTrue(record.kwargs["same_container_and_started_at"])
             statements = [call.args[0] for call in fixture.sql.call_args_list]
             self.assertIn("GREATEST(max_attempts, 2)", statements[0])
             compose_calls = [call.args for call in fixture.compose.call_args_list]
             self.assertEqual(compose_calls.count(("kill", "--signal", "SIGKILL", "docker-runtime-agent")), 2)
-            # 预算耗尽后代理保持重建，后续场景依赖可用的代理。
-            self.assertEqual(compose_calls[-1], ("up", "-d", "--wait", "docker-runtime-agent"))
+            # 收敛即终态证据：不得在记录后重启代理（重启会重放日志并用中断回执覆盖预算诊断）。
+            self.assertEqual(compose_calls[-1], ("kill", "--signal", "SIGKILL", "docker-runtime-agent"))
+            self.assertEqual(compose_calls.count(("up", "-d", "--wait", "docker-runtime-agent")), 1)
         with tempfile.TemporaryDirectory() as directory:
             fixture = self.fixture(directory)
             (fixture.directory / "trust-evidence.json").write_text(json.dumps({"bootstrap": {"target_id": 1}}))
