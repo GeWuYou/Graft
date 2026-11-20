@@ -1029,15 +1029,16 @@ func (r *Runtime) Start(ctx context.Context) error {
 		go r.worker(workerContext)
 	}
 	r.waitGroup.Add(1)
-	go r.expireSubmissions(workerContext)
+	go r.convergeExpiredWork(workerContext)
 	r.signalWake()
 	started = true
 	return nil
 }
 
-// expireSubmissions periodically converges abandoned pre-Task submissions. Each mutation is version-fenced,
-// so every API instance may run this loop without electing a leader.
-func (r *Runtime) expireSubmissions(ctx context.Context) {
+// convergeExpiredWork periodically converges abandoned pre-Task submissions, expired external leases and
+// interrupted idempotent stages. Every mutation is version- or state-fenced, so every API instance may run
+// this loop without electing a leader.
+func (r *Runtime) convergeExpiredWork(ctx context.Context) {
 	defer r.waitGroup.Done()
 	ticker := time.NewTicker(defaultSubmissionExpiryPoll)
 	defer ticker.Stop()
@@ -1055,8 +1056,53 @@ func (r *Runtime) expireSubmissions(ctx context.Context) {
 			if _, err := r.repository.ExpireSubmissions(ctx, defaultSubmissionExpiryBatch); err != nil && !errors.Is(err, context.Canceled) {
 				r.logger.Error(ctx, "expire task submissions", logger.StringField(logger.FieldOperation, "task_submission_expirer"), logger.ErrorField(err))
 			}
+			r.reconcileInterruptedRecovery(ctx)
 		}
 	}
+}
+
+// reconcileInterruptedRecovery 以策略与预算为界自动恢复被中断的幂等阶段：租约中断且预算内时重置为可领取，
+// 预算耗尽或已无法领取时收敛为带稳定诊断的 needs_attention。manual_reconcile 阶段保持人工恢复，
+// 显式 needs_attention 结论（Provider 或本地执行器返回）不进入该恢复路径。
+func (r *Runtime) reconcileInterruptedRecovery(ctx context.Context) {
+	candidates, err := r.repository.ListInterruptedRecoveryCandidates(ctx, defaultSubmissionExpiryBatch)
+	if err != nil {
+		if !errors.Is(err, context.Canceled) {
+			r.logger.Error(ctx, "list interrupted recovery candidates", logger.StringField(logger.FieldOperation, "task_recovery_reconciler"), logger.ErrorField(err))
+		}
+		return
+	}
+	resumedTasks := make(map[uint64]struct{}, len(candidates))
+	now := time.Now().UTC()
+	for _, candidate := range candidates {
+		if err := r.reconcileInterruptedCandidate(ctx, candidate, resumedTasks, now); err != nil {
+			if errors.Is(err, context.Canceled) {
+				return
+			}
+			// 状态冲突表示并发恢复、操作员动作或迟到回执已先一步收敛该阶段；跳过并保留获胜者事实。
+			if !errors.Is(err, taskstore.ErrStateConflict) && !errors.Is(err, taskstore.ErrNotFound) {
+				r.logger.Error(ctx, "reconcile interrupted recovery candidate", logger.StringField(logger.FieldOperation, "task_recovery_reconciler"), logger.Uint64Field("task_id", candidate.Task.ID), logger.Uint64Field("stage_id", candidate.Stage.ID), logger.ErrorField(err))
+			}
+		}
+	}
+}
+
+// reconcileInterruptedCandidate 处理单个候选：超预算收敛，预算内按 Task 原子恢复并唤醒 worker。
+func (r *Runtime) reconcileInterruptedCandidate(ctx context.Context, candidate taskstore.StageClaim, resumedTasks map[uint64]struct{}, now time.Time) error {
+	if candidate.Stage.Status == moduleapi.StageStatusPending || candidate.Stage.Attempt >= candidate.Stage.MaxAttempts {
+		return r.repository.ConvergeRecoveryBudgetExhausted(ctx, taskstore.RecoveryBudgetExhaustionInput{TaskID: candidate.Task.ID, StageID: candidate.Stage.ID, Now: now})
+	}
+	if _, resumed := resumedTasks[candidate.Task.ID]; resumed {
+		return nil
+	}
+	resumedTasks[candidate.Task.ID] = struct{}{}
+	// Task 内多个中断 leg 复用同一恢复事务与 retryAt；重试退避沿用冻结计划中的首个候选阶段策略。
+	retryAt := now.Add(time.Duration(candidate.Stage.RetryBackoffMS) * time.Millisecond)
+	if _, err := r.repository.ResumeInterruptedRecovery(ctx, candidate.Task.ID, retryAt); err != nil {
+		return err
+	}
+	r.signalWake()
+	return nil
 }
 
 // Stop 请求 worker 和运行中执行器停止并等待其 goroutine；无法确认完成的外部工作留待恢复为 unknown。

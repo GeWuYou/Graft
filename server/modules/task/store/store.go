@@ -54,6 +54,12 @@ type Repository interface {
 	NextEventSequence(ctx context.Context, taskID uint64) (int64, error)
 	NextLogSequence(ctx context.Context, taskID uint64) (int64, error)
 	RecoverInterruptedStages(ctx context.Context, now time.Time) (int, error)
+	// ListInterruptedRecoveryCandidates 返回租约中断幂等阶段的有界自动恢复候选，manual_reconcile 阶段不是候选。
+	ListInterruptedRecoveryCandidates(ctx context.Context, limit int) ([]StageClaim, error)
+	// ResumeInterruptedRecovery 在同一事务内恢复 needs_attention Task 及其全部预算内被中断幂等阶段并原子追加 recovery_resolved。
+	ResumeInterruptedRecovery(ctx context.Context, taskID uint64, retryAt time.Time) (int, error)
+	// ConvergeRecoveryBudgetExhausted 把超出重试预算的被中断幂等阶段收敛为带稳定诊断的 needs_attention。
+	ConvergeRecoveryBudgetExhausted(ctx context.Context, input RecoveryBudgetExhaustionInput) error
 	SettleExternalReceipt(ctx context.Context, input ExternalReceiptSettlementInput) (ExternalReceiptSettlement, error)
 	ListExternalExecutionCandidates(ctx context.Context, limit int, offset int) ([]StageClaim, error)
 	CreateExternalExecutionLease(ctx context.Context, input CreateExternalExecutionLeaseInput) (taskmodel.ExternalExecutionLease, error)
