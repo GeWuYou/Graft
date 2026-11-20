@@ -208,10 +208,15 @@ type RecordExternalExecutionResultDigestInput struct {
 }
 
 // SettleExternalExecutionInput 描述 lease-bound receipt 的完整持久化输入。
+// FailureStage、FailureClass 与 DiagnosticSummary 是有界的可观察诊断事实；
+// DiagnosticSummary 必须已经过脱敏，不携带路径、凭据或原始 Provider stderr。
 type SettleExternalExecutionInput struct {
-	LeaseID         string
-	FenceTokenHash  string
-	Outcome         moduleapi.ExternalReceiptOutcome
-	FailureCode     string
-	IntegritySHA256 string
+	LeaseID           string
+	FenceTokenHash    string
+	Outcome           moduleapi.ExternalReceiptOutcome
+	FailureCode       string
+	FailureStage      moduleapi.ExecutionStage
+	FailureClass      moduleapi.ExecutionFailureClass
+	DiagnosticSummary string
+	IntegritySHA256   string
 }

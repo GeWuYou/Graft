@@ -1,0 +1,4 @@
+type: string
+description: Bounded provider execution stage attributed to a failed external execution; a stage is absent when the failure was not stage-attributable.
+enum: [material_resolve, compose_load, compose_apply, container_apply, controller_pull]
+x-enum-varnames: [TaskExecutionStageMaterialResolve, TaskExecutionStageComposeLoad, TaskExecutionStageComposeApply, TaskExecutionStageContainerApply, TaskExecutionStageControllerPull]

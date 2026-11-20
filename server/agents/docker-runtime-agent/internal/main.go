@@ -127,19 +127,19 @@ func runUntilDelivery(ctx context.Context, configPath string) error {
 }
 
 func run(ctx context.Context, c config) error {
-	state, err := runEnrollmentAndReconnect(ctx, c)
+	state, err := runEnrollmentAndReconnect(ctx, c, newAdmissionTracker(c.StateDir))
 	if err != nil {
 		return err
 	}
-	return runExecutionLoop(ctx, c, state)
+	return runExecutionLoop(ctx, c, state, newAdmissionTracker(c.StateDir))
 }
 
 func runOnce(ctx context.Context, c config) error {
-	_, err := runEnrollmentAndReconnect(ctx, c)
+	_, err := runEnrollmentAndReconnect(ctx, c, newAdmissionTracker(c.StateDir))
 	return err
 }
 
-func runEnrollmentAndReconnect(ctx context.Context, c config) (persistedState, error) {
+func runEnrollmentAndReconnect(ctx context.Context, c config, tracker *admissionTracker) (persistedState, error) {
 	state, err := loadState(c.StateDir)
 	if err != nil {
 		return persistedState{}, err
@@ -155,19 +155,19 @@ func runEnrollmentAndReconnect(ctx context.Context, c config) (persistedState, e
 			return persistedState{}, err
 		}
 	}
-	return reconnectEnrolledState(ctx, c, state)
+	return reconnectEnrolledState(ctx, c, state, tracker)
 }
 
-func enrollAndReconnect(ctx context.Context, c config) (persistedState, error) {
+func enrollAndReconnect(ctx context.Context, c config, tracker *admissionTracker) (persistedState, error) {
 	state, err := enroll(ctx, c)
 	if err != nil {
 		return persistedState{}, err
 	}
-	return reconnectEnrolledState(ctx, c, state)
+	return reconnectEnrolledState(ctx, c, state, tracker)
 }
 
-func reconnectEnrolledState(ctx context.Context, c config, state persistedState) (persistedState, error) {
-	snapshot, err := reconnect(ctx, c, state)
+func reconnectEnrolledState(ctx context.Context, c config, state persistedState, tracker *admissionTracker) (persistedState, error) {
+	snapshot, err := reconnect(ctx, c, state, tracker)
 	if err != nil {
 		return persistedState{}, err
 	}
@@ -299,7 +299,7 @@ func bootstrap(ctx context.Context, c config, token string, csr []byte) (bootstr
 	return result, nil
 }
 
-func reconnect(ctx context.Context, c config, state persistedState) (ledgerSnapshot, error) {
+func reconnect(ctx context.Context, c config, state persistedState, tracker *admissionTracker) (ledgerSnapshot, error) {
 	client, err := newMTLSClient(c, state)
 	if err != nil {
 		return ledgerSnapshot{}, err
@@ -311,10 +311,19 @@ func reconnect(ctx context.Context, c config, state persistedState) (ledgerSnaps
 	if state.Generation > 0 && snapshot.Generation != state.Generation {
 		return ledgerSnapshot{}, fmt.Errorf("ledger generation %d does not match state generation %d", snapshot.Generation, state.Generation)
 	}
-	if err := submitTelemetry(ctx, client, c.AgentURL, snapshot); err != nil {
+	if err := submitTelemetry(ctx, client, c.AgentURL, snapshot, currentAdmissionDiagnostic(tracker)); err != nil {
 		return ledgerSnapshot{}, err
 	}
 	return snapshot, nil
+}
+
+// currentAdmissionDiagnostic 把当前领取结论映射为受限遥测 Diagnostic 值；
+// 未观察到领取结论时保持空串的历史健康语义。
+func currentAdmissionDiagnostic(tracker *admissionTracker) string {
+	if tracker == nil {
+		return ""
+	}
+	return string(tracker.currentAdmissionClass())
 }
 
 func newMTLSClient(c config, state persistedState) (*http.Client, error) {
@@ -358,7 +367,7 @@ func fetchLedgerSnapshot(ctx context.Context, client *http.Client, agentURL stri
 	return snapshot, nil
 }
 
-func submitTelemetry(ctx context.Context, client *http.Client, agentURL string, snapshot ledgerSnapshot) error {
+func submitTelemetry(ctx context.Context, client *http.Client, agentURL string, snapshot ledgerSnapshot, diagnostic string) error {
 	report := struct {
 		SnapshotID            string `json:"snapshot_id"`
 		SnapshotDigest        string `json:"snapshot_digest"`
@@ -367,7 +376,7 @@ func submitTelemetry(ctx context.Context, client *http.Client, agentURL string, 
 		Available             bool   `json:"available"`
 		ImplementationVersion string `json:"implementation_version"`
 		Diagnostic            string `json:"diagnostic"`
-	}{snapshot.SnapshotID, snapshot.SnapshotDigest, snapshot.ObservedAt.UTC().Format(time.RFC3339), snapshot.ExpiresAt.UTC().Format(time.RFC3339), snapshot.Available, version, ""}
+	}{snapshot.SnapshotID, snapshot.SnapshotDigest, snapshot.ObservedAt.UTC().Format(time.RFC3339), snapshot.ExpiresAt.UTC().Format(time.RFC3339), snapshot.Available, version, diagnostic}
 	body, err := json.Marshal(report)
 	if err != nil {
 		return err

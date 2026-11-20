@@ -4,6 +4,8 @@ package dockerexecution
 import (
 	"context"
 	"encoding/json"
+
+	"graft/server/internal/moduleapi"
 )
 
 // Environment 只持有当前执行所需的连接和临时材料解析能力。
@@ -26,13 +28,16 @@ type Material struct {
 	Payload  json.RawMessage `json:"payload"`
 }
 
-// Result 只返回受限终态、稳定失败码和经领域 owner 校验的临时结果。
+// Result 只返回受限终态、稳定失败码、有界阶段与分类，以及经允许列表脱敏的诊断摘要。
+// FailureSummary 不得携带路径、凭据或原始 Provider stderr。
 type Result struct {
-	Outcome      string
-	FailureCode  string
-	FailureStage string
-	Protocol     string
-	Payload      json.RawMessage
+	Outcome        string
+	FailureCode    string
+	FailureStage   string
+	FailureClass   moduleapi.ExecutionFailureClass
+	FailureSummary string
+	Protocol       string
+	Payload        json.RawMessage
 }
 
 // Execute 执行固定协议中的单次 SDK 操作，错误以稳定代码返回。

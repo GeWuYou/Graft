@@ -274,13 +274,16 @@ func validExternalExecutionLogBatch(batch moduleapi.ExternalExecutionLogBatch) b
 }
 
 // SettleExternalExecution 以完全匹配的 lease fence 结算 Stage，并在非最终成功时唤醒下一 Stage。
+// 有界失败阶段、分类与脱敏摘要随同一 fence 持久化；它们不改变结算语义。
 func (r *Runtime) SettleExternalExecution(ctx context.Context, receipt moduleapi.ExternalExecutionReceipt) (moduleapi.ExternalReceiptSettlement, error) {
 	if r == nil || r.repository == nil || !validExternalExecutionHandle(receipt.Handle) || !lowercaseSHA256(receipt.IntegritySHA256) {
 		return moduleapi.ExternalReceiptSettlement{}, taskstore.ErrInvalidInput
 	}
 	settlement, err := r.repository.SettleExternalExecution(ctx, taskstore.SettleExternalExecutionInput{
 		LeaseID: receipt.Handle.LeaseID, FenceTokenHash: hashSubmissionSecret(receipt.Handle.FenceToken),
-		Outcome: receipt.Outcome, FailureCode: receipt.FailureCode, IntegritySHA256: receipt.IntegritySHA256,
+		Outcome: receipt.Outcome, FailureCode: receipt.FailureCode, FailureStage: receipt.FailureStage,
+		FailureClass: receipt.FailureClass, DiagnosticSummary: receipt.DiagnosticSummary,
+		IntegritySHA256: receipt.IntegritySHA256,
 	})
 	if err != nil {
 		return moduleapi.ExternalReceiptSettlement{}, err

@@ -19,6 +19,11 @@ properties:
     type: string
     enum: [none, agent_not_enrolled, agent_unavailable, agent_degraded]
     x-enum-varnames: [RuntimeTargetAgentDiagnosticCodeNone, RuntimeTargetAgentDiagnosticCodeNotEnrolled, RuntimeTargetAgentDiagnosticCodeUnavailable, RuntimeTargetAgentDiagnosticCodeDegraded]
+  claim_admission:
+    anyOf:
+      - $ref: ./runtime-target-agent-claim-admission.yaml
+      - type: "null"
+    description: Latest fresh claim admission evidence from agent telemetry; null when no fresh receipt exists yet.
   capabilities:
     type: array
     items:

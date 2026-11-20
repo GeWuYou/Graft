@@ -83,7 +83,7 @@ func (r *SQLRepository) timestampValuePlaceholder() string {
 func taskColumns() string {
 	return `id, task_type, owner_type, owner_id, status, input_json, metadata_json, plan_json, state_json, activation_required,
 		current_stage_key, created_by, idempotency_key_hash, submission_fingerprint, scheduled_at, cancel_requested_at, started_at, finished_at, duration_ms,
-		failure_code, failure_message, created_at, updated_at`
+		failure_code, failure_message, failure_stage, failure_class, created_at, updated_at`
 }
 
 // taskColumnsFor 返回带指定表别名的任务表列名列表。
@@ -92,7 +92,7 @@ func taskColumns() string {
 func taskColumnsFor(alias string) string {
 	return alias + `.id, ` + alias + `.task_type, ` + alias + `.owner_type, ` + alias + `.owner_id, ` + alias + `.status, ` + alias + `.input_json, ` + alias + `.metadata_json, ` + alias + `.plan_json, ` + alias + `.state_json,
 		` + alias + `.activation_required, ` + alias + `.current_stage_key, ` + alias + `.created_by, ` + alias + `.idempotency_key_hash, ` + alias + `.submission_fingerprint, ` + alias + `.scheduled_at, ` + alias + `.cancel_requested_at, ` + alias + `.started_at, ` + alias + `.finished_at, ` + alias + `.duration_ms,
-		` + alias + `.failure_code, ` + alias + `.failure_message, ` + alias + `.created_at, ` + alias + `.updated_at`
+		` + alias + `.failure_code, ` + alias + `.failure_message, ` + alias + `.failure_stage, ` + alias + `.failure_class, ` + alias + `.created_at, ` + alias + `.updated_at`
 }
 
 func submissionColumns() string {
@@ -104,7 +104,7 @@ func submissionColumns() string {
 // stageColumns 返回从 Stage 表选择的逗号分隔列名。
 func stageColumns() string {
 	return `id, task_id, stage_key, sequence, executor_type, external_execution, status, attempt, max_attempts, retry_backoff_ms,
-		next_retry_at, input_json, coordination_group, leg_id, recovery_policy, result_json, failure_code, failure_message, started_at,
+		next_retry_at, input_json, coordination_group, leg_id, recovery_policy, result_json, failure_code, failure_message, failure_stage, failure_class, started_at,
 		finished_at, duration_ms, created_at, updated_at`
 }
 
@@ -113,7 +113,7 @@ func stageColumns() string {
 //nolint:dupl // Task 与 Stage 投影刻意保持同构，以便关联扫描顺序可独立审计。
 func stageColumnsFor(alias string) string {
 	return alias + `.id, ` + alias + `.task_id, ` + alias + `.stage_key, ` + alias + `.sequence, ` + alias + `.executor_type, ` + alias + `.external_execution, ` + alias + `.status, ` + alias + `.attempt, ` + alias + `.max_attempts, ` + alias + `.retry_backoff_ms,
-		` + alias + `.next_retry_at, ` + alias + `.input_json, ` + alias + `.coordination_group, ` + alias + `.leg_id, ` + alias + `.recovery_policy, ` + alias + `.result_json, ` + alias + `.failure_code, ` + alias + `.failure_message, ` + alias + `.started_at,
+		` + alias + `.next_retry_at, ` + alias + `.input_json, ` + alias + `.coordination_group, ` + alias + `.leg_id, ` + alias + `.recovery_policy, ` + alias + `.result_json, ` + alias + `.failure_code, ` + alias + `.failure_message, ` + alias + `.failure_stage, ` + alias + `.failure_class, ` + alias + `.started_at,
 		` + alias + `.finished_at, ` + alias + `.duration_ms, ` + alias + `.created_at, ` + alias + `.updated_at`
 }
 
@@ -134,13 +134,14 @@ func scanTask(scanner interface{ Scan(dest ...any) error }) (taskmodel.Task, err
 	var status string
 	var input, metadata, plan, state []byte
 	var currentStageKey, idempotencyKeyHash, submissionFingerprint, failureCode, failureMessage sql.NullString
+	var failureStage, failureClass sql.NullString
 	var createdBy sql.NullInt64
 	var scheduledAt, cancelRequestedAt, startedAt, finishedAt sql.NullTime
 	var durationMS sql.NullInt64
 	if err := scanner.Scan(
 		&item.ID, &taskType, &item.Owner.Type, &item.Owner.ID, &status, &input, &metadata, &plan, &state, &item.ActivationRequired,
 		&currentStageKey, &createdBy, &idempotencyKeyHash, &submissionFingerprint, &scheduledAt, &cancelRequestedAt, &startedAt, &finishedAt, &durationMS,
-		&failureCode, &failureMessage, &item.CreatedAt, &item.UpdatedAt,
+		&failureCode, &failureMessage, &failureStage, &failureClass, &item.CreatedAt, &item.UpdatedAt,
 	); err != nil {
 		return taskmodel.Task{}, err
 	}
@@ -161,6 +162,8 @@ func scanTask(scanner interface{ Scan(dest ...any) error }) (taskmodel.Task, err
 	item.DurationMS = nullableInt64(durationMS)
 	item.FailureCode = nullableString(failureCode)
 	item.FailureMessage = nullableString(failureMessage)
+	item.FailureStage = nullableExecutionStage(failureStage)
+	item.FailureClass = nullableExecutionFailureClass(failureClass)
 	return item, nil
 }
 
@@ -193,6 +196,7 @@ func scanStageClaim(scanner interface{ Scan(dest ...any) error }) (StageClaim, e
 	var taskType, taskStatus string
 	var taskInput, taskMetadata, taskPlan, taskState []byte
 	var taskCurrentStageKey, taskIdempotencyKeyHash, taskSubmissionFingerprint, taskFailureCode, taskFailureMessage sql.NullString
+	var taskFailureStage, taskFailureClass sql.NullString
 	var taskCreatedBy sql.NullInt64
 	var taskScheduledAt, taskCancelRequestedAt, taskStartedAt, taskFinishedAt sql.NullTime
 	var taskDurationMS sql.NullInt64
@@ -200,13 +204,14 @@ func scanStageClaim(scanner interface{ Scan(dest ...any) error }) (StageClaim, e
 	var stageInput, stageResult []byte
 	var stageNextRetryAt, stageStartedAt, stageFinishedAt sql.NullTime
 	var stageFailureCode, stageFailureMessage sql.NullString
+	var stageFailureStage, stageFailureClass sql.NullString
 	var stageDurationMS sql.NullInt64
 	if err := scanner.Scan(
 		&claim.Task.ID, &taskType, &claim.Task.Owner.Type, &claim.Task.Owner.ID, &taskStatus, &taskInput, &taskMetadata, &taskPlan, &taskState, &claim.Task.ActivationRequired,
 		&taskCurrentStageKey, &taskCreatedBy, &taskIdempotencyKeyHash, &taskSubmissionFingerprint, &taskScheduledAt, &taskCancelRequestedAt, &taskStartedAt, &taskFinishedAt, &taskDurationMS,
-		&taskFailureCode, &taskFailureMessage, &claim.Task.CreatedAt, &claim.Task.UpdatedAt,
+		&taskFailureCode, &taskFailureMessage, &taskFailureStage, &taskFailureClass, &claim.Task.CreatedAt, &claim.Task.UpdatedAt,
 		&claim.Stage.ID, &claim.Stage.TaskID, &claim.Stage.Key, &claim.Stage.Sequence, &stageExecutorType, &claim.Stage.ExternalExecution, &stageStatus, &claim.Stage.Attempt, &claim.Stage.MaxAttempts, &claim.Stage.RetryBackoffMS,
-		&stageNextRetryAt, &stageInput, &stageCoordinationGroup, &stageLegID, &stageRecoveryPolicy, &stageResult, &stageFailureCode, &stageFailureMessage, &stageStartedAt,
+		&stageNextRetryAt, &stageInput, &stageCoordinationGroup, &stageLegID, &stageRecoveryPolicy, &stageResult, &stageFailureCode, &stageFailureMessage, &stageFailureStage, &stageFailureClass, &stageStartedAt,
 		&stageFinishedAt, &stageDurationMS, &claim.Stage.CreatedAt, &claim.Stage.UpdatedAt,
 	); err != nil {
 		return StageClaim{}, err
@@ -228,6 +233,8 @@ func scanStageClaim(scanner interface{ Scan(dest ...any) error }) (StageClaim, e
 	claim.Task.DurationMS = nullableInt64(taskDurationMS)
 	claim.Task.FailureCode = nullableString(taskFailureCode)
 	claim.Task.FailureMessage = nullableString(taskFailureMessage)
+	claim.Task.FailureStage = nullableExecutionStage(taskFailureStage)
+	claim.Task.FailureClass = nullableExecutionFailureClass(taskFailureClass)
 	claim.Stage.ExecutorType = moduleapi.StageExecutorType(stageExecutorType)
 	claim.Stage.CoordinationGroup = stageCoordinationGroup
 	claim.Stage.LegID = stageLegID
@@ -238,6 +245,8 @@ func scanStageClaim(scanner interface{ Scan(dest ...any) error }) (StageClaim, e
 	claim.Stage.NextRetryAt = nullableTime(stageNextRetryAt)
 	claim.Stage.FailureCode = nullableString(stageFailureCode)
 	claim.Stage.FailureMessage = nullableString(stageFailureMessage)
+	claim.Stage.FailureStage = nullableExecutionStage(stageFailureStage)
+	claim.Stage.FailureClass = nullableExecutionFailureClass(stageFailureClass)
 	claim.Stage.StartedAt = nullableTime(stageStartedAt)
 	claim.Stage.FinishedAt = nullableTime(stageFinishedAt)
 	claim.Stage.DurationMS = nullableInt64(stageDurationMS)
@@ -267,11 +276,11 @@ func scanStage(scanner interface{ Scan(dest ...any) error }) (taskmodel.Stage, e
 	var executorType, status, coordinationGroup, legID, recoveryPolicy string
 	var input, result []byte
 	var nextRetryAt, startedAt, finishedAt sql.NullTime
-	var failureCode, failureMessage sql.NullString
+	var failureCode, failureMessage, failureStage, failureClass sql.NullString
 	var durationMS sql.NullInt64
 	if err := scanner.Scan(
 		&item.ID, &item.TaskID, &item.Key, &item.Sequence, &executorType, &item.ExternalExecution, &status, &item.Attempt, &item.MaxAttempts, &item.RetryBackoffMS,
-		&nextRetryAt, &input, &coordinationGroup, &legID, &recoveryPolicy, &result, &failureCode, &failureMessage, &startedAt,
+		&nextRetryAt, &input, &coordinationGroup, &legID, &recoveryPolicy, &result, &failureCode, &failureMessage, &failureStage, &failureClass, &startedAt,
 		&finishedAt, &durationMS, &item.CreatedAt, &item.UpdatedAt,
 	); err != nil {
 		return taskmodel.Stage{}, err
@@ -286,6 +295,8 @@ func scanStage(scanner interface{ Scan(dest ...any) error }) (taskmodel.Stage, e
 	item.NextRetryAt = nullableTime(nextRetryAt)
 	item.FailureCode = nullableString(failureCode)
 	item.FailureMessage = nullableString(failureMessage)
+	item.FailureStage = nullableExecutionStage(failureStage)
+	item.FailureClass = nullableExecutionFailureClass(failureClass)
 	item.StartedAt = nullableTime(startedAt)
 	item.FinishedAt = nullableTime(finishedAt)
 	item.DurationMS = nullableInt64(durationMS)
@@ -337,6 +348,24 @@ func nullableString(value sql.NullString) *string {
 	}
 	result := value.String
 	return &result
+}
+
+// nullableExecutionStage 把可空阶段列转换为稳定阶段枚举指针；无效或未知值视为未归类。
+func nullableExecutionStage(value sql.NullString) *moduleapi.ExecutionStage {
+	if !value.Valid || !moduleapi.ValidExecutionStage(value.String) {
+		return nil
+	}
+	stage := moduleapi.ExecutionStage(value.String)
+	return &stage
+}
+
+// nullableExecutionFailureClass 把可空分类列转换为稳定失败分类指针；无效值视为未归类。
+func nullableExecutionFailureClass(value sql.NullString) *moduleapi.ExecutionFailureClass {
+	if !value.Valid || !moduleapi.ValidExecutionFailureClass(value.String) {
+		return nil
+	}
+	class := moduleapi.ExecutionFailureClass(value.String)
+	return &class
 }
 
 // nullableUint64 将有效且非负的 sql.NullInt64 值转换为 uint64 指针；无效或负值返回 nil。

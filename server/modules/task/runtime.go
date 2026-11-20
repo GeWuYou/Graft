@@ -766,7 +766,7 @@ func (r *Runtime) ListTaskStages(ctx context.Context, taskID uint64) ([]moduleap
 	items := make([]moduleapi.TaskStageView, 0, len(stages))
 	for _, stage := range stages {
 		mode, version := stageExecutionIdentity(plan, stage)
-		items = append(items, moduleapi.TaskStageView{ExecutionMode: mode, ExecutionVersion: version, ID: stage.ID, Key: stage.Key, Sequence: stage.Sequence, ExecutorType: stage.ExecutorType, Status: stage.Status, Attempt: stage.Attempt, MaxAttempts: stage.MaxAttempts, RecoveryPolicy: stage.RecoveryPolicy, StartedAt: stage.StartedAt, FinishedAt: stage.FinishedAt, DurationMS: stage.DurationMS, FailureCode: stage.FailureCode, FailureMessage: stage.FailureMessage})
+		items = append(items, moduleapi.TaskStageView{ExecutionMode: mode, ExecutionVersion: version, ID: stage.ID, Key: stage.Key, Sequence: stage.Sequence, ExecutorType: stage.ExecutorType, Status: stage.Status, Attempt: stage.Attempt, MaxAttempts: stage.MaxAttempts, RecoveryPolicy: stage.RecoveryPolicy, StartedAt: stage.StartedAt, FinishedAt: stage.FinishedAt, DurationMS: stage.DurationMS, FailureCode: stage.FailureCode, FailureMessage: stage.FailureMessage, FailureStage: stage.FailureStage, FailureClass: stage.FailureClass})
 	}
 	return items, nil
 }
@@ -786,7 +786,7 @@ func (r *Runtime) ListTaskEvents(ctx context.Context, taskID uint64, after int64
 
 // toTaskView 将持久化的任务模型转换为对外任务视图。
 func toTaskView(task taskmodel.Task) moduleapi.TaskView {
-	return moduleapi.TaskView{ID: task.ID, Type: task.Type, Owner: task.Owner, Status: task.Status, CurrentStageKey: task.CurrentStageKey, CreatedBy: task.CreatedBy, CreatedAt: task.CreatedAt, StartedAt: task.StartedAt, FinishedAt: task.FinishedAt, DurationMS: task.DurationMS, FailureCode: task.FailureCode, FailureMessage: task.FailureMessage}
+	return moduleapi.TaskView{ID: task.ID, Type: task.Type, Owner: task.Owner, Status: task.Status, CurrentStageKey: task.CurrentStageKey, CreatedBy: task.CreatedBy, CreatedAt: task.CreatedAt, StartedAt: task.StartedAt, FinishedAt: task.FinishedAt, DurationMS: task.DurationMS, FailureCode: task.FailureCode, FailureMessage: task.FailureMessage, FailureStage: task.FailureStage, FailureClass: task.FailureClass}
 }
 
 // Cancel 持久化取消请求；本进程跟踪的 Stage 由执行器返回结果结算，失联的普通 Stage 则以 cancelled 释放业务资源占用。
