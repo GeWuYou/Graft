@@ -9,6 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
+	"unicode/utf8"
+
+	"graft/server/internal/moduleapi"
 )
 
 const executionJournalDirectory = "executions"
@@ -22,10 +26,13 @@ const (
 )
 
 type executionJournal struct {
-	Lease       executionLease        `json:"lease"`
-	Phase       executionJournalPhase `json:"phase"`
-	Outcome     string                `json:"outcome,omitempty"`
-	FailureCode string                `json:"failure_code,omitempty"`
+	Lease          executionLease        `json:"lease"`
+	Phase          executionJournalPhase `json:"phase"`
+	Outcome        string                `json:"outcome,omitempty"`
+	FailureCode    string                `json:"failure_code,omitempty"`
+	FailureStage   string                `json:"failure_stage,omitempty"`
+	FailureClass   string                `json:"failure_class,omitempty"`
+	FailureSummary string                `json:"failure_summary,omitempty"`
 }
 
 func loadExecutionJournals(stateDir string) ([]executionJournal, error) {
@@ -121,7 +128,7 @@ func validExecutionJournal(journal executionJournal) bool {
 	}
 	switch journal.Phase {
 	case executionJournalPrepared, executionJournalRunning:
-		return journal.Outcome == "" && journal.FailureCode == ""
+		return journal.Outcome == "" && journal.FailureCode == "" && journal.FailureStage == "" && journal.FailureClass == "" && journal.FailureSummary == ""
 	case executionJournalTerminal:
 		return validTerminalJournal(journal)
 	default:
@@ -135,9 +142,36 @@ func validJournalLease(lease executionLease) bool {
 
 func validTerminalJournal(journal executionJournal) bool {
 	if journal.Outcome == "success" {
-		return journal.FailureCode == ""
+		return journal.FailureCode == "" && journal.FailureStage == "" && journal.FailureClass == "" && journal.FailureSummary == ""
 	}
-	return (journal.Outcome == "failed" || journal.Outcome == "needs_attention") && stableProviderFailureCode(journal.FailureCode)
+	if (journal.Outcome != "failed" && journal.Outcome != "needs_attention") || !stableProviderFailureCode(journal.FailureCode) {
+		return false
+	}
+	return validTerminalFailureAttribution(journal)
+}
+
+// validTerminalFailureAttribution 校验终态回执的阶段、分类与摘要事实；空值表示未归类。
+func validTerminalFailureAttribution(journal executionJournal) bool {
+	if journal.FailureStage != "" && !moduleapi.ValidExecutionStage(journal.FailureStage) {
+		return false
+	}
+	if journal.FailureClass != "" && !moduleapi.ValidExecutionFailureClass(journal.FailureClass) {
+		return false
+	}
+	return validJournalFailureSummary(journal.FailureSummary)
+}
+
+// validJournalFailureSummary 保持重放摘要与结算边界一致：有界、单行且无控制字符。
+func validJournalFailureSummary(summary string) bool {
+	if summary == "" {
+		return true
+	}
+	if utf8.RuneCountInString(summary) > moduleapi.ExecutionDiagnosticSummaryMaxRunes {
+		return false
+	}
+	return !strings.ContainsFunc(summary, func(r rune) bool {
+		return r == '\n' || r == '\r' || unicode.IsControl(r)
+	})
 }
 
 func stableProviderFailureCode(code string) bool {

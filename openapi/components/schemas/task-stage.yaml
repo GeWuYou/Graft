@@ -27,3 +27,13 @@ properties:
   duration_ms: { type: [integer, "null"], format: int64, minimum: 0 }
   failure_code: { type: [string, "null"] }
   failure_message: { type: [string, "null"] }
+  failure_stage:
+    anyOf:
+      - $ref: ./task-execution-stage.yaml
+      - type: "null"
+    description: Bounded execution stage attribution for the stage failure; null when not stage-attributable.
+  failure_class:
+    anyOf:
+      - $ref: ./task-execution-failure-class.yaml
+      - type: "null"
+    description: Stable failure classification for the stage failure; null when not classified.

@@ -106,6 +106,17 @@
             <t-descriptions-item :label="t('runtimeTarget.detail.agentGeneration')">
               {{ agentProjection.generation || t('runtimeTarget.detail.notEnrolled') }}
             </t-descriptions-item>
+            <t-descriptions-item
+              v-if="agentProjection.claim_admission"
+              :label="t('runtimeTarget.detail.agentClaimAdmission')"
+            >
+              <t-tag :theme="claimAdmissionTheme(agentProjection.claim_admission.class)" variant="light">
+                {{ agentAdmissionLabel(agentProjection.claim_admission.class) }}
+              </t-tag>
+              <span class="runtime-target-admission-time">
+                {{ formatLocaleDateTime(agentProjection.claim_admission.observed_at, locale) }}
+              </span>
+            </t-descriptions-item>
           </t-descriptions>
           <div class="runtime-target-capabilities">
             <span class="runtime-target-capabilities-title">{{ t('runtimeTarget.detail.capabilities') }}</span>
@@ -370,6 +381,12 @@ function agentStatusTheme(status: string) {
 function agentDiagnosticLabel(code: string) {
   return t(`runtimeTarget.agentDiagnostics.${code}`);
 }
+function agentAdmissionLabel(admissionClass: string) {
+  return t(`runtimeTarget.agentAdmissions.${admissionClass}`);
+}
+function claimAdmissionTheme(admissionClass: string) {
+  return admissionClass === 'no_work' ? 'success' : 'warning';
+}
 async function load() {
   if (!Number.isInteger(targetID.value) || targetID.value <= 0) {
     errorMessage.value = t('runtimeTarget.detail.loadError');
@@ -511,6 +528,11 @@ onMounted(() => void load());
 
 .runtime-target-diagnostic {
   margin-top: var(--td-comp-margin-l);
+}
+
+.runtime-target-admission-time {
+  color: var(--td-text-color-secondary);
+  margin-left: var(--td-comp-margin-s);
 }
 
 .runtime-target-assignment-actions {

@@ -1,0 +1,14 @@
+type: object
+description: Bounded claim admission tri-state observed by the Runtime Agent and reported through telemetry receipts.
+required: [class, observed_at]
+properties:
+  class:
+    type: string
+    enum: [no_work, identity_rejected, transport_failed]
+    x-enum-varnames: [RuntimeTargetAgentClaimAdmissionClassNoWork, RuntimeTargetAgentClaimAdmissionClassIdentityRejected, RuntimeTargetAgentClaimAdmissionClassTransportFailed]
+    description: Stable claim admission class; no_work keeps the agent ready while the rejection classes degrade readiness.
+  observed_at:
+    type: string
+    format: date-time
+    description: Backend-recorded observation time of the last claim conclusion.
+additionalProperties: false

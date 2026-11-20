@@ -84,6 +84,129 @@ func TestAgentTelemetryReceiptRejectsArbitraryDiagnosticText(t *testing.T) {
 	if !validAgentTelemetryReceipt(receipt, now) {
 		t.Fatal("stable diagnostic code rejected")
 	}
+	for _, diagnostic := range []string{AgentLedgerDiagnosticNoWork, AgentLedgerDiagnosticIdentityRejected, AgentLedgerDiagnosticTransportFailed} {
+		receipt.Diagnostic = diagnostic
+		if !validAgentTelemetryReceipt(receipt, now) {
+			t.Fatalf("claim admission diagnostic %q rejected", diagnostic)
+		}
+	}
+}
+
+func TestReadLatestAgentLedgerReceiptDiagnosticReturnsFreshEvidence(t *testing.T) {
+	db := openAgentLedgerTestDB(t)
+	repository := NewSQLRepository(db)
+	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
+	identity := testAgentTrustIdentity()
+	if _, err := repository.CreatePendingAgentTrustGeneration(context.Background(), identity, testPendingAgentTrustGeneration(1, now.Add(time.Hour))); err != nil {
+		t.Fatalf("create generation: %v", err)
+	}
+	if err := repository.ActivateAgentTrustGeneration(context.Background(), identity.TargetID, identity.AgentID, 1, "vault", "serial-1", "sha256:key-1", 0, now); err != nil {
+		t.Fatalf("activate generation: %v", err)
+	}
+	if err := repository.EnsureBuilderAgentLedger(context.Background(), identity.TargetID, identity.AgentID, 2); err != nil {
+		t.Fatalf("ensure execution ledger: %v", err)
+	}
+	mtlsIdentity := AgentLedgerIdentity{IdentityID: identity.IdentityID, TargetID: identity.TargetID, AgentID: identity.AgentID, Generation: 1, CertificateSerial: "serial-1", PublicKeyFingerprint: "sha256:key-1"}
+	if _, found, err := repository.ReadLatestAgentLedgerReceiptDiagnostic(context.Background(), identity.TargetID, now); found || err != nil {
+		t.Fatalf("receipt before telemetry = found=%v err=%v", found, err)
+	}
+	snapshot, err := repository.IssueAgentLedgerSnapshot(context.Background(), mtlsIdentity, testAgentLedgerSnapshotID(), now, now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("issue ledger snapshot: %v", err)
+	}
+	receipt := AgentTelemetryReceiptInput{SnapshotID: snapshot.SnapshotID, SnapshotDigest: snapshot.SnapshotDigest, ObservedAt: now, ExpiresAt: now.Add(3 * time.Minute), Available: true, ImplementationVersion: "v1", Diagnostic: AgentLedgerDiagnosticIdentityRejected}
+	if err := repository.RecordAgentTelemetryReceipt(context.Background(), mtlsIdentity, receipt, now.Add(time.Second)); err != nil {
+		t.Fatalf("record identity-rejected receipt: %v", err)
+	}
+	projected, found, err := repository.ReadLatestAgentLedgerReceiptDiagnostic(context.Background(), identity.TargetID, now.Add(2*time.Second))
+	if err != nil || !found || projected.Diagnostic != AgentLedgerDiagnosticIdentityRejected || !projected.ObservedAt.Equal(now) {
+		t.Fatalf("latest receipt diagnostic = %#v found=%v err=%v", projected, found, err)
+	}
+	if _, found, err := repository.ReadLatestAgentLedgerReceiptDiagnostic(context.Background(), identity.TargetID, receipt.ExpiresAt.Add(time.Second)); found || err != nil {
+		t.Fatalf("expired receipt diagnostic = found=%v err=%v", found, err)
+	}
+}
+
+//nolint:gocognit // 三个调度资格场景共享同一条最新快照边界，需连续对照验证。
+func TestAgentLedgerSchedulingEligibilityFollowsLatestSnapshot(t *testing.T) {
+	base := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
+	scenarios := []struct {
+		name                string
+		olderDiagnostic     string
+		olderReceiptExpiry  time.Duration
+		latestDiagnostic    string
+		latestReceiptExpiry time.Duration
+		queryDelay          time.Duration
+		wantEligible        bool
+	}{
+		// 调度资格由每目标最新快照决定：最新的 transport_failed 回执不得被旧的 no_work 回执掩盖。
+		{name: "latest transport_failed blocks scheduling despite older no_work receipt", olderDiagnostic: AgentLedgerDiagnosticNoWork, olderReceiptExpiry: 4 * time.Minute, latestDiagnostic: AgentLedgerDiagnosticTransportFailed, latestReceiptExpiry: 4 * time.Minute, queryDelay: 5 * time.Second, wantEligible: false},
+		{name: "latest no_work admits scheduling despite older transport_failed receipt", olderDiagnostic: AgentLedgerDiagnosticTransportFailed, olderReceiptExpiry: 4 * time.Minute, latestDiagnostic: AgentLedgerDiagnosticNoWork, latestReceiptExpiry: 4 * time.Minute, queryDelay: 5 * time.Second, wantEligible: true},
+		{name: "expired latest receipt blocks scheduling despite older fresh receipt", olderDiagnostic: AgentLedgerDiagnosticNoWork, olderReceiptExpiry: 4 * time.Minute, latestDiagnostic: AgentLedgerDiagnosticNoWork, latestReceiptExpiry: 10 * time.Second, queryDelay: 15 * time.Second, wantEligible: false},
+	}
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			harness := newAgentLedgerEligibilityHarness(t, base)
+			older := harness.issueSnapshot(testAgentLedgerSnapshotID(), base)
+			harness.recordReceipt(older, scenario.olderDiagnostic, base.Add(time.Second), scenario.olderReceiptExpiry)
+			latest := harness.issueSnapshot(testAgentLedgerSnapshotID2(), base.Add(2*time.Second))
+			harness.recordReceipt(latest, scenario.latestDiagnostic, base.Add(3*time.Second), scenario.latestReceiptExpiry)
+			admitted, err := harness.repository.ListActiveDockerAgentLedgerSnapshots(context.Background(), []int64{harness.identity.TargetID}, base.Add(scenario.queryDelay))
+			if err != nil {
+				t.Fatalf("list admitted snapshots: %v", err)
+			}
+			if !scenario.wantEligible {
+				if len(admitted) != 0 {
+					t.Fatalf("target must not be schedulable, admitted = %#v", admitted)
+				}
+				return
+			}
+			if len(admitted) != 1 || admitted[0].SnapshotID != latest.SnapshotID || admitted[0].Sequence != latest.Sequence {
+				t.Fatalf("target must be scheduled with its latest snapshot %#v, admitted = %#v", latest, admitted)
+			}
+		})
+	}
+}
+
+// agentLedgerEligibilityHarness 固化同一活动世代目标上的快照签发与回执消费边界，供调度资格场景复用。
+type agentLedgerEligibilityHarness struct {
+	t          *testing.T
+	repository *SQLRepository
+	identity   AgentLedgerIdentity
+}
+
+func newAgentLedgerEligibilityHarness(t *testing.T, now time.Time) agentLedgerEligibilityHarness {
+	t.Helper()
+	db := openAgentLedgerTestDB(t)
+	repository := NewSQLRepository(db)
+	identity := testAgentTrustIdentity()
+	if _, err := repository.CreatePendingAgentTrustGeneration(context.Background(), identity, testPendingAgentTrustGeneration(1, now.Add(time.Hour))); err != nil {
+		t.Fatalf("create generation: %v", err)
+	}
+	if err := repository.ActivateAgentTrustGeneration(context.Background(), identity.TargetID, identity.AgentID, 1, "vault", "serial-1", "sha256:key-1", 0, now); err != nil {
+		t.Fatalf("activate generation: %v", err)
+	}
+	if err := repository.EnsureBuilderAgentLedger(context.Background(), identity.TargetID, identity.AgentID, 2); err != nil {
+		t.Fatalf("ensure execution ledger: %v", err)
+	}
+	return agentLedgerEligibilityHarness{t: t, repository: repository, identity: AgentLedgerIdentity{IdentityID: identity.IdentityID, TargetID: identity.TargetID, AgentID: identity.AgentID, Generation: 1, CertificateSerial: "serial-1", PublicKeyFingerprint: "sha256:key-1"}}
+}
+
+func (h agentLedgerEligibilityHarness) issueSnapshot(snapshotID string, now time.Time) AgentLedgerSnapshot {
+	h.t.Helper()
+	snapshot, err := h.repository.IssueAgentLedgerSnapshot(context.Background(), h.identity, snapshotID, now, now.Add(time.Minute))
+	if err != nil {
+		h.t.Fatalf("issue ledger snapshot: %v", err)
+	}
+	return snapshot
+}
+
+func (h agentLedgerEligibilityHarness) recordReceipt(snapshot AgentLedgerSnapshot, diagnostic string, observedAt time.Time, lifetime time.Duration) {
+	h.t.Helper()
+	receipt := AgentTelemetryReceiptInput{SnapshotID: snapshot.SnapshotID, SnapshotDigest: snapshot.SnapshotDigest, ObservedAt: observedAt, ExpiresAt: observedAt.Add(lifetime), Available: true, ImplementationVersion: "v1", Diagnostic: diagnostic}
+	if err := h.repository.RecordAgentTelemetryReceipt(context.Background(), h.identity, receipt, observedAt); err != nil {
+		h.t.Fatalf("record %q receipt: %v", diagnostic, err)
+	}
 }
 
 func testAgentLedgerSnapshotID() string {

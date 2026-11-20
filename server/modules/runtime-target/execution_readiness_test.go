@@ -9,6 +9,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 
 	"graft/server/internal/config"
+	generated "graft/server/internal/contract/openapi/generated"
 	"graft/server/internal/moduleapi"
 	"graft/server/modules/runtime-target/store"
 )
@@ -97,4 +98,68 @@ type executionAdmissionStub struct{}
 
 func (executionAdmissionStub) ExecutionAdmission() moduleapi.TaskExecutionAdmission {
 	return moduleapi.TaskExecutionAdmission{Mode: "local", Ready: true, DiagnosticCode: "execution_ready"}
+}
+
+func TestAgentProjectionCarriesFreshClaimAdmissionEvidence(t *testing.T) {
+	observedAt := time.Date(2026, 11, 20, 9, 0, 0, 0, time.UTC)
+	for _, test := range []struct {
+		diagnostic string
+		wantStatus generated.RuntimeTargetAgentStatus
+		wantClass  generated.RuntimeTargetAgentClaimAdmissionClass
+	}{
+		{diagnostic: store.AgentLedgerDiagnosticNoWork, wantStatus: generated.RuntimeTargetAgentStatusReady, wantClass: generated.RuntimeTargetAgentClaimAdmissionClassNoWork},
+		{diagnostic: store.AgentLedgerDiagnosticIdentityRejected, wantStatus: generated.RuntimeTargetAgentStatusDegraded, wantClass: generated.RuntimeTargetAgentClaimAdmissionClassIdentityRejected},
+		{diagnostic: store.AgentLedgerDiagnosticTransportFailed, wantStatus: generated.RuntimeTargetAgentStatusDegraded, wantClass: generated.RuntimeTargetAgentClaimAdmissionClassTransportFailed},
+	} {
+		db, mock, err := sqlmock.New()
+		if err != nil {
+			t.Fatal(err)
+		}
+		columns := strings.Split("id,identity_id,target_id,agent_id,provider,builder_scope,profile,version,digest,agent_version,generation_id,generation,enrollment_ref,bundle_ref,bundle_version,issuer,serial,fingerprint,expires_at,status,activated_at,retired_at,revoked_at,reason", ",")
+		rows := sqlmock.NewRows(columns).AddRow(1, "identity-1", 1, "agent-1", "docker", "scope-1", "oci-build", "docker/v1",
+			"sha256:"+strings.Repeat("a", 64), "fixture", 12, 1, "enrollment", "bundle", "bundle-1", "issuer", "serial", "fingerprint",
+			time.Now().Add(time.Hour), "active", nil, nil, nil, "")
+		mock.ExpectQuery("SELECT .* FROM runtime_target_agent_identities i INNER JOIN runtime_target_agent_generations g").
+			WithArgs(int64(1), sqlmock.AnyArg()).WillReturnRows(rows)
+		mock.ExpectQuery("SELECT identity_id, generation_id, provider_id, capabilities, capability_version FROM runtime_target_agent_capability_bindings").
+			WithArgs(int64(12)).WillReturnRows(sqlmock.NewRows([]string{"identity_id", "generation_id", "provider_id", "capabilities", "capability_version"}).
+			AddRow(1, 12, "docker", `["oci-build"]`, "docker/v1"))
+		mock.ExpectQuery("SELECT s.receipt_diagnostic, s.receipt_observed_at").
+			WithArgs(int64(1), sqlmock.AnyArg()).
+			WillReturnRows(sqlmock.NewRows([]string{"receipt_diagnostic", "receipt_observed_at"}).AddRow(test.diagnostic, observedAt))
+		module := &Module{executionMode: config.ExecutionModeAgent, executionAdmission: fixedAdmissionReader{moduleapi.TaskExecutionAdmission{Mode: "agent", Ready: true}}, repository: store.NewSQLRepository(db)}
+		agent := module.toHTTPAgent(t.Context(), store.Target{ID: 1, Provider: "docker", Availability: true})
+		if agent.Status != test.wantStatus {
+			t.Fatalf("diagnostic %s status = %s, want %s", test.diagnostic, agent.Status, test.wantStatus)
+		}
+		if agent.ClaimAdmission == nil || agent.ClaimAdmission.Class != test.wantClass || !agent.ClaimAdmission.ObservedAt.Equal(observedAt) {
+			t.Fatalf("diagnostic %s claim admission = %#v", test.diagnostic, agent.ClaimAdmission)
+		}
+		_ = db.Close()
+	}
+}
+
+func TestAgentProjectionKeepsEmptyAdmissionWithoutFreshReceipt(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	columns := strings.Split("id,identity_id,target_id,agent_id,provider,builder_scope,profile,version,digest,agent_version,generation_id,generation,enrollment_ref,bundle_ref,bundle_version,issuer,serial,fingerprint,expires_at,status,activated_at,retired_at,revoked_at,reason", ",")
+	rows := sqlmock.NewRows(columns).AddRow(1, "identity-1", 1, "agent-1", "docker", "scope-1", "oci-build", "docker/v1",
+		"sha256:"+strings.Repeat("a", 64), "fixture", 12, 1, "enrollment", "bundle", "bundle-1", "issuer", "serial", "fingerprint",
+		time.Now().Add(time.Hour), "active", nil, nil, nil, "")
+	mock.ExpectQuery("SELECT .* FROM runtime_target_agent_identities i INNER JOIN runtime_target_agent_generations g").
+		WithArgs(int64(1), sqlmock.AnyArg()).WillReturnRows(rows)
+	mock.ExpectQuery("SELECT identity_id, generation_id, provider_id, capabilities, capability_version FROM runtime_target_agent_capability_bindings").
+		WithArgs(int64(12)).WillReturnRows(sqlmock.NewRows([]string{"identity_id", "generation_id", "provider_id", "capabilities", "capability_version"}).
+		AddRow(1, 12, "docker", `["oci-build"]`, "docker/v1"))
+	mock.ExpectQuery("SELECT s.receipt_diagnostic, s.receipt_observed_at").
+		WithArgs(int64(1), sqlmock.AnyArg()).
+		WillReturnRows(sqlmock.NewRows([]string{"receipt_diagnostic", "receipt_observed_at"}))
+	module := &Module{executionMode: config.ExecutionModeAgent, executionAdmission: fixedAdmissionReader{moduleapi.TaskExecutionAdmission{Mode: "agent", Ready: true}}, repository: store.NewSQLRepository(db)}
+	agent := module.toHTTPAgent(t.Context(), store.Target{ID: 1, Provider: "docker", Availability: true})
+	if agent.Status != generated.RuntimeTargetAgentStatusReady || agent.ClaimAdmission != nil {
+		t.Fatalf("agent without fresh receipt = status %s admission %#v", agent.Status, agent.ClaimAdmission)
+	}
 }

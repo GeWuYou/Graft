@@ -7285,6 +7285,25 @@ export interface components {
      */
     'task-status':
       'pending' | 'scheduled' | 'ready' | 'running' | 'success' | 'failed' | 'cancelled' | 'needs_attention';
+    /**
+     * @description Bounded provider execution stage attributed to a failed external execution; a stage is absent when the failure was not stage-attributable.
+     * @enum {string}
+     */
+    'task-execution-stage':
+      'material_resolve' | 'compose_load' | 'compose_apply' | 'container_apply' | 'controller_pull';
+    /**
+     * @description Stable cross-module failure classification reported with an execution failure; absent when the failure was not classified.
+     * @enum {string}
+     */
+    'task-execution-failure-class':
+      | 'transient'
+      | 'permanent'
+      | 'configuration'
+      | 'authorization'
+      | 'provider'
+      | 'infrastructure'
+      | 'internal'
+      | 'unknown';
     'task-summary': {
       /** Format: int64 */
       id: number;
@@ -7306,6 +7325,10 @@ export interface components {
       duration_ms?: number | null;
       failure_code?: string | null;
       failure_message?: string | null;
+      /** @description Bounded execution stage attribution for the failure; null when not stage-attributable. */
+      failure_stage?: components['schemas']['task-execution-stage'] | null;
+      /** @description Stable failure classification for the failure; null when not classified. */
+      failure_class?: components['schemas']['task-execution-failure-class'] | null;
     };
     'task-list-response': {
       items: components['schemas']['task-summary'][];
@@ -7356,6 +7379,10 @@ export interface components {
       duration_ms?: number | null;
       failure_code?: string | null;
       failure_message?: string | null;
+      /** @description Bounded execution stage attribution for the stage failure; null when not stage-attributable. */
+      failure_stage?: components['schemas']['task-execution-stage'] | null;
+      /** @description Stable failure classification for the stage failure; null when not classified. */
+      failure_class?: components['schemas']['task-execution-failure-class'] | null;
     };
     'task-detail': components['schemas']['task-summary'] & {
       capabilities: components['schemas']['task-capabilities'];
@@ -10076,6 +10103,19 @@ export interface components {
     'enveloped-runtime-target-list-response': components['schemas']['api-envelope'] & {
       data: components['schemas']['runtime-target-list-response'];
     };
+    /** @description Bounded claim admission tri-state observed by the Runtime Agent and reported through telemetry receipts. */
+    'runtime-target-agent-claim-admission': {
+      /**
+       * @description Stable claim admission class; no_work keeps the agent ready while the rejection classes degrade readiness.
+       * @enum {string}
+       */
+      class: 'no_work' | 'identity_rejected' | 'transport_failed';
+      /**
+       * Format: date-time
+       * @description Backend-recorded observation time of the last claim conclusion.
+       */
+      observed_at: string;
+    };
     'runtime-target-agent-capability': {
       /** @description Stable Runtime Agent capability identifier. */
       name: string;
@@ -10097,6 +10137,8 @@ export interface components {
       version: string;
       /** @enum {string} */
       diagnostic_code: 'none' | 'agent_not_enrolled' | 'agent_unavailable' | 'agent_degraded';
+      /** @description Latest fresh claim admission evidence from agent telemetry; null when no fresh receipt exists yet. */
+      claim_admission?: components['schemas']['runtime-target-agent-claim-admission'] | null;
       capabilities: components['schemas']['runtime-target-agent-capability'][];
     };
     'runtime-target': components['schemas']['runtime-target-summary'] & {
