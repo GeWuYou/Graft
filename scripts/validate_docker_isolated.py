@@ -200,6 +200,16 @@ class Fixture:
 
     def api(self, method: str, path: str, payload: dict | None = None,
             *, idempotency_key: str | None = None) -> tuple[int, dict]:
+        status, body = self.request(method, path, payload, idempotency_key=idempotency_key)
+        if status == 401 and isinstance(body, dict) and body.get("code") == "AUTH_TOKEN_EXPIRED" \
+                and not path.startswith("/api/auth/"):
+            # 长场景会活过登录令牌有效期：过期即重新登录并重试一次，避免令牌老化污染后续场景证据。
+            self.authenticate()
+            status, body = self.request(method, path, payload, idempotency_key=idempotency_key)
+        return status, body
+
+    def request(self, method: str, path: str, payload: dict | None = None,
+                *, idempotency_key: str | None = None) -> tuple[int, dict]:
         headers = {"Content-Type": "application/json"}
         if method == "POST" and (path.startswith("/api/ops/") or idempotency_key is not None):
             headers["Idempotency-Key"] = idempotency_key or secrets.token_hex(16)
@@ -415,6 +425,38 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                 return stages
             time.sleep(2)
         return stages
+
+    def wait_stage_running_attempt(self, identifier: int, attempt: int, timeout: int = 120) -> list:
+        deadline = time.monotonic() + timeout
+        stages: list = []
+        while time.monotonic() < deadline:
+            stages = self.task_stages(identifier)
+            if any(stage.get("status") == "running" and (stage.get("attempt") or 0) >= attempt for stage in stages):
+                return stages
+            time.sleep(2)
+        return stages
+
+    def assert_fixture_ports_exclusive(self) -> None:
+        # 孤儿栈的后端会占用夹具端口：本栈的 API 调用会命中错误实例并静默污染证据。
+        # 有界预检在任何场景之前失败，携带占用容器身份。
+        recorded_ports = sorted({str(self.environment[key]) for key in
+                                 ("GRAFT_CONFORMANCE_BACKEND_PORT", "GRAFT_CONFORMANCE_OFFICIAL_PORT",
+                                  "GRAFT_CONFORMANCE_BOOTSTRAP_PORT", "GRAFT_CONFORMANCE_AGENT_PORT")
+                                 if key in self.environment})
+        listing = subprocess.run(["docker", "ps", "--format",
+                                  "{{.Label \"com.docker.compose.project\"}}\t{{.Names}}\t{{.Ports}}"],
+                                 capture_output=True, text=True, timeout=30, check=False)
+        if listing.returncode != 0:
+            raise RuntimeError("Fixture port preflight could not list containers: " + listing.stderr.strip())
+        squatters = []
+        for line in listing.stdout.splitlines():
+            project, _, ports = line.partition("\t")
+            if project == self.state["project"] or project == "":
+                continue
+            if any(f":{port}->" in ports for port in recorded_ports):
+                squatters.append(line.strip())
+        if squatters:
+            raise RuntimeError("Fixture ports are squatted by foreign containers: " + " | ".join(squatters))
 
     def material_stage_code_probe(self, identifier: int) -> None:
         # The material-missing rejection above must project its bounded provider stage attribution through
@@ -697,6 +739,11 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             self.compose("up", "-d", "--wait", "docker-runtime-agent")
             return
         self.compose("up", "-d", "--wait", "docker-runtime-agent")
+        claimed = self.wait_stage_running_attempt(task_id, 2, timeout=120)
+        if not any(stage.get("status") == "running" and (stage.get("attempt") or 0) >= 2 for stage in claimed):
+            self.record(scenario, "failed", task_id=task_id, stages=claimed, note=RECOVERY_POLICY_STAND_IN_NOTE,
+                        scope="Restarted agent did not claim the re-armed stage")
+            return
         resumed = self.wait_task_status(task_id, "success", timeout=300)
         after = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", container).strip()
         stages = self.task_stages(task_id)
@@ -883,6 +930,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
 
     def probe(self) -> None:
         self.authenticate()
+        self.assert_fixture_ports_exclusive()
         if self.execution_mode == "agent":
             self.once_probe()
         self.enable_operations()

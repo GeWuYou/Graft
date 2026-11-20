@@ -349,6 +349,36 @@ class FixtureLifecycleTests(unittest.TestCase):
         fixture.stop()
         self.assertEqual(fixture.compose.call_count, 1)
 
+    def test_port_preflight_fails_loudly_on_foreign_squatters(self):
+        # 孤儿栈的后端会占用夹具端口（D1 live evidence）：本栈的 API 调用会命中错误实例并污染全部证据。
+        for lines, expected in (
+                (["graft-isolated-agent-smoke\tbackend\t0.0.0.0:28080->28080/tcp", "other\torphan\t0.0.0.0:28081->28081/tcp"], "orphan"),
+                (["graft-isolated-agent-smoke\tbackend\t0.0.0.0:28080->28080/tcp"], None),
+                (["other\tside\t0.0.0.0:9999->9999/tcp"], None)):
+            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as directory:
+                fixture = Fixture.__new__(Fixture)
+                fixture.state = {"project": "graft-isolated-agent-smoke"}
+                fixture.environment = {"GRAFT_CONFORMANCE_BACKEND_PORT": "28080",
+                    "GRAFT_CONFORMANCE_OFFICIAL_PORT": "28081", "GRAFT_CONFORMANCE_BOOTSTRAP_PORT": "28081",
+                    "GRAFT_CONFORMANCE_AGENT_PORT": "28082"}
+                listing = subprocess.CompletedProcess([], 0, stdout="\n".join(lines) + "\n", stderr="")
+                with patch("validate_docker_isolated.subprocess.run", return_value=listing):
+                    if expected is None:
+                        fixture.assert_fixture_ports_exclusive()
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, "squatted by foreign containers"):
+                            fixture.assert_fixture_ports_exclusive()
+
+    def test_port_preflight_fails_when_container_listing_is_unavailable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Fixture.__new__(Fixture)
+            fixture.state = {"project": "graft-isolated-agent-smoke"}
+            fixture.environment = {"GRAFT_CONFORMANCE_BACKEND_PORT": "28080"}
+            listing = subprocess.CompletedProcess([], 1, stdout="", stderr="docker daemon unreachable")
+            with patch("validate_docker_isolated.subprocess.run", return_value=listing):
+                with self.assertRaisesRegex(RuntimeError, "could not list containers"):
+                    fixture.assert_fixture_ports_exclusive()
+
     def test_lost_vault_authority_aborts_before_migrations_or_backend(self):
         with tempfile.TemporaryDirectory() as temporary:
             fixture = Fixture.__new__(Fixture)
@@ -428,6 +458,58 @@ class FixtureAPIContractTests(unittest.TestCase):
             self.assertIn("safe-trace", evidence)
             self.assertIn("INVALID", evidence)
             self.assertNotIn("sensitive", evidence)
+
+    def test_api_refreshes_expired_token_once_and_retries(self):
+        # 长场景会活过登录令牌有效期（correction 4 live run）：过期即重新登录并重试一次，
+        # 401 级联不得污染后续场景证据。
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            fixture.environment["GRAFT_FIXTURE_ADMIN_PASSWORD"] = "graft-admin"
+            expired = HTTPError("http://fixture", 401, "Unauthorized", {},
+                io.BytesIO(json.dumps({"code": "AUTH_TOKEN_EXPIRED"}).encode()))
+            login = Mock()
+            login.status = 200
+            login.read.return_value = json.dumps({"data": {"access_token": "refreshed", "must_change_password": False}}).encode()
+            login.__enter__ = Mock(return_value=login)
+            login.__exit__ = Mock(return_value=False)
+            retry = Mock()
+            retry.status = 200
+            retry.read.return_value = json.dumps({"data": {"id": 9}}).encode()
+            retry.__enter__ = Mock(return_value=retry)
+            retry.__exit__ = Mock(return_value=False)
+            responses = [expired, login, retry]
+            calls = []
+            def transport(request, **kwargs):
+                item = responses.pop(0)
+                calls.append(dict(request.header_items()))
+                if isinstance(item, HTTPError):
+                    raise item
+                return item
+            with patch("validate_docker_isolated.request.urlopen", side_effect=transport):
+                status, body = fixture.api("GET", "/api/tasks/9")
+            self.assertEqual((status, body), (200, {"data": {"id": 9}}))
+            self.assertEqual(fixture.token, "refreshed")
+            self.assertEqual(len(calls), 3)
+            self.assertEqual(calls[0]["Authorization"], "Bearer synthetic-fixture-token")
+            self.assertEqual(calls[2]["Authorization"], "Bearer refreshed")
+            self.assertIn("AUTH_TOKEN_EXPIRED", (Path(directory) / "api-errors.json").read_text())
+
+    def test_api_never_refreshes_on_login_paths(self):
+        # 登录路径上的 401 不触发刷新循环：单次调用即返回，不递归重新登录。
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            fixture.token = ""
+            expired = HTTPError("http://fixture", 401, "Unauthorized", {},
+                io.BytesIO(json.dumps({"code": "AUTH_TOKEN_EXPIRED"}).encode()))
+            calls = []
+            def transport(request, **kwargs):
+                calls.append(request.full_url)
+                raise expired
+            with patch("validate_docker_isolated.request.urlopen", side_effect=transport):
+                status, body = fixture.api("POST", "/api/auth/login", {"username": "graft", "password": "graft-admin"})
+            self.assertEqual(status, 401)
+            self.assertEqual(body.get("code"), "AUTH_TOKEN_EXPIRED")
+            self.assertEqual(calls, ["http://127.0.0.1:28080/api/auth/login"])
 
 
 class RuntimeRepairEvidenceTests(unittest.TestCase):
@@ -760,6 +842,7 @@ class RecoveryScenarioTests(unittest.TestCase):
                 (201, {"data": {"application_id": "app-x", "workspace_path": "/workspace"}}),
                 (202, {"data": {"task_id": 9}}),
                 (200, {"data": {"items": [{"attempt": 1, "max_attempts": 2, "status": "pending"}]}}),
+                (200, {"data": {"items": [{"attempt": 2, "max_attempts": 2, "status": "running"}]}}),
                 (200, {"data": {"items": [{"attempt": 2, "max_attempts": 2, "status": "success"}]}})])
             fixture.engine = Mock(side_effect=["graft-recovery-resume-probe-test-app", "id started", "id started"])
             fixture.sql = Mock(return_value="")
@@ -792,6 +875,7 @@ class RecoveryScenarioTests(unittest.TestCase):
                     (201, {"data": {"application_id": "app-x", "workspace_path": "/workspace"}}),
                     (202, {"data": {"task_id": 9}}),
                     (200, {"data": {"items": [{"attempt": 1, "max_attempts": 2, "status": "pending"}]}}),
+                    (200, {"data": {"items": [{"attempt": 2, "max_attempts": 2, "status": "running"}]}}),
                     (200, {"data": {"items": [{"attempt": attempt, "max_attempts": 2, "status": "success"}]}})])
                 fixture.engine = Mock(side_effect=["graft-recovery-resume-probe-test-app", "id started", "id started"])
                 fixture.sql = Mock(return_value="")
@@ -815,6 +899,29 @@ class RecoveryScenarioTests(unittest.TestCase):
             self.assertEqual(record.args, ("agent-recovery-resume", "unverified"))
             self.assertEqual((record.kwargs["create_status"], record.kwargs["up_status"],
                               record.kwargs["up_error_code"]), (201, 503, "common.task_execution_unavailable"))
+
+    def test_recovery_resume_probe_records_unclaimed_stage_evidence(self):
+        # Live run (agent-smoke2): the restarted agent never claimed the re-armed stage and the probe only
+        # reported a bare success timeout; the claim wait must separate that failure mode with evidence.
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            (fixture.directory / "trust-evidence.json").write_text(json.dumps({"bootstrap": {"target_id": 1}}))
+            fixture.api = Mock(side_effect=[
+                self.readiness_api(),
+                (201, {"data": {"application_id": "app-x", "workspace_path": "/workspace"}}),
+                (202, {"data": {"task_id": 9}}),
+                (200, {"data": {"items": [{"attempt": 1, "max_attempts": 2, "status": "pending"}]}}),
+                (200, {"data": {"items": [{"attempt": 1, "max_attempts": 2, "status": "pending"}]}})])
+            fixture.engine = Mock(side_effect=["graft-recovery-resume-probe-test-app", "id started"])
+            fixture.sql = Mock(return_value="")
+            fixture.wait_task = Mock(return_value={"id": 9, "status": "needs_attention"})
+            with patch("validate_docker_isolated.secrets.token_hex", return_value="test"), \
+                    self.clock([0, 1, 2, 3, 4, 5, 6, 7, 10 ** 9]):
+                fixture.recovery_resume_probe()
+            record = fixture.record.call_args
+            self.assertEqual(record.args, ("agent-recovery-resume", "failed"))
+            self.assertEqual(record.kwargs["task_id"], 9)
+            self.assertEqual(record.kwargs["stages"], [{"attempt": 1, "max_attempts": 2, "status": "pending"}])
 
     def test_recovery_budget_probe_requires_converged_exhaustion_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
