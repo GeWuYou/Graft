@@ -36,7 +36,9 @@ help:
       '  just ensure-openapi-bundle Ensure the generated OpenAPI bundle exists and is fresh' \
       '  just generate          Run Go generation, OpenAPI bundle, and frontend OpenAPI types' \
       '  just openapi-check     Validate OpenAPI, generated bindings, web schema, and contract projection freshness' \
-      '  just openapi-breaking  Detect OpenAPI breaking changes against a base ref (optional first arg, default merge-base with origin/main)'
+      '  just openapi-breaking  Detect OpenAPI breaking changes against a base ref (optional first arg, default merge-base with origin/main)' \
+      '  just browser-acceptance [args...]  Run risk-tiered browser acceptance suites (primary checkout only)' \
+      '  just browser-acceptance-list       List browser acceptance suites and engines'
 
 setup:
     bun install --frozen-lockfile
@@ -197,3 +199,18 @@ openapi-breaking *args:
 
 contract-projection-check:
     cd server && go run ./internal/contract/projection/cmd/projectiongen --check
+
+# === Browser acceptance harness (developer primary checkout only) ===
+# Risk-tiered real-API suites under tests/browser with per-attempt isolated
+# PostgreSQL/Redis, deterministic Go fixtures and zero retries. Never runs in
+# leased task worktrees; see docs/development/browser-acceptance.md.
+[positional-arguments]
+browser-acceptance *args:
+    python3 -B scripts/browser_acceptance.py "$@"
+
+browser-acceptance-list:
+    python3 -B scripts/browser_acceptance.py --list-suites
+    python3 -B scripts/browser_acceptance.py --list-engines
+
+browser-acceptance-test:
+    python3 -B -m unittest scripts.test_browser_acceptance

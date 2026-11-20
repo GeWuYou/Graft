@@ -12,9 +12,12 @@ Make scoped local validation evidence reusable and SHA-bound, run grouped check 
 
 - `AGENTS.md`
 - `docs/development/validation.md`
+- `docs/development/browser-acceptance.md`
 - `scripts/local_validation.py`
 - `scripts/check_suite.py`
 - `scripts/ci_impact.py`
+- `scripts/browser_acceptance.py`
+- `tests/browser/**`
 - `.github/workflows/pull-request-validation.yml`
 - `Justfile`
 
@@ -46,9 +49,9 @@ closeout:
 
 ## Current Recovery Point
 
-- Current batch: correction 3 (PR head SHA binding in the summary cross-check) committed on `chore/validation-ci-discipline`, awaiting lead integration.
-- Completed: evidence reuse, check suite + CI impact, workflow discipline, documentation, and corrections 1-2 (cross-check hardening, GET pin).
-- Pending: observe one real pull-request run after integration and push.
+- Current batch: browser acceptance harness (PR 4, worker track2-browser) committed on `feature/browser-acceptance-harness`, awaiting lead integration and the primary-checkout chromium local-tier evidence run.
+- Completed: evidence reuse, check suite + CI impact, workflow discipline, documentation, corrections 1-3 (cross-check hardening, GET pin, PR head SHA binding), and the browser acceptance harness batch (harness, compose/Playwright fixtures, Go seeds, Justfile section, docs).
+- Pending: observe one real pull-request run after integration and push; record the primary-checkout browser acceptance run per docs/development/browser-acceptance.md.
 - Risk: `kind: optimize` extends the ADR-003 v1 documented kind vocabulary; the ADR owner should reconcile the vocabulary in a later governance batch.
 
 ## Task Checklist
@@ -59,7 +62,11 @@ closeout:
 - [x] Add `scripts/ci_impact.py` conservative path-to-job mapping with FULL-forcing shared surfaces.
 - [x] Regroup pull-request-validation jobs, add missing timeout, extend summary needs to every job, add the run/attempt/SHA API cross-check.
 - [x] Update `docs/development/validation.md` for evidence reuse, suite, impact and summary semantics.
+- [x] Add `scripts/browser_acceptance.py` risk-tiered suites x engines harness with zero retries, sanitized per-attempt reports and keep/reuse diagnostics.
+- [x] Add `tests/browser/` compose overlay, Playwright config, suite specs and the test-only `TestSeedBrowserFixture` seeds in server/modules.
+- [x] Document the browser acceptance tiers, engine matrix, seeding and sanitization in `docs/development/browser-acceptance.md`.
 - [ ] Observe a real pull-request run after integration and record the evidence in the trace.
+- [ ] Run the documented primary-checkout browser acceptance sequence after merge and record the chromium local-tier evidence in the trace.
 - [ ] Decide whether CI impact selection should later gate workflow job paths (separate batch, requires roadmap consideration).
 
 ## Acceptance Conditions
