@@ -491,17 +491,22 @@ def status_entry(root: Path, entry: dict) -> dict:
         source["current_digest"] = digest_file(compose_file) if compose_file.is_file() else None
         source["drifted"] = (source["current_digest"] != source.get("digest")) \
             if source["current_digest"] is not None else None
-        checkout_compose = Path(entry.get("checkout") or "") / "compose.yml"
-        if checkout_compose.is_file():
-            source["checkout_digest"] = digest_file(checkout_compose)
-            source["checkout_matches_start"] = source.get("digest") == source["checkout_digest"]
     except OSError as exc:
-        # A failed destroy can leave container-owned (root-owned) files in
-        # the instance directory; status must stay readable and report the
-        # condition instead of crashing on every reader.
+        # A failed destroy can leave root-owned files in the instance
+        # directory; status must stay readable and report the condition
+        # instead of crashing on every reader.
         anomalies.append(f"instance_dir_unreadable: {exc}")
         source["current_digest"] = None
         source["drifted"] = None
+    checkout_compose = Path(entry.get("checkout") or "") / "compose.yml"
+    if checkout_compose.is_file():
+        try:
+            source["checkout_digest"] = digest_file(checkout_compose)
+            source["checkout_matches_start"] = source.get("digest") == source["checkout_digest"]
+        except OSError as exc:
+            # A checkout-side read failure must not be mistaken for instance
+            # damage: the instance digest and drift verdict stay untouched.
+            anomalies.append(f"checkout_compose_unreadable: {exc}")
     health = None
     if entry.get("state") == "running":
         health = {"web": probe_http(web_url(entry)), "url": web_url(entry)}
@@ -644,6 +649,40 @@ def teardown_recorded_project(project: str, timeout: float = 180) -> None:
         raise PreviewError("recorded-project teardown failed: " + "; ".join(errors))
 
 
+def needs_ownership_restore(directory: Path) -> bool:
+    """True when the instance directory or any top-level entry is not
+    owned by the invoking user, or the directory cannot even be listed —
+    the leftover state of older destroy attempts that re-rooted the
+    directory. Container-written data (UID 10001) counts too: restoring
+    developer ownership over it is harmless because the privileged pass
+    removes it afterwards anyway."""
+    try:
+        if directory.stat().st_uid != os.getuid():
+            return True
+        for child in directory.iterdir():
+            if child.lstat().st_uid != os.getuid():
+                return True
+    except OSError:
+        return True
+    return False
+
+
+def restore_developer_ownership(directory: Path, timeout: float = 120) -> None:
+    """Restore the invoking user's ownership over the instance directory
+    with one privileged run, using deterministic numeric uid:gid (no name
+    lookup). Owner write is included so the host-side removal can actually
+    unlink entries afterwards."""
+    identity = f"{os.getuid()}:{os.getgid()}"
+    command = ["docker", "run", "--rm", "--user", "0:0",
+               "-v", f"{directory}:/target", "postgres:16.16-alpine",
+               "sh", "-c", f"chown -R {identity} /target && chmod -R u+rwX /target"]
+    completed = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
+    if completed.returncode != 0:
+        raise PreviewError(
+            f"ownership restore exited with code {completed.returncode}: "
+            f"{completed.stderr.strip()[:300]}")
+
+
 def destroy(args: argparse.Namespace) -> dict:
     """Order matters: tear down the stack, reclaim container-owned data,
     and only then archive evidence and drop the registry entry. A cleanup
@@ -661,6 +700,19 @@ def destroy(args: argparse.Namespace) -> dict:
             raise PreviewError(
                 f"destroy requires --confirm-instance {identity} (the exact registered identity)")
         directory = instance_dir(root, identity)
+        # Older cleanup attempts could leave the directory or its files
+        # root-owned; restore developer ownership once so the normal path
+        # can even see the files its checks and removal need.
+        if needs_ownership_restore(directory):
+            try:
+                restore_developer_ownership(directory)
+            except (PreviewError, subprocess.SubprocessError, OSError) as exc:
+                entry["state"] = "cleanup_failed"
+                entry["cleanup_error"] = str(exc)
+                entry["updated_at"] = utc_now()
+                write_registry(root, document)
+                raise PreviewError(
+                    f"ownership restore failed for {identity} (entry kept for retry): {exc}") from exc
         compose_file = directory / "compose.yml"
         env_file = directory / ".env"
         try:

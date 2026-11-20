@@ -39,7 +39,9 @@ just preview-destroy --task my-task --confirm-instance <status 输出的完整�
   root 写入的目录），宿主只移除开发者属主的剩余文件（compose.yml、.env、logs），目录不会留下 root
   属主残留；随后把注册项连同 `evidence_sha256` 归档进 `archive/` 与 `archive/manifest.json`。清理失败时
   注册项保留并标记 `cleanup_failed`，阻塞解除后可原样重试 destroy，不会留下脱离注册的半清理状态。
-  `status` 对不可读的实例目录（例如失败的 destroy 遗留的 root 属主文件）报告异常而不是崩溃。
+  若实例目录或其文件已不是开发者属主（旧版清理遗留的 root 属主残留），destroy 先用一次特权运行把属主
+  归还给调用者（数字 uid:gid 的 chown 加 u+rwX），再走正常清理路径。
+  `status` 把不可读的实例目录与不可读的检出 compose 文件分别报告为独立异常，互不影响对方的摘要结论。
 
 ## 端口与容量
 
