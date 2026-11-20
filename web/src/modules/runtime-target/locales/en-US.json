@@ -66,6 +66,7 @@
       "agentId": "Agent ID",
       "agentVersion": "Agent Version",
       "agentGeneration": "Trust Generation",
+      "agentClaimAdmission": "Last Claim Admission",
       "capabilities": "Capabilities",
       "capabilitiesEmpty": "No capabilities are currently registered.",
       "notEnrolled": "Not enrolled",
@@ -157,6 +158,11 @@
       "agent_not_enrolled": "No trusted Runtime Agent is enrolled for this target.",
       "agent_unavailable": "The Runtime Agent is currently unavailable.",
       "agent_degraded": "The Runtime Agent capability binding needs attention."
+    },
+    "agentAdmissions": {
+      "no_work": "No work available to claim",
+      "identity_rejected": "Claim rejected by identity validation",
+      "transport_failed": "Claim transport failed"
     },
     "metrics": {
       "workloads": "Workloads",

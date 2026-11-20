@@ -30,6 +30,8 @@ type Task struct {
 	DurationMS            *int64
 	FailureCode           *string
 	FailureMessage        *string
+	FailureStage          *moduleapi.ExecutionStage
+	FailureClass          *moduleapi.ExecutionFailureClass
 	CreatedAt             time.Time
 	UpdatedAt             time.Time
 }
@@ -82,6 +84,8 @@ type Stage struct {
 	Result         json.RawMessage
 	FailureCode    *string
 	FailureMessage *string
+	FailureStage   *moduleapi.ExecutionStage
+	FailureClass   *moduleapi.ExecutionFailureClass
 	StartedAt      *time.Time
 	FinishedAt     *time.Time
 	DurationMS     *int64

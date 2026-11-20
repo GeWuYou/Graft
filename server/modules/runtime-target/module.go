@@ -1108,7 +1108,41 @@ func (m *Module) toHTTPAgent(ctx context.Context, target store.Target) generated
 			DiagnosticCode: capabilityCode,
 		})
 	}
+	return m.applyAgentLedgerAdmission(ctx, target, agent)
+}
+
+// applyAgentLedgerAdmission 用最近一次新鲜的 claim admission 遥测细化就绪投影；
+// 身份拒绝与传输失败使 Agent 降级，无工作仍属就绪。证据通过新增 claim_admission
+// 属性携带，不扩展现有 diagnostic_code 枚举。
+func (m *Module) applyAgentLedgerAdmission(ctx context.Context, target store.Target, agent generated.RuntimeTargetAgent) generated.RuntimeTargetAgent {
+	if m == nil || m.repository == nil || agent.Status != generated.RuntimeTargetAgentStatusReady {
+		return agent
+	}
+	//nolint:gosec // target.ID is bounded by maxRuntimeTargetID before this conversion.
+	receipt, found, err := m.repository.ReadLatestAgentLedgerReceiptDiagnostic(ctx, int64(target.ID), time.Now().UTC())
+	if err != nil || !found {
+		return agent
+	}
+	switch receipt.Diagnostic {
+	case store.AgentLedgerDiagnosticNoWork:
+		agent.ClaimAdmission = claimAdmissionProjection(receipt)
+	case store.AgentLedgerDiagnosticIdentityRejected:
+		agent.Status = generated.RuntimeTargetAgentStatusDegraded
+		agent.ClaimAdmission = claimAdmissionProjection(receipt)
+	case store.AgentLedgerDiagnosticTransportFailed:
+		agent.Status = generated.RuntimeTargetAgentStatusDegraded
+		agent.ClaimAdmission = claimAdmissionProjection(receipt)
+	}
 	return agent
+}
+
+// claimAdmissionProjection 把受限回执证据映射为稳定的 claim admission 响应对象。
+func claimAdmissionProjection(receipt store.AgentLedgerReceiptDiagnostic) *generated.RuntimeTargetAgentClaimAdmission {
+	observedAt := receipt.ObservedAt.UTC()
+	return &generated.RuntimeTargetAgentClaimAdmission{
+		Class:      generated.RuntimeTargetAgentClaimAdmissionClass(receipt.Diagnostic),
+		ObservedAt: observedAt,
+	}
 }
 
 // toHTTPCountMetric 将目标计数指标转换为 HTTP 响应中的运行时目标计数指标。

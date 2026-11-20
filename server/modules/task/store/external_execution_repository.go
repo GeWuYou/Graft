@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -288,18 +290,40 @@ func (r *SQLRepository) prepareExternalExecutionSettlement(ctx context.Context, 
 	return lease, nil, nil
 }
 
+// externalExecutionFailureValues 把结算输入映射为 Task/Stage 失败诊断列的 SQL 值；空输入保持 NULL。
+type externalExecutionFailureValues struct {
+	Code    any
+	Stage   any
+	Class   any
+	Message any
+}
+
+func externalExecutionFailureValuesFor(input SettleExternalExecutionInput) externalExecutionFailureValues {
+	values := externalExecutionFailureValues{}
+	if input.FailureCode != "" {
+		values.Code = input.FailureCode
+	}
+	if input.FailureStage != "" {
+		values.Stage = string(input.FailureStage)
+	}
+	if input.FailureClass != "" {
+		values.Class = string(input.FailureClass)
+	}
+	if input.DiagnosticSummary != "" {
+		values.Message = input.DiagnosticSummary
+	}
+	return values
+}
+
 func (r *SQLRepository) persistExternalExecutionSettlement(ctx context.Context, tx *sql.Tx, lease taskmodel.ExternalExecutionLease, input SettleExternalExecutionInput) (ExternalReceiptSettlement, error) {
 	now := time.Now().UTC()
 	stageStatus := externalExecutionStageStatus(input.Outcome)
-	var failureCode any
-	if input.FailureCode != "" {
-		failureCode = input.FailureCode
-	}
+	failure := externalExecutionFailureValuesFor(input)
 	stageResult, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
-		SET status = ?, failure_code = ?, failure_message = NULL, finished_at = ?, duration_ms = NULL, updated_at = ?
+		SET status = ?, failure_code = ?, failure_stage = ?, failure_class = ?, failure_message = ?, finished_at = ?, duration_ms = NULL, updated_at = ?
 		WHERE id = ? AND task_id = ? AND attempt = ? AND executor_type = ? AND status IN (?, ?)`),
-		stageStatus, failureCode, now, now, lease.StageID, lease.TaskID, lease.Attempt, lease.ExecutorType,
-		moduleapi.StageStatusRunning, moduleapi.StageStatusUnknown)
+		stageStatus, failure.Code, failure.Stage, failure.Class, failure.Message, now, now, lease.StageID, lease.TaskID,
+		lease.Attempt, lease.ExecutorType, moduleapi.StageStatusRunning, moduleapi.StageStatusUnknown)
 	if err != nil {
 		return ExternalReceiptSettlement{}, fmt.Errorf("settle external execution stage: %w", err)
 	}
@@ -310,7 +334,7 @@ func (r *SQLRepository) persistExternalExecutionSettlement(ctx context.Context, 
 	if err != nil {
 		return ExternalReceiptSettlement{}, err
 	}
-	if err := r.updateExternalExecutionTask(ctx, tx, lease, taskStatus, failureCode, now); err != nil {
+	if err := r.updateExternalExecutionTask(ctx, tx, lease, taskStatus, failure, now); err != nil {
 		return ExternalReceiptSettlement{}, err
 	}
 	if _, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_external_execution_leases
@@ -323,7 +347,7 @@ func (r *SQLRepository) persistExternalExecutionSettlement(ctx context.Context, 
 		lease_id, task_id, stage_id, attempt, executor_type, receipt_protocol, operation_id, outcome, failure_code,
 		integrity_sha256, settled_task_status, created_at
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`), lease.ID, lease.TaskID, lease.StageID, lease.Attempt,
-		lease.ExecutorType, lease.Protocol, lease.OperationID, input.Outcome, failureCode, input.IntegritySHA256,
+		lease.ExecutorType, lease.Protocol, lease.OperationID, input.Outcome, failure.Code, input.IntegritySHA256,
 		taskStatus, now); err != nil {
 		return ExternalReceiptSettlement{}, fmt.Errorf("insert external execution receipt: %w", err)
 	}
@@ -366,16 +390,16 @@ func (r *SQLRepository) externalExecutionTaskStatus(ctx context.Context, tx *sql
 	return moduleapi.TaskStatusRunning, nil
 }
 
-func (r *SQLRepository) updateExternalExecutionTask(ctx context.Context, tx *sql.Tx, lease taskmodel.ExternalExecutionLease, status moduleapi.TaskStatus, failureCode any, now time.Time) error {
+func (r *SQLRepository) updateExternalExecutionTask(ctx context.Context, tx *sql.Tx, lease taskmodel.ExternalExecutionLease, status moduleapi.TaskStatus, failure externalExecutionFailureValues, now time.Time) error {
 	finishedAt := any(nil)
 	if status != moduleapi.TaskStatusRunning {
 		finishedAt = now
 	}
 	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks
 		SET status = ?, current_stage_key = (SELECT stage_key FROM task_stages WHERE id = ?), failure_code = ?,
-			failure_message = NULL, finished_at = ?, duration_ms = NULL, updated_at = ?
-		WHERE id = ? AND status IN (?, ?)`), status, lease.StageID, failureCode, finishedAt, now, lease.TaskID,
-		moduleapi.TaskStatusRunning, moduleapi.TaskStatusNeedsAttention)
+			failure_stage = ?, failure_class = ?, failure_message = ?, finished_at = ?, duration_ms = NULL, updated_at = ?
+		WHERE id = ? AND status IN (?, ?)`), status, lease.StageID, failure.Code, failure.Stage, failure.Class,
+		failure.Message, finishedAt, now, lease.TaskID, moduleapi.TaskStatusRunning, moduleapi.TaskStatusNeedsAttention)
 	if err != nil {
 		return fmt.Errorf("settle external execution task: %w", err)
 	}
@@ -492,14 +516,18 @@ func (r *SQLRepository) expireExternalExecutionLease(ctx context.Context, tx *sq
 	if affected == 0 {
 		return false, nil
 	}
-	if _, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages SET status = ?, failure_code = ?, failure_message = NULL,
-		finished_at = ?, duration_ms = NULL, updated_at = ? WHERE id = ? AND task_id = ? AND attempt = ? AND status = ?`),
-		moduleapi.StageStatusUnknown, externalExecutionLeaseExpiryFailureCode, now, now, lease.StageID, lease.TaskID, lease.Attempt, moduleapi.StageStatusRunning); err != nil {
+	if _, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages SET status = ?, failure_code = ?, failure_stage = NULL,
+		failure_class = ?, failure_message = NULL, finished_at = ?, duration_ms = NULL, updated_at = ?
+		WHERE id = ? AND task_id = ? AND attempt = ? AND status = ?`),
+		moduleapi.StageStatusUnknown, externalExecutionLeaseExpiryFailureCode, string(moduleapi.ExecutionFailureClassUnknown),
+		now, now, lease.StageID, lease.TaskID, lease.Attempt, moduleapi.StageStatusRunning); err != nil {
 		return false, fmt.Errorf("mark expired external execution stage unknown: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE tasks SET status = ?, current_stage_key = (SELECT stage_key FROM task_stages WHERE id = ?),
-		failure_code = ?, failure_message = NULL, finished_at = ?, duration_ms = NULL, updated_at = ? WHERE id = ? AND status = ?`),
-		moduleapi.TaskStatusNeedsAttention, lease.StageID, externalExecutionLeaseExpiryFailureCode, now, now, lease.TaskID, moduleapi.TaskStatusRunning); err != nil {
+		failure_code = ?, failure_stage = NULL, failure_class = ?, failure_message = NULL, finished_at = ?, duration_ms = NULL, updated_at = ?
+		WHERE id = ? AND status = ?`),
+		moduleapi.TaskStatusNeedsAttention, lease.StageID, externalExecutionLeaseExpiryFailureCode,
+		string(moduleapi.ExecutionFailureClassUnknown), now, now, lease.TaskID, moduleapi.TaskStatusRunning); err != nil {
 		return false, fmt.Errorf("mark expired external execution task needs attention: %w", err)
 	}
 	payload, err := json.Marshal(map[string]any{"lease_id": lease.ID, "stage_id": lease.StageID, "attempt": lease.Attempt, "reason": externalExecutionLeaseExpiryFailureCode})
@@ -575,17 +603,49 @@ func validExternalExecutionLogInput(input AppendExternalExecutionLogsInput) bool
 }
 
 func validExternalExecutionSettlement(input SettleExternalExecutionInput) bool {
-	if strings.TrimSpace(input.LeaseID) == "" || !lowercaseReceiptSHA256(input.FenceTokenHash) || !lowercaseReceiptSHA256(input.IntegritySHA256) {
-		return false
-	}
+	return validExternalExecutionSettlementIdentity(input) && validExternalExecutionOutcome(input)
+}
+
+// validExternalExecutionSettlementIdentity 校验 lease 身份与摘要材料。
+func validExternalExecutionSettlementIdentity(input SettleExternalExecutionInput) bool {
+	return strings.TrimSpace(input.LeaseID) != "" && lowercaseReceiptSHA256(input.FenceTokenHash) &&
+		lowercaseReceiptSHA256(input.IntegritySHA256) && validExternalExecutionFailureAttribution(input)
+}
+
+// validExternalExecutionOutcome 把结算结论限制在稳定失败码语义内；成功回执不得携带失败归因。
+func validExternalExecutionOutcome(input SettleExternalExecutionInput) bool {
 	switch input.Outcome {
 	case moduleapi.ExternalReceiptOutcomeSuccess:
-		return input.FailureCode == ""
+		return input.FailureCode == "" && input.FailureStage == "" && input.FailureClass == "" && input.DiagnosticSummary == ""
 	case moduleapi.ExternalReceiptOutcomeFailed, moduleapi.ExternalReceiptOutcomeNeedsAttention:
 		return stableExternalFailureCode(input.FailureCode)
 	default:
 		return false
 	}
+}
+
+// validExternalExecutionFailureAttribution 校验有界阶段、稳定分类与脱敏摘要；空值表示未归类。
+func validExternalExecutionFailureAttribution(input SettleExternalExecutionInput) bool {
+	if input.FailureStage != "" && !moduleapi.ValidExecutionStage(string(input.FailureStage)) {
+		return false
+	}
+	if input.FailureClass != "" && !moduleapi.ValidExecutionFailureClass(string(input.FailureClass)) {
+		return false
+	}
+	return validExecutionDiagnosticSummary(input.DiagnosticSummary)
+}
+
+// validExecutionDiagnosticSummary 持久化前严格复核脱敏摘要：有界、单行且不含控制字符。
+func validExecutionDiagnosticSummary(value string) bool {
+	if value == "" {
+		return true
+	}
+	if utf8.RuneCountInString(value) > moduleapi.ExecutionDiagnosticSummaryMaxRunes {
+		return false
+	}
+	return !strings.ContainsFunc(value, func(r rune) bool {
+		return r == '\n' || r == '\r' || unicode.IsControl(r)
+	})
 }
 
 func stableExternalFailureCode(value string) bool {

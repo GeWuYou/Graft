@@ -1,0 +1,4 @@
+type: string
+description: Stable cross-module failure classification reported with an execution failure; absent when the failure was not classified.
+enum: [transient, permanent, configuration, authorization, provider, infrastructure, internal, unknown]
+x-enum-varnames: [TaskExecutionFailureClassTransient, TaskExecutionFailureClassPermanent, TaskExecutionFailureClassConfiguration, TaskExecutionFailureClassAuthorization, TaskExecutionFailureClassProvider, TaskExecutionFailureClassInfrastructure, TaskExecutionFailureClassInternal, TaskExecutionFailureClassUnknown]

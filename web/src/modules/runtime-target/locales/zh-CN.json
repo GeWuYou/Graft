@@ -66,6 +66,7 @@
       "agentId": "Agent 标识",
       "agentVersion": "Agent 版本",
       "agentGeneration": "信任世代",
+      "agentClaimAdmission": "最近领取结论",
       "capabilities": "能力",
       "capabilitiesEmpty": "当前未登记任何能力。",
       "notEnrolled": "尚未登记",
@@ -152,6 +153,11 @@
       "agent_not_enrolled": "该运行目标尚未登记受信任的运行时 Agent。",
       "agent_unavailable": "运行时 Agent 当前不可用。",
       "agent_degraded": "运行时 Agent 能力绑定需要关注。"
+    },
+    "agentAdmissions": {
+      "no_work": "无待领取工作",
+      "identity_rejected": "领取被身份校验拒绝",
+      "transport_failed": "领取通道传输失败"
     },
     "metrics": {
       "workloads": "工作负载",

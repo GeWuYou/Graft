@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -25,6 +26,8 @@ import (
 	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	mobyclient "github.com/moby/moby/client"
+
+	"graft/server/internal/moduleapi"
 )
 
 const (
@@ -37,6 +40,8 @@ const (
 	updateControllerCapability         = "update_controller"
 	updateControllerOperation          = "platform.update.controller.launch.v1"
 	maxProviderReferenceLength         = 512
+	// composeLoadFailureSummaryMaxLines 限制摘要最多合并两条结构化错误行，防止单条摘要过长。
+	composeLoadFailureSummaryMaxLines = 2
 )
 
 const (
@@ -588,7 +593,7 @@ func executeApplicationComposeOperation(ctx context.Context, c Environment, leas
 	}
 	runtime, err := loadComposeProject(ctx, c.DockerSocket, resolved)
 	if err != nil {
-		return failedExecutionAt(mapProviderFailure(err), "compose_load")
+		return failedExecutionSummary(mapProviderFailure(err), "compose_load", composeLoadFailureSummary(err))
 	}
 	defer func() { _ = runtime.dockerCLI.Client().Close() }()
 	request := composeDispatchRequest{runtime: runtime, managedServices: resolved.ManagedServiceNames, action: action, policy: intent.Policy}
@@ -845,8 +850,83 @@ func strictDecode(payload []byte, destination any) error {
 }
 
 func failedExecution(code string) Result {
-	return Result{Outcome: "failed", FailureCode: code}
+	return Result{Outcome: "failed", FailureCode: code, FailureClass: providerFailureClass(code)}
 }
+
+// providerFailureClass 把稳定 Provider 失败码映射为跨模块失败分类；未知码保守归类为 unknown。
+func providerFailureClass(code string) moduleapi.ExecutionFailureClass {
+	switch code {
+	case failureInvalidIntent, failureUnsupportedAction, failureResourceNotFound:
+		return moduleapi.ExecutionFailureClassPermanent
+	case failureRuntimeUnavailable, failureResourceConflict:
+		return moduleapi.ExecutionFailureClassInfrastructure
+	case failureProviderOperation:
+		return moduleapi.ExecutionFailureClassProvider
+	case failureInterrupted:
+		return moduleapi.ExecutionFailureClassUnknown
+	default:
+		return moduleapi.ExecutionFailureClassUnknown
+	}
+}
+
+// composeLoadFailureSummary 从 Compose 加载错误文本按允许列表提取单行脱敏摘要。
+// loadComposeProject 的输出流保持 io.Discard；这里只消费返回的错误文本，
+// 剔除路径、疑似凭据片段与控制字符，并把结果限制在稳定摘要上限内。
+func composeLoadFailureSummary(err error) string {
+	if err == nil {
+		return ""
+	}
+	var selected []string
+	for _, line := range strings.Split(err.Error(), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || !composeLoadFailureLineAllowed(line) {
+			continue
+		}
+		if selectedLine, ok := redactComposeFailureLine(line); ok {
+			selected = append(selected, selectedLine)
+		}
+		if len(selected) == composeLoadFailureSummaryMaxLines {
+			break
+		}
+	}
+	return moduleapi.SanitizeExecutionDiagnosticSummary(strings.Join(selected, "; "))
+}
+
+// composeLoadFailureLineAllowed 只放行可安全归因于结构化 Compose 校验错误的行；
+// 不匹配允许列表的文本一律丢弃，避免把任意 Provider 输出带进 Task 持久化。
+func composeLoadFailureLineAllowed(line string) bool {
+	for _, pattern := range composeLoadFailureLineAllowlist {
+		if pattern.MatchString(line) {
+			return true
+		}
+	}
+	return false
+}
+
+// redactComposeFailureLine 移除路径形态的片段并在疑似凭据文本出现时整行丢弃。
+func redactComposeFailureLine(line string) (string, bool) {
+	if sensitiveFragmentPattern.MatchString(line) {
+		return "", false
+	}
+	redacted := absolutePathPattern.ReplaceAllString(line, "[path]")
+	return redacted, strings.TrimSpace(redacted) != ""
+}
+
+var composeLoadFailureLineAllowlist = []*regexp.Regexp{
+	regexp.MustCompile(`^yaml:\s`),
+	regexp.MustCompile(`\bservices?\.[A-Za-z0-9_.-]+\b`),
+	regexp.MustCompile(`\bvolumes?\.[A-Za-z0-9_.-]+\b`),
+	regexp.MustCompile(`\bunknown\b`),
+	regexp.MustCompile(`\binvalid\b`),
+	regexp.MustCompile(`\bunsupported\b`),
+	regexp.MustCompile(`\bmust be\b`),
+	regexp.MustCompile(`\bnot allowed\b`),
+	regexp.MustCompile(`\brequired\b`),
+	regexp.MustCompile(`\bcannot\b`),
+}
+
+var absolutePathPattern = regexp.MustCompile(`(?:[A-Za-z]:)?(?:/|\\)[^\s"'']*`)
+var sensitiveFragmentPattern = regexp.MustCompile(`(?i)(password|passwd|secret|token|credential|authorization|api[_-]?key)`)
 
 func mapProviderFailure(err error) string {
 	if errors.Is(err, errContainerReferenceChanged) {
@@ -890,5 +970,13 @@ func PrepareComposeProjectLabels(project *composetypes.Project, envFiles []strin
 func failedExecutionAt(code, stage string) Result {
 	result := failedExecution(code)
 	result.FailureStage = stage
+	return result
+}
+
+// failedExecutionSummary 在阶段归类之上携带一条经允许列表脱敏的诊断摘要；
+// 摘要只服务于操作者观察，不参与失败码结算语义。
+func failedExecutionSummary(code, stage, summary string) Result {
+	result := failedExecutionAt(code, stage)
+	result.FailureSummary = summary
 	return result
 }
