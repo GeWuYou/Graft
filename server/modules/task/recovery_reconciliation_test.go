@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -179,6 +180,66 @@ func TestResumeInterruptedRecoveryRestoresAllLegsAtomically(t *testing.T) {
 	assertRecoveryEventCounts(t, repository, legs.ID, 2, 1)
 }
 
+func TestReconcileCandidateSelectionReachesNewerWorkPastBlockedTasks(t *testing.T) {
+	runtime, repository := newRuntimeForTest(t)
+	// 100 个混合预算 Task：可恢复 leg + 已收敛的超预算 leg。修正前它们的可恢复 leg 占满
+	// 最旧优先的有界窗口，且每次恢复都被 ErrRecoveryBlocked 拒绝，永远饿死更晚的可恢复任务。
+	for index := 0; index < 100; index++ {
+		blocked := createIdempotentExternalLegs(t, repository,
+			[]string{fmt.Sprintf("blocked-%d-a", index), fmt.Sprintf("blocked-%d-b", index)}, []int{3, 1})
+		first := claimTestExternalExecution(t, runtime)
+		_ = claimTestExternalExecution(t, runtime)
+		if count, err := repository.ExpireExternalExecutionLeases(context.Background(), first.AbsoluteDeadlineAt.Add(time.Second), 10); err != nil || count != 2 {
+			t.Fatalf("expire blocked legs = count:%d err:%v", count, err)
+		}
+		blockedStages := mustStages(t, repository, blocked.ID)
+		if err := repository.ConvergeRecoveryBudgetExhausted(context.Background(), taskstore.RecoveryBudgetExhaustionInput{TaskID: blocked.ID, StageID: blockedStages[1].ID, Now: time.Now().UTC()}); err != nil {
+			t.Fatalf("converge blocked leg: %v", err)
+		}
+	}
+	newerID := submitIdempotentExternalTaskOn(t, runtime, 2)
+	newerLease := claimTestExternalExecution(t, runtime)
+	expireClaimedExternalLease(t, repository, newerLease)
+	candidates, err := repository.ListInterruptedRecoveryCandidates(context.Background(), 100)
+	if err != nil {
+		t.Fatalf("list candidates past blocked tasks: %v", err)
+	}
+	if len(candidates) != 1 || candidates[0].Task.ID != newerID {
+		t.Fatalf("blocked tasks starved newer work: %d candidates, want only task %d", len(candidates), newerID)
+	}
+	runtime.reconcileInterruptedRecovery(context.Background())
+	if task := mustTask(t, repository, newerID); task.Status != moduleapi.TaskStatusRunning {
+		t.Fatalf("newer task after reconcile = %#v", task)
+	}
+}
+
+func TestResumeInterruptedRecoveryRespectsCancellationRecordedAfterSelection(t *testing.T) {
+	runtime, repository, taskID := submitIdempotentExternalTask(t, 2)
+	lease := claimTestExternalExecution(t, runtime)
+	expireClaimedExternalLease(t, repository, lease)
+	// 候选选定（unknown + 租约过期）之后、恢复事务之前，取消请求落库且取消流程尚未完成。
+	if _, err := repository.RequestCancellation(context.Background(), taskID, time.Now().UTC()); err != nil {
+		t.Fatalf("record cancellation: %v", err)
+	}
+	if _, err := repository.ResumeInterruptedRecovery(context.Background(), taskID, time.Now().UTC()); !errors.Is(err, taskstore.ErrStateConflict) {
+		t.Fatalf("resume with recorded cancellation error = %v, want %v", err, taskstore.ErrStateConflict)
+	}
+	if task := mustTask(t, repository, taskID); task.Status != moduleapi.TaskStatusNeedsAttention || task.CancelRequestedAt == nil {
+		t.Fatalf("task after refused resume = %#v", task)
+	}
+	assertStageState(t, repository, taskID, moduleapi.StageStatusUnknown, "external_execution_lease_expired")
+	assertRecoveryEventCounts(t, repository, taskID, 1, 0)
+	// 巡检不再触碰已请求取消的 Task；既有取消流程照常完成。
+	runtime.reconcileInterruptedRecovery(context.Background())
+	assertRecoveryEventCounts(t, repository, taskID, 1, 0)
+	if err := runtime.Cancel(context.Background(), taskID); err != nil {
+		t.Fatalf("cancel refused task: %v", err)
+	}
+	if task := mustTask(t, repository, taskID); task.Status != moduleapi.TaskStatusCancelled {
+		t.Fatalf("cancelled task after refusal = %#v", task)
+	}
+}
+
 func TestReconcileKeepsBlockedLegVisibleWhenAnyLegExhaustsBudget(t *testing.T) {
 	runtime, repository := newRuntimeForTest(t)
 	// leg-amd64 仍有预算（max 3）；leg-arm64 一次领取后即耗尽预算（max 1）。一次过期收敛同时中断两条 leg。
@@ -191,8 +252,8 @@ func TestReconcileKeepsBlockedLegVisibleWhenAnyLegExhaustsBudget(t *testing.T) {
 
 	// 收敛先于恢复：预算耗尽的 leg 保持可见，整任务恢复被整体拒绝，父任务不得回到 running。
 	runtime.reconcileInterruptedRecovery(context.Background())
-	assertRecoveryLegState(t, repository, legs.ID, "build-amd64", moduleapi.StageStatusUnknown, "external_execution_lease_expired", 1, 3)
-	assertRecoveryLegState(t, repository, legs.ID, "build-arm64", moduleapi.StageStatusUnknown, taskstore.RecoveryBudgetExhaustedFailureCode, 1, 1)
+	assertRecoveryLegState(t, repository, legs.ID, recoveryLegExpectation{key: "build-amd64", status: moduleapi.StageStatusUnknown, failureCode: "external_execution_lease_expired", attempt: 1, maxAttempts: 3})
+	assertRecoveryLegState(t, repository, legs.ID, recoveryLegExpectation{key: "build-arm64", status: moduleapi.StageStatusUnknown, failureCode: taskstore.RecoveryBudgetExhaustedFailureCode, attempt: 1, maxAttempts: 1})
 	if task := mustTask(t, repository, legs.ID); task.Status != moduleapi.TaskStatusNeedsAttention {
 		t.Fatalf("task with blocked leg after reconcile = %#v", task)
 	}
@@ -200,30 +261,39 @@ func TestReconcileKeepsBlockedLegVisibleWhenAnyLegExhaustsBudget(t *testing.T) {
 
 	// 第二次巡检不得把阻塞任务拉回 running，也不得重复恢复事件。
 	runtime.reconcileInterruptedRecovery(context.Background())
-	assertRecoveryLegState(t, repository, legs.ID, "build-amd64", moduleapi.StageStatusUnknown, "external_execution_lease_expired", 1, 3)
-	assertRecoveryLegState(t, repository, legs.ID, "build-arm64", moduleapi.StageStatusUnknown, taskstore.RecoveryBudgetExhaustedFailureCode, 1, 1)
+	assertRecoveryLegState(t, repository, legs.ID, recoveryLegExpectation{key: "build-amd64", status: moduleapi.StageStatusUnknown, failureCode: "external_execution_lease_expired", attempt: 1, maxAttempts: 3})
+	assertRecoveryLegState(t, repository, legs.ID, recoveryLegExpectation{key: "build-arm64", status: moduleapi.StageStatusUnknown, failureCode: taskstore.RecoveryBudgetExhaustedFailureCode, attempt: 1, maxAttempts: 1})
 	if task := mustTask(t, repository, legs.ID); task.Status != moduleapi.TaskStatusNeedsAttention {
 		t.Fatalf("task with blocked leg after second reconcile = %#v", task)
 	}
 	assertRecoveryEventCounts(t, repository, legs.ID, 2, 0)
 }
 
+// recoveryLegExpectation 描述一次 leg 断言的期望状态、失败码与预算事实。
+type recoveryLegExpectation struct {
+	key         string
+	status      moduleapi.StageStatus
+	failureCode string
+	attempt     int
+	maxAttempts int
+}
+
 // assertRecoveryLegState 校验指定 leg 的持久化状态、失败码与预算事实。
-func assertRecoveryLegState(t *testing.T, repository *taskstore.SQLRepository, taskID uint64, key string, status moduleapi.StageStatus, failureCode string, attempt int, maxAttempts int) {
+func assertRecoveryLegState(t *testing.T, repository *taskstore.SQLRepository, taskID uint64, expect recoveryLegExpectation) {
 	t.Helper()
 	for _, stage := range mustStages(t, repository, taskID) {
-		if stage.Key != key {
+		if stage.Key != expect.key {
 			continue
 		}
-		if stage.Status != status || stage.Attempt != attempt || stage.MaxAttempts != maxAttempts {
-			t.Fatalf("leg %s = status:%s attempt:%d max:%d, want %s/%d/%d", key, stage.Status, stage.Attempt, stage.MaxAttempts, status, attempt, maxAttempts)
+		if stage.Status != expect.status || stage.Attempt != expect.attempt || stage.MaxAttempts != expect.maxAttempts {
+			t.Fatalf("leg %s = status:%s attempt:%d max:%d, want %s/%d/%d", expect.key, stage.Status, stage.Attempt, stage.MaxAttempts, expect.status, expect.attempt, expect.maxAttempts)
 		}
-		if stage.FailureCode == nil || *stage.FailureCode != failureCode {
-			t.Fatalf("leg %s failure code = %v, want %q", key, stage.FailureCode, failureCode)
+		if stage.FailureCode == nil || *stage.FailureCode != expect.failureCode {
+			t.Fatalf("leg %s failure code = %v, want %q", expect.key, stage.FailureCode, expect.failureCode)
 		}
 		return
 	}
-	t.Fatalf("leg %s missing from task %d", key, taskID)
+	t.Fatalf("leg %s missing from task %d", expect.key, taskID)
 }
 
 func TestResumeInterruptedRecoveryRejectsTaskWithoutResumableStages(t *testing.T) {
@@ -261,13 +331,20 @@ type interruptedIdempotentFixture struct {
 func submitIdempotentExternalTask(t *testing.T, attempts int) (*Runtime, *taskstore.SQLRepository, uint64) {
 	t.Helper()
 	runtime, repository := newRuntimeForTest(t)
+	taskID := submitIdempotentExternalTaskOn(t, runtime, attempts)
+	return runtime, repository, taskID
+}
+
+// submitIdempotentExternalTaskOn 在给定 Runtime 上提交单阶段幂等外部执行任务。
+func submitIdempotentExternalTaskOn(t *testing.T, runtime *Runtime, attempts int) uint64 {
+	t.Helper()
 	input := testSubmitInput(1, attempts)
 	input.Plan.Stages[0].ExternalExecution = testExternalExecutionExpectation("recovery-operation-" + t.Name())
 	receipt, err := runtime.Submit(context.Background(), input)
 	if err != nil {
 		t.Fatalf("submit idempotent external task: %v", err)
 	}
-	return runtime, repository, receipt.TaskID
+	return receipt.TaskID
 }
 
 // submitAndExpireIdempotentExternalTask 提交幂等外部任务，领取一次并让租约过期，构造真实的运行时中断状态。
@@ -292,7 +369,7 @@ func createIdempotentExternalLegs(t *testing.T, repository *taskstore.SQLReposit
 	if err != nil {
 		t.Fatalf("marshal recovery leg plan: %v", err)
 	}
-	created, _, _, err := repository.Create(context.Background(), taskstore.CreateInput{Task: taskmodel.Task{Type: "test.recovery", Owner: moduleapi.TaskOwner{Type: "test", ID: "recovery-legs-" + t.Name()}, Status: moduleapi.TaskStatusReady, Input: json.RawMessage(`{}`), Metadata: json.RawMessage(`{}`), Plan: plan, State: json.RawMessage(`{}`)}, Stages: stages})
+	created, _, _, err := repository.Create(context.Background(), taskstore.CreateInput{Task: taskmodel.Task{Type: "test.recovery", Owner: moduleapi.TaskOwner{Type: "test", ID: "recovery-legs-" + t.Name() + "-" + legIDs[0]}, Status: moduleapi.TaskStatusReady, Input: json.RawMessage(`{}`), Metadata: json.RawMessage(`{}`), Plan: plan, State: json.RawMessage(`{}`)}, Stages: stages})
 	if err != nil {
 		t.Fatalf("create idempotent external legs: %v", err)
 	}

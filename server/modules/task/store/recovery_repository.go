@@ -33,6 +33,9 @@ type RecoveryBudgetExhaustionInput struct {
 // ListInterruptedRecoveryCandidates 返回可自动恢复的被中断幂等阶段候选：
 // 租约过期导致的 unknown 阶段（预算内恢复或预算耗尽收敛），以及启动恢复遗留、已无法领取的 pending 超预算阶段。
 // manual_reconcile 阶段、显式 needs_attention 结论和已请求取消的 Task 都不是候选。
+// 预算内恢复候选还会排除仍持有超预算 unknown 阶段的 Task：这类 Task 的恢复必然被
+// ErrRecoveryBlocked 拒绝，若占用最旧优先的有界窗口，将使永远无法排空的阻塞 Task 饿死更新的可恢复任务。
+// 超预算 unknown 候选本身（收敛路径）不受该排除影响，收敛一次后即离开候选集合。
 func (r *SQLRepository) ListInterruptedRecoveryCandidates(ctx context.Context, limit int) ([]StageClaim, error) {
 	rows, err := r.db.QueryContext(ctx, r.placeholder.rebind(`SELECT `+taskColumnsFor("task")+`, `+stageColumnsFor("stage")+`
 		FROM task_stages stage
@@ -41,13 +44,20 @@ func (r *SQLRepository) ListInterruptedRecoveryCandidates(ctx context.Context, l
 			AND stage.recovery_policy = ?
 			AND stage.external_execution = true
 			AND (
-				(stage.status = ? AND stage.failure_code = ? AND task.status = ?)
+				(stage.status = ? AND stage.failure_code = ? AND task.status = ?
+					AND (stage.attempt >= stage.max_attempts
+						OR NOT EXISTS (
+							SELECT 1 FROM task_stages blocked
+							WHERE blocked.task_id = stage.task_id AND blocked.status = ?
+								AND blocked.attempt >= blocked.max_attempts
+						)))
 				OR (stage.status = ? AND stage.attempt >= stage.max_attempts AND task.status = ?)
 			)
 		ORDER BY task.created_at ASC, stage.sequence ASC, stage.id ASC
 		LIMIT ?`),
 		moduleapi.StageRecoveryRetryIfIdempotent,
 		moduleapi.StageStatusUnknown, interruptedRecoveryFailureCode, moduleapi.TaskStatusNeedsAttention,
+		moduleapi.StageStatusUnknown,
 		moduleapi.StageStatusPending, moduleapi.TaskStatusRunning,
 		normalizeLimit(limit))
 	if err != nil {
@@ -75,25 +85,58 @@ func (r *SQLRepository) ListInterruptedRecoveryCandidates(ctx context.Context, l
 // 该路径复用 RetryStage 的状态机语义（Task needs_attention -> running，Stage unknown -> pending 并清除失败诊断），
 // 但不推进尝试计数；外部领取路径仍按 attempt < max_attempts 有界发放。
 func (r *SQLRepository) ResumeInterruptedRecovery(ctx context.Context, taskID uint64, retryAt time.Time) (int, error) {
-	if taskID == 0 || retryAt.IsZero() {
-		return 0, ErrInvalidInput
-	}
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := r.beginInterruptedRecoveryResume(ctx, taskID, retryAt)
 	if err != nil {
-		return 0, fmt.Errorf("begin interrupted recovery resume: %w", err)
+		return 0, err
 	}
 	defer rollback(tx)
-	var blocked int
-	if err := tx.QueryRowContext(ctx, r.placeholder.rebind(`SELECT COUNT(*) FROM task_stages
-		WHERE task_id = ? AND status = ? AND attempt >= max_attempts`), taskID, moduleapi.StageStatusUnknown).Scan(&blocked); err != nil {
-		return 0, fmt.Errorf("count blocked interrupted recovery stages: %w", err)
-	}
-	if blocked > 0 {
-		return 0, ErrRecoveryBlocked
+	if err := r.guardBlockedRecoveryStages(ctx, tx, taskID); err != nil {
+		return 0, err
 	}
 	if err := r.resumeRetryableTask(ctx, tx, taskID); err != nil {
 		return 0, err
 	}
+	resumed, err := r.resumeInterruptedRecoveryStages(ctx, tx, taskID, retryAt)
+	if err != nil {
+		return 0, err
+	}
+	if err := r.appendRecoveryResolvedEvent(ctx, tx, taskID, resumed, retryAt, time.Now().UTC()); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit interrupted recovery resume: %w", err)
+	}
+	return resumed, nil
+}
+
+// beginInterruptedRecoveryResume 校验恢复输入并开启恢复事务。
+func (r *SQLRepository) beginInterruptedRecoveryResume(ctx context.Context, taskID uint64, retryAt time.Time) (*sql.Tx, error) {
+	if taskID == 0 || retryAt.IsZero() {
+		return nil, ErrInvalidInput
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin interrupted recovery resume: %w", err)
+	}
+	return tx, nil
+}
+
+// guardBlockedRecoveryStages 拒绝仍持有超预算 unknown 阶段的 Task，保持阻塞 leg 对操作员可见。
+func (r *SQLRepository) guardBlockedRecoveryStages(ctx context.Context, tx *sql.Tx, taskID uint64) error {
+	var blocked int
+	if err := tx.QueryRowContext(ctx, r.placeholder.rebind(`SELECT COUNT(*) FROM task_stages
+		WHERE task_id = ? AND status = ? AND attempt >= max_attempts`), taskID, moduleapi.StageStatusUnknown).Scan(&blocked); err != nil {
+		return fmt.Errorf("count blocked interrupted recovery stages: %w", err)
+	}
+	if blocked > 0 {
+		return ErrRecoveryBlocked
+	}
+	return nil
+}
+
+// resumeInterruptedRecoveryStages 将该 Task 全部预算内的租约中断幂等阶段重置为可领取并清除失败诊断；
+// 没有任何匹配阶段时返回状态冲突，防止事务把父任务拉回 running 而不留任何恢复事实。
+func (r *SQLRepository) resumeInterruptedRecoveryStages(ctx context.Context, tx *sql.Tx, taskID uint64, retryAt time.Time) (int, error) {
 	result, err := tx.ExecContext(ctx, r.placeholder.rebind(`UPDATE task_stages
 		SET status = ?, next_retry_at = ?, failure_code = NULL, failure_message = NULL,
 			failure_stage = NULL, failure_class = NULL,
@@ -111,12 +154,6 @@ func (r *SQLRepository) ResumeInterruptedRecovery(ctx context.Context, taskID ui
 	}
 	if count64 == 0 {
 		return 0, ErrStateConflict
-	}
-	if err := r.appendRecoveryResolvedEvent(ctx, tx, taskID, int(count64), retryAt, time.Now().UTC()); err != nil {
-		return 0, err
-	}
-	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("commit interrupted recovery resume: %w", err)
 	}
 	return int(count64), nil
 }
