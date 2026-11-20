@@ -74,10 +74,25 @@ LOCAL_REQUIRED_SCENARIOS = frozenset({
     "enable-ops.container.shell.enabled", "image-pull", "container-list", "container-logs",
     "container-stop", "container-start", "container-restart", "shell-ticket", "shell-command-output",
     "compose-managed-create", "compose-up", "compose-relative-bind", "compose-stop", "compose-material-missing",
+    "compose-material-stage-code",
     "compose-import", "compose-import-readback", "compose-reimport-conflict", "local-execution-interruption",
     "local-interruption-reconciliation",
     "backend-socket-permission-denied", "local-mode-preflight", "image-pull-unreachable",
 })
+# Agent-mode scenarios require the enrolled docker-runtime-agent service that local fixtures deliberately
+# forbid (validate_topology rejects an agent in local mode), so they gate agent runs through their own set.
+AGENT_REQUIRED_SCENARIOS = frozenset({
+    "agent-claim-admission-rejected", "agent-recovery-resume", "agent-recovery-budget-exhausted",
+})
+
+# 消费方恢复策略说明：当前所有消费模块提交的 Stage 都是 manual_reconcile 且 MaxAttempts=1，
+# 公共 API 不表达 Stage 恢复策略。以下恢复场景通过任务存储的 fixture 级 SQL 替身声明
+# retry_if_idempotent/预算，仅为端到端驱动 Task Runtime 的策略恢复路径；生产者侧是否为幂等
+# 操作声明 retry_if_idempotent 属于所属模块的独立产品决策，不在本批次内落地。
+RECOVERY_POLICY_STAND_IN_NOTE = ("Current consumer modules submit manual_reconcile stages with MaxAttempts=1 and no "
+                                 "public API declares stage recovery policy; the retry_if_idempotent declaration in "
+                                 "these scenarios is a fixture-level store stand-in that only exercises the runtime "
+                                 "policy path end-to-end.")
 
 
 def require_local_acceptance(results: list[dict]) -> None:
@@ -85,6 +100,21 @@ def require_local_acceptance(results: list[dict]) -> None:
     incomplete = sorted(scenario for scenario in LOCAL_REQUIRED_SCENARIOS if observed.get(scenario) != "passed")
     if incomplete:
         raise RuntimeError("Required local acceptance scenarios incomplete: " + ", ".join(incomplete))
+
+
+def require_agent_acceptance(results: list[dict]) -> None:
+    observed = {item["scenario"]: item["status"] for item in results}
+    incomplete = sorted(scenario for scenario in AGENT_REQUIRED_SCENARIOS if observed.get(scenario) != "passed")
+    if incomplete:
+        raise RuntimeError("Required agent acceptance scenarios incomplete: " + ", ".join(incomplete))
+
+
+def recovery_probe_policy(wait_after_up: bool, wait_timeout_seconds: int) -> dict:
+    """恢复探针复用受管应用的标准生命周期策略；仅调整 up 等待语义以提供可观察的执行窗口。"""
+    return {"strategy_kind": "standard", "profiles": [], "down_before_redeploy": False,
+        "pull_before_redeploy": False, "build_before_up": False, "force_recreate": False,
+        "remove_orphans": True, "wait_after_up": wait_after_up, "wait_timeout_seconds": wait_timeout_seconds,
+        "renew_anon_volumes": False, "prune_images_after_redeploy": False, "managed_service_names": []}
 
 
 def controller_receipt(output: str, operation: str, runner: str) -> dict:
@@ -304,6 +334,73 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             time.sleep(1)
         return {"id": identifier, "status": "timeout"}
 
+    def sql(self, statement: str) -> str:
+        # Fixture-level SQL only declares facts no public API expresses (stage recovery policy stand-ins and
+        # agent trust generation overrides for rejection evidence); the server behavior under test stays
+        # fully server-driven.
+        return self.compose("exec", "-T", "postgres", "psql", "-U", "graft", "-d", "graft", "-Atc", statement).strip()
+
+    def task_stages(self, identifier: int) -> list:
+        status, response = self.api("GET", f"/api/tasks/{identifier}/stages")
+        return ((response.get("data") or {}).get("items") or []) if status == 200 else []
+
+    def wait_task_status(self, identifier: int, status: str, timeout: int = 300) -> dict:
+        deadline = time.monotonic() + timeout
+        observed = {}
+        while time.monotonic() < deadline:
+            code, response = self.api("GET", f"/api/tasks/{identifier}")
+            if code == 200:
+                observed = response.get("data", {})
+                if observed.get("status") == status:
+                    return {key: observed.get(key) for key in ("id", "status", "failure_code", "current_stage_key")}
+            time.sleep(2)
+        return {"id": identifier, "status": "timeout", "observed_status": observed.get("status")}
+
+    def wait_task_failure_code(self, identifier: int, failure_code: str, timeout: int = 300) -> dict:
+        # Budget exhaustion converges in two ticker passes (lease expiry, then diagnostics rewrite), so the
+        # waiter must match the converged failure code, not only the needs_attention status.
+        deadline = time.monotonic() + timeout
+        observed = {}
+        while time.monotonic() < deadline:
+            status, response = self.api("GET", f"/api/tasks/{identifier}")
+            if status == 200:
+                observed = response.get("data", {})
+                if observed.get("status") == "needs_attention" and observed.get("failure_code") == failure_code:
+                    return {key: observed.get(key) for key in ("id", "status", "failure_code", "failure_stage", "failure_class")}
+            time.sleep(2)
+        return {"id": identifier, "status": "timeout", "observed_failure_code": observed.get("failure_code")}
+
+    def wait_for_engine_container(self, container: str, timeout: int = 30) -> bool:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if container in self.engine("ps", "-a", "--format", "{{.Names}}").splitlines():
+                return True
+            time.sleep(1)
+        return False
+
+    def latest_claim_admission(self) -> dict | None:
+        status, response = self.api("GET", "/api/runtime-targets")
+        items = ((response.get("data") or {}).get("items") or []) if status == 200 else []
+        for item in items:
+            detail_status, detail = self.api("GET", f"/api/runtime-targets/{item.get('id')}")
+            agent = (detail.get("data") or {}).get("agent", {}) if detail_status == 200 else {}
+            admission = agent.get("claim_admission")
+            if admission:
+                return admission
+        return None
+
+    def material_stage_code_probe(self, identifier: int) -> None:
+        # The material-missing rejection above must project its bounded provider stage attribution.
+        scenario = "compose-material-stage-code"
+        detail_status, detail = self.api("GET", f"/api/tasks/{identifier}") if identifier else (0, {})
+        task = (detail.get("data") or {}) if detail_status == 200 else {}
+        stage_items = self.task_stages(identifier) if identifier else []
+        stage_codes = [stage.get("failure_stage") for stage in stage_items]
+        passed = task.get("failure_stage") == "material_resolve" and "material_resolve" in stage_codes
+        self.record(scenario, "passed" if passed else "failed", failure_stage=task.get("failure_stage"),
+                    stage_failure_stages=stage_codes,
+                    scope="Material resolve failures project failure_stage=material_resolve to task and stage views")
+
     def shell_output(self, relative_url: str) -> bool:
         port = int(self.environment["GRAFT_CONFORMANCE_BACKEND_PORT"])
         key = base64.b64encode(secrets.token_bytes(16)).decode()
@@ -394,6 +491,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             rejected = status == 409 or (task.get("status") == "failed" and bool(task.get("failure_code")))
             self.record("compose-material-missing", "passed" if rejected else "failed", http_status=status, task=task,
                         error_code=response.get("code"))
+            self.material_stage_code_probe(task.get("id"))
         finally:
             self.compose("exec", "-T", "backend", "mv", workspace + "/compose.missing", workspace + "/compose.yml")
         self.import_probe(workspace, definition, container, target, policy)
@@ -458,6 +556,139 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             self.record("local-interruption-reconciliation", "passed" if status == 200 and reconciled.get("status") == "cancelled" and preserved else "failed",
                 task=reconciled, engine_effect_preserved=preserved,
                 scope="Fixture operator inspected the preserved effect and cancelled the unresolved operation through the public owner-authorized API")
+
+    def recovery_probe_task(self, name: str, definition: str, policy: dict) -> int:
+        # 复用受管应用创建入口，让恢复探针与真实消费流程共用同一任务计划与外部执行期望。
+        target = json.loads((self.directory / "trust-evidence.json").read_text())["bootstrap"]["target_id"]
+        probe_body = {"display_name": name, "runtime_target_id": target, "application_name": name,
+            "compose_file_path": "compose.yml", "lifecycle_configuration": policy,
+            "workspace_entries": [{"path": "compose.yml", "node_type": "file", "content": definition},
+                                  {"path": "probe.txt", "node_type": "file", "content": "recovery-probe"}]}
+        status, response = self.api("POST", "/api/ops/applications/create/managed", probe_body)
+        if status not in (200, 201):
+            return 0
+        application = response["data"]["application_id"]
+        status, response = self.api("POST", f"/api/ops/applications/{application}/up", {})
+        if status != 202:
+            return 0
+        return int(response["data"]["task_id"])
+
+    def recovery_probe_definition(self, name: str, healthcheck: str) -> tuple[str, str]:
+        # 与 application_probe 的受管应用定义保持同一形状：一个 sleep 型 healthcheck 提供可观察的执行窗口。
+        container = name + "-app"
+        definition = ("services:\n  app:\n    image: alpine:3.24.4\n    container_name: " + container +
+                      "\n    command: [sh, -c, 'echo recovery-probe-ready; sleep 86400']\n"
+                      "    volumes:\n      - ./probe.txt:/probe.txt:ro\n") + healthcheck
+        return definition, container
+
+    def claim_admission_probe(self) -> None:
+        # (a) Server-rejected claims must surface identity_rejected through the additive claim_admission
+        # projection. The fixture stand-in advances the stored trust generation so the running agent's
+        # certificate no longer matches the server binding, then restores it exactly.
+        scenario = "agent-claim-admission-rejected"
+        generation = self.sql("SELECT g.id || ':' || g.generation FROM runtime_target_agent_identities i "
+                              "JOIN runtime_target_agent_generations g ON g.identity_id = i.id "
+                              "WHERE g.deleted_at = 0 ORDER BY g.generation DESC LIMIT 1")
+        if ":" not in generation:
+            self.record(scenario, "failed", scope="Fixture agent trust generation unavailable")
+            return
+        generation_id, active_generation = generation.split(":", 1)
+        self.sql(f"UPDATE runtime_target_agent_generations SET generation = generation + 1 WHERE id = {int(generation_id)}")
+        admission = None
+        try:
+            deadline = time.monotonic() + 240
+            while time.monotonic() < deadline:
+                admission = self.latest_claim_admission()
+                if admission and admission.get("class") == "identity_rejected":
+                    break
+                time.sleep(3)
+        finally:
+            self.sql(f"UPDATE runtime_target_agent_generations SET generation = {int(active_generation)} "
+                     f"WHERE id = {int(generation_id)}")
+        passed = bool(admission) and admission.get("class") == "identity_rejected"
+        self.record(scenario, "passed" if passed else "failed",
+                    observed_at=(admission or {}).get("observed_at"),
+                    scope="Claim rejection telemetry degrades the readiness projection without changing diagnostic_code")
+
+    def recovery_resume_probe(self) -> None:
+        # (c) Interruption -> automatic recovery success: the agent is killed mid-up, the expired lease
+        # converges to needs_attention, the declared idempotent stage auto-resumes within budget and the
+        # replayed operation reaches success without recreating the observed container.
+        scenario = "agent-recovery-resume"
+        name = "graft-recovery-resume-probe-" + secrets.token_hex(3)
+        definition, container = self.recovery_probe_definition(name,
+            "    healthcheck:\n      test: [CMD-SHELL, 'sleep 20; exit 0']\n"
+            "      interval: 1s\n      timeout: 30s\n      retries: 3\n")
+        task_id = self.recovery_probe_task(name, definition, recovery_probe_policy(True, 90))
+        if not task_id or not self.wait_for_engine_container(container):
+            self.record(scenario, "unverified", scope="Recovery probe did not reach an observable side effect", note=RECOVERY_POLICY_STAND_IN_NOTE)
+            return
+        before = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", container).strip()
+        self.compose("kill", "--signal", "SIGKILL", "docker-runtime-agent")
+        interrupted = self.wait_task(task_id, timeout=180)
+        if interrupted.get("status") != "needs_attention":
+            self.record(scenario, "failed", task=interrupted, note=RECOVERY_POLICY_STAND_IN_NOTE,
+                        scope="Interrupted lease did not converge to needs_attention")
+            self.compose("up", "-d", "--wait", "docker-runtime-agent")
+            return
+        self.sql(f"UPDATE task_stages SET recovery_policy = 'retry_if_idempotent', "
+                 f"max_attempts = GREATEST(max_attempts, attempt + 1) WHERE task_id = {task_id}")
+        self.compose("up", "-d", "--wait", "docker-runtime-agent")
+        resumed = self.wait_task_status(task_id, "success", timeout=300)
+        after = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", container).strip()
+        stages = self.task_stages(task_id)
+        attempt = max((stage.get("attempt") or 0) for stage in stages) if stages else 0
+        passed = resumed.get("status") == "success" and before == after and attempt == 2
+        self.record(scenario, "passed" if passed else "failed", task=resumed,
+                    same_container_and_started_at=before == after, resumed_stage_attempt=attempt,
+                    note=RECOVERY_POLICY_STAND_IN_NOTE,
+                    scope="Bounded reconcile re-arms the declared idempotent stage and the claim-path replay succeeds once")
+
+    def recovery_budget_probe(self) -> None:
+        # (d) Over-budget exhaustion: with a stand-in max_attempts of 2, the first auto-resumed attempt is
+        # killed mid-operation again; the second expiry crosses the budget and the reconcile converges the
+        # task to needs_attention with stable budget-exhaustion diagnostics instead of an unclaimable stage.
+        scenario = "agent-recovery-budget-exhausted"
+        name = "graft-recovery-budget-probe-" + secrets.token_hex(3)
+        definition, container = self.recovery_probe_definition(name,
+            "    healthcheck:\n      test: [CMD-SHELL, 'sleep 300; exit 0']\n"
+            "      interval: 1s\n      timeout: 30s\n      retries: 3\n")
+        task_id = self.recovery_probe_task(name, definition, recovery_probe_policy(True, 1800))
+        if not task_id or not self.wait_for_engine_container(container):
+            self.record(scenario, "unverified", scope="Budget probe did not reach an observable side effect", note=RECOVERY_POLICY_STAND_IN_NOTE)
+            return
+        before = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", container).strip()
+        self.compose("kill", "--signal", "SIGKILL", "docker-runtime-agent")
+        interrupted = self.wait_task(task_id, timeout=180)
+        if interrupted.get("status") != "needs_attention":
+            self.record(scenario, "failed", task=interrupted, note=RECOVERY_POLICY_STAND_IN_NOTE,
+                        scope="Budget probe interruption did not converge to needs_attention")
+            self.compose("up", "-d", "--wait", "docker-runtime-agent")
+            return
+        self.sql(f"UPDATE task_stages SET recovery_policy = 'retry_if_idempotent', "
+                 f"max_attempts = GREATEST(max_attempts, 2) WHERE task_id = {task_id}")
+        self.compose("up", "-d", "--wait", "docker-runtime-agent")
+        deadline = time.monotonic() + 240
+        resumed_attempt = 0
+        while time.monotonic() < deadline:
+            stages = self.task_stages(task_id)
+            resumed_attempt = max((stage.get("attempt") or 0) for stage in stages) if stages else 0
+            if any(stage.get("status") == "running" for stage in stages) and resumed_attempt >= 2:
+                break
+            time.sleep(2)
+        self.compose("kill", "--signal", "SIGKILL", "docker-runtime-agent")
+        exhausted = self.wait_task_failure_code(task_id, "auto_recovery_budget_exhausted", timeout=300)
+        after = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", container).strip()
+        stages = self.task_stages(task_id)
+        stage = stages[0] if stages else {}
+        passed = (exhausted.get("failure_code") == "auto_recovery_budget_exhausted"
+                  and exhausted.get("failure_class") == "internal"
+                  and stage.get("attempt") == 2 and stage.get("max_attempts") == 2
+                  and before == after)
+        self.record(scenario, "passed" if passed else "failed", task=exhausted,
+                    stage_attempt=stage.get("attempt"), stage_max_attempts=stage.get("max_attempts"),
+                    same_container_and_started_at=before == after, note=RECOVERY_POLICY_STAND_IN_NOTE,
+                    scope="Budget exhaustion converges to needs_attention with stable diagnostics instead of a hang")
 
     def persisted_application(self, identifier: str) -> dict:
         if not re.fullmatch(r"app_[0-9A-HJKMNP-TV-Z]{26}", identifier):
@@ -595,6 +826,10 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             except (OSError, ValueError) as exc:
                 self.record("shell-command-output", "failed", error_type=type(exc).__name__)
         self.application_probe()
+        if self.execution_mode == "agent":
+            self.claim_admission_probe()
+            self.recovery_resume_probe()
+            self.recovery_budget_probe()
         backend_uid = self.compose("exec", "-T", "backend", "id", "-u").strip()
         ping = ("exec", "-T", "backend", "curl", "--fail", "--silent", "--show-error", "--max-time", "5",
                 "--unix-socket", "/var/run/docker.sock", "http://localhost/_ping")
@@ -1009,6 +1244,8 @@ def main() -> None:
         if args.action == "probe":
             if fixture.execution_mode == "local":
                 require_local_acceptance(fixture.results)
+            else:
+                require_agent_acceptance(fixture.results)
             if any(item["status"] == "failed" for item in fixture.results):
                 raise RuntimeError("Runtime acceptance failed; inspect the registered api-evidence.json")
 
