@@ -8,6 +8,7 @@ import json
 import os
 from contextlib import redirect_stdout
 from pathlib import Path
+import shutil
 import socket
 import subprocess
 import sys
@@ -295,6 +296,12 @@ class StartStopDestroyTests(unittest.TestCase):
             side_effect=lambda directory: self.cleanup_calls.append(str(directory)))
         self.privileged_cleanup_patcher.start()
         self.addCleanup(self.privileged_cleanup_patcher.stop)
+        self.teardown_calls = []
+        self.teardown_patcher = patch.object(
+            preview, "teardown_recorded_project",
+            side_effect=lambda project: self.teardown_calls.append(project))
+        self.teardown_patcher.start()
+        self.addCleanup(self.teardown_patcher.stop)
 
     def env(self, **extra):
         mapping = {"GRAFT_PREVIEW_STATE_DIR": str(self.root)}
@@ -513,6 +520,45 @@ class StartStopDestroyTests(unittest.TestCase):
         self.assertEqual(result["state"], "destroyed")
         self.assertNotIn(identity, preview.read_registry(self.root)["instances"])
         self.assertFalse(preview.instance_dir(self.root, identity).exists())
+
+    def test_destroy_without_stored_files_tears_down_the_recorded_project(self):
+        # A lost instance directory must not free the entry while containers
+        # or volumes from the recorded project may still be live: destroy
+        # tears down by the recorded project name instead of skipping.
+        identity = preview.identity_for(preview.checkout_root(), "destroy-fileless")
+        self.register(identity, state="running")
+        recorded_project = f"graft-preview-{identity}"
+        shutil.rmtree(preview.instance_dir(self.root, identity))
+        arguments = argparse.Namespace(task="destroy-fileless", identity=None,
+                                       confirm_instance=identity)
+        with self.env():
+            result = preview.destroy(arguments)
+        self.assertEqual(self.teardown_calls, [recorded_project])
+        self.assertEqual(result["state"], "destroyed")
+        self.assertNotIn(identity, preview.read_registry(self.root)["instances"])
+        self.assertEqual(self.cleanup_calls, [])
+        self.assertEqual(self.calls, [])
+
+    def test_destroy_teardown_failure_keeps_the_entry_retryable(self):
+        identity = preview.identity_for(preview.checkout_root(), "destroy-teardown-fail")
+        self.register(identity, state="running")
+        shutil.rmtree(preview.instance_dir(self.root, identity))
+        arguments = argparse.Namespace(task="destroy-teardown-fail", identity=None,
+                                       confirm_instance=identity)
+        with self.env():
+            with patch.object(preview, "teardown_recorded_project",
+                              side_effect=PreviewError("docker ps query failed")):
+                with self.assertRaises(PreviewError) as context:
+                    preview.destroy(arguments)
+        self.assertIn("entry kept for retry", str(context.exception))
+        entry = preview.read_registry(self.root)["instances"][identity]
+        self.assertEqual(entry["state"], "cleanup_failed")
+        self.assertIn("docker ps", entry["cleanup_error"])
+        self.assertEqual(preview.read_archive_manifest(self.root).get("entries", {}), {})
+        with self.env():
+            result = preview.destroy(arguments)
+        self.assertEqual(result["state"], "destroyed")
+        self.assertNotIn(identity, preview.read_registry(self.root)["instances"])
 
 
 class StatusTests(unittest.TestCase):

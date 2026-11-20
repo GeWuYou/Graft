@@ -587,11 +587,40 @@ def reset_container_owned_permissions(directory: Path) -> None:
             f"{completed.stderr.strip()[:300]}")
 
 
+def teardown_recorded_project(project: str, timeout: float = 180) -> None:
+    """Remove a compose project by its recorded name when the stored
+    compose/env files are gone. Compose labels every resource with the
+    project name, so a label-filtered removal works without a compose
+    file and across compose versions."""
+    errors: list[str] = []
+    for kind, query in (
+        ("container", ["docker", "ps", "-aq", "--filter",
+                       f"label=com.docker.compose.project={project}"]),
+        ("volume", ["docker", "volume", "ls", "-q", "--filter",
+                    f"label=com.docker.compose.project={project}"]),
+        ("network", ["docker", "network", "ls", "-q", "--filter",
+                     f"label=com.docker.compose.project={project}"]),
+    ):
+        listed = subprocess.run(query, capture_output=True, text=True, timeout=timeout)
+        if listed.returncode != 0:
+            raise PreviewError(
+                f"recorded-project {kind} query exited with code {listed.returncode}: "
+                f"{listed.stderr.strip()[:300]}")
+        for resource in (line.strip() for line in listed.stdout.splitlines() if line.strip()):
+            command = ["docker", kind, "rm"] + (["-f"] if kind == "container" else []) + [resource]
+            removed = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
+            if removed.returncode != 0:
+                errors.append(f"{kind} {resource}: {removed.stderr.strip()[:200]}")
+    if errors:
+        raise PreviewError("recorded-project teardown failed: " + "; ".join(errors))
+
+
 def destroy(args: argparse.Namespace) -> dict:
     """Order matters: tear down the stack, reclaim container-owned data,
     and only then archive evidence and drop the registry entry. A cleanup
     failure keeps the entry with a cleanup_failed marker so destroy stays
-    retryable instead of leaving an untracked half-cleanup."""
+    retryable instead of leaving an untracked half-cleanup. Destroy never
+    reports success while the recorded stack may still be live."""
     root = state_root()
     identity = resolve_identity(args, root)
     # The lock spans the whole teardown so a concurrent start cannot
@@ -605,16 +634,27 @@ def destroy(args: argparse.Namespace) -> dict:
         directory = instance_dir(root, identity)
         compose_file = directory / "compose.yml"
         env_file = directory / ".env"
-        if compose_file.is_file() and env_file.is_file():
-            try:
+        try:
+            if compose_file.is_file() and env_file.is_file():
                 completed = run_compose(["down", "--volumes", "--remove-orphans"],
                                         compose_file=compose_file, project=entry["compose_project"],
                                         env_file=env_file, timeout=180)
-            except subprocess.SubprocessError as exc:
-                raise PreviewError(f"compose down failed for {identity}: {exc}") from exc
-            if completed.returncode != 0:
-                raise PreviewError(
-                    f"compose down exited with code {completed.returncode}: {completed.stderr.strip()[:500]}")
+                if completed.returncode != 0:
+                    raise PreviewError(
+                        f"compose down exited with code {completed.returncode}: "
+                        f"{completed.stderr.strip()[:500]}")
+            else:
+                # Files may be gone (worktree loss, manual deletion) while the
+                # stack lives on; tear down from the recorded project name so
+                # the entry is never dropped while containers or volumes run.
+                teardown_recorded_project(entry["compose_project"])
+        except (PreviewError, subprocess.SubprocessError) as exc:
+            entry["state"] = "cleanup_failed"
+            entry["cleanup_error"] = str(exc)
+            entry["updated_at"] = utc_now()
+            write_registry(root, document)
+            raise PreviewError(
+                f"stack teardown failed for {identity} (entry kept for retry): {exc}") from exc
         if directory.exists():
             try:
                 reset_container_owned_permissions(directory)
