@@ -1,0 +1,11 @@
+{
+  "name": "graft-browser-acceptance",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@playwright/test": "^1.57.0"
+  },
+  "scripts": {
+    "browsers:install": "playwright install chromium firefox webkit --with-deps"
+  }
+}

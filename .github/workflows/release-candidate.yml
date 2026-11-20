@@ -1,0 +1,518 @@
+name: Release Candidate
+
+# Candidate flow: build images from the dispatch SHA, scan them, upload a
+# release.json candidate artifact bound to run/attempt/SHA plus image
+# digests, then verify the candidate and create its tag idempotently.
+# Candidate tags use the `rc-` prefix on purpose: `v*` tags belong to
+# semantic-release (release.yml) and trigger publish.yml, which candidate
+# verification must not do.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Candidate version in semver form, for example 1.2.3"
+        required: true
+        type: string
+      channel:
+        description: "Release channel of this candidate"
+        required: true
+        default: beta
+        type: choice
+        options:
+          - beta
+          - stable
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  candidate-images:
+    name: Build, scan and upload candidate images
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      server_digest: ${{ steps.publish_candidate_images.outputs.server_digest }}
+      web_digest: ${{ steps.publish_candidate_images.outputs.web_digest }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: server/go.mod
+          cache: true
+          cache-dependency-path: |
+            server/go.mod
+            server/go.sum
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 26.13.1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version: 1.4.4
+
+      - name: Validate dispatch inputs and resolve candidate identity
+        env:
+          VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          set -euo pipefail
+          if ! [[ "${VERSION}" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error title=Invalid candidate version::'${VERSION}' must be plain semver without a leading v, for example 1.2.3."
+            exit 1
+          fi
+          case "${CHANNEL}" in
+            beta|stable) ;;
+            *) echo "::error title=Invalid channel::'${CHANNEL}' must be beta or stable."; exit 1 ;;
+          esac
+          if ! git diff --quiet HEAD -- server web; then
+            echo "::error title=Dirty source inputs::Candidate binaries require a clean checkout at the dispatch SHA."
+            exit 1
+          fi
+          owner_lc="${GITHUB_REPOSITORY_OWNER,,}"
+          {
+            echo "SERVER_IMAGE=ghcr.io/${owner_lc}/graft-server"
+            echo "WEB_IMAGE=ghcr.io/${owner_lc}/graft-web"
+            echo "CANDIDATE_TAG=candidate-v${VERSION}-${GITHUB_SHA}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Link the release candidate server binary
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          build_time_utc="$(date -u -d "@$(git show -s --format=%ct HEAD)" +%Y-%m-%dT%H:%M:%SZ)"
+          mkdir -p "$GITHUB_WORKSPACE/.tmp/release-binary"
+          # `go -C server` re-roots relative paths under server/, so the
+          # output must be an explicit workspace-level path; the Docker
+          # release-binary build context reads exactly that directory.
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go -C server build -trimpath \
+            -ldflags="-s -w -X graft/server/internal/buildinfo.version=${VERSION} -X graft/server/internal/buildinfo.gitCommit=${GITHUB_SHA} -X graft/server/internal/buildinfo.buildTimeUTC=${build_time_utc} -X graft/server/internal/buildinfo.gitTreeState=clean" \
+            -o "$GITHUB_WORKSPACE/.tmp/release-binary/graft-server-linux-amd64" ./cmd/graft
+          test -f "$GITHUB_WORKSPACE/.tmp/release-binary/graft-server-linux-amd64"
+
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the web release distribution
+        run: cd web && bun run build:release
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+
+      - name: Build server candidate image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
+        with:
+          context: ./server
+          file: ./server/Dockerfile
+          build-contexts: |
+            release-binary=${{ github.workspace }}/.tmp/release-binary
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: graft-candidate-server:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Build web candidate image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
+        with:
+          context: ./web
+          file: ./web/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: graft-candidate-web:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Prepare release scan evidence directory
+        run: mkdir -p .tmp/release-scans
+
+      # Non-blocking visibility pass: records every finding including
+      # unfixed ones. The step tolerates trivy failures, but the release.json
+      # evidence step below refuses to run without the report files, so a
+      # candidate can never ship without this evidence.
+      - name: Record unfixed findings for the server image (non-blocking)
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          scan-type: image
+          image-ref: graft-candidate-server:${{ github.sha }}
+          format: json
+          output: .tmp/release-scans/unfixed-server.json
+          ignore-unfixed: false
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          trivy-timeout: 10m
+
+      - name: Record unfixed findings for the web image (non-blocking)
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          scan-type: image
+          image-ref: graft-candidate-web:${{ github.sha }}
+          format: json
+          output: .tmp/release-scans/unfixed-web.json
+          ignore-unfixed: false
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          trivy-timeout: 10m
+
+      - name: Upload the unfixed-findings scan evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: release-candidate-unfixed-scan
+          path: .tmp/release-scans/*.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Scan the server candidate image
+        # Blocking gate: only findings with an available fix fail the
+        # candidate; unfixed findings stay visible through the non-blocking
+        # evidence pass above instead of silently disappearing.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          scan-type: image
+          image-ref: graft-candidate-server:${{ github.sha }}
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          trivy-timeout: 10m
+
+      - name: Scan the web candidate image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          scan-type: image
+          image-ref: graft-candidate-web:${{ github.sha }}
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          trivy-timeout: 10m
+
+      - name: Log in to GHCR
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Push candidate images and bind registry digests
+        id: publish_candidate_images
+        run: |
+          set -euo pipefail
+          docker tag "graft-candidate-server:${GITHUB_SHA}" "${SERVER_IMAGE}:${CANDIDATE_TAG}"
+          docker tag "graft-candidate-web:${GITHUB_SHA}" "${WEB_IMAGE}:${CANDIDATE_TAG}"
+          docker push "${SERVER_IMAGE}:${CANDIDATE_TAG}"
+          docker push "${WEB_IMAGE}:${CANDIDATE_TAG}"
+          server_digest="$(docker image inspect --format '{{index .RepoDigests 0}}' "${SERVER_IMAGE}:${CANDIDATE_TAG}" | cut -d@ -f2)"
+          web_digest="$(docker image inspect --format '{{index .RepoDigests 0}}' "${WEB_IMAGE}:${CANDIDATE_TAG}" | cut -d@ -f2)"
+          case "${server_digest}" in sha256:[0-9a-f]*) ;; *) echo "::error title=Server digest missing::${server_digest}"; exit 1 ;; esac
+          case "${web_digest}" in sha256:[0-9a-f]*) ;; *) echo "::error title=Web digest missing::${web_digest}"; exit 1 ;; esac
+          echo "server_digest=${server_digest}" >> "${GITHUB_OUTPUT}"
+          echo "web_digest=${web_digest}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "SERVER_DIGEST=${server_digest}"
+            echo "WEB_DIGEST=${web_digest}"
+          } >> "${GITHUB_ENV}"
+
+      - name: Write the release.json candidate record
+        env:
+          VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel }}
+        run: |
+          set -euo pipefail
+          mkdir -p .tmp/release-candidate
+          python3 - <<'PY'
+          import datetime as dt, hashlib, json, os
+          def evidence(name):
+              path = f".tmp/release-scans/unfixed-{name}.json"
+              if not os.path.isfile(path):
+                  raise SystemExit(
+                      f"::error title=Missing unfixed scan evidence::{path} was not produced; "
+                      "a candidate cannot be registered without its full scan evidence.")
+              with open(path, "rb") as handle:
+                  return hashlib.sha256(handle.read()).hexdigest()
+          record = {
+              "schema_version": 1,
+              "version": os.environ["VERSION"],
+              "channel": os.environ["CHANNEL"],
+              "sha": os.environ["GITHUB_SHA"],
+              "ref": os.environ["GITHUB_REF"],
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "created_at_utc": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "images": {
+                  "server": {
+                      "name": os.environ["SERVER_IMAGE"],
+                      "tag": os.environ["CANDIDATE_TAG"],
+                      "digest": os.environ["SERVER_DIGEST"],
+                  },
+                  "web": {
+                      "name": os.environ["WEB_IMAGE"],
+                      "tag": os.environ["CANDIDATE_TAG"],
+                      "digest": os.environ["WEB_DIGEST"],
+                  },
+              },
+              "scan": {
+                  "tool": "trivy",
+                  "severity": "HIGH,CRITICAL",
+                  # Blocking gate: only findings with an available fix block.
+                  "ignore_unfixed": True,
+                  # Non-blocking full pass including unfixed findings; the
+                  # report files are uploaded as an artifact and their
+                  # digests are bound here for auditability.
+                  "unfixed": {
+                      "blocking": False,
+                      "artifact": "release-candidate-unfixed-scan",
+                      "reports": {
+                          "server": {"file": "unfixed-server.json",
+                                     "sha256": evidence("server")},
+                          "web": {"file": "unfixed-web.json",
+                                  "sha256": evidence("web")},
+                      },
+                  },
+              },
+          }
+          target = ".tmp/release-candidate/release.json"
+          with open(target, "w", encoding="utf-8") as handle:
+              json.dump(record, handle, indent=2, ensure_ascii=False)
+              handle.write("\n")
+          print(open(target, encoding="utf-8").read())
+          PY
+
+      - name: Upload the release.json candidate artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: release-candidate-json
+          path: .tmp/release-candidate/release.json
+          if-no-files-found: error
+          retention-days: 7
+
+  release-candidate-summary:
+    name: Required checks passed
+    needs: [candidate-images]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Summarize independent required results
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          results = json.loads(os.environ["NEEDS_JSON"])
+          failed = []
+          for name, value in results.items():
+              result = value["result"]
+              print(f"{name}: {result}")
+              if result != "success":
+                  failed.append(name)
+          if failed:
+              raise SystemExit("Required checks failed: " + ", ".join(failed))
+          PY
+
+      # Cross-check against the Actions API so a job missing from `needs`, a
+      # foreign-SHA job, or one still running/failing/cancelled fails this
+      # summary for the current run, attempt and SHA. Same discipline as the
+      # pull-request validation summary: GET via gh, fail closed.
+      - name: Verify every workflow job for the current run, attempt and SHA
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+          repo = os.environ["GITHUB_REPOSITORY"]
+          run_id = os.environ["RUN_ID"]
+          attempt = os.environ["RUN_ATTEMPT"]
+          head_sha = os.environ["HEAD_SHA"]
+          summary_job = "Required checks passed"
+          jobs = []
+          page = 1
+          while True:
+              payload = json.loads(subprocess.check_output([
+                  "gh", "api", "--method", "GET",
+                  f"repos/{repo}/actions/runs/{run_id}/attempts/{attempt}/jobs",
+                  "-f", "per_page=100", "-f", f"page={page}",
+              ], text=True))
+              batch = payload.get("jobs", [])
+              jobs.extend(batch)
+              if len(batch) < 100:
+                  break
+              page += 1
+          problems = []
+          for job in jobs:
+              name = job.get("name", "")
+              if name == summary_job:
+                  continue
+              if job.get("head_sha") != head_sha:
+                  problems.append(f"{name}: job head {job.get('head_sha')} does not match run SHA {head_sha}")
+                  continue
+              conclusion = job.get("conclusion")
+              if conclusion == "success":
+                  continue
+              problems.append(f"{name}: status={job.get('status')} conclusion={conclusion}")
+          if problems:
+              for problem in problems:
+                  print(f"::error title=Required job verification::{problem}")
+              raise SystemExit("Job verification failed: " + "; ".join(problems))
+          print(f"Verified {len(jobs) - 1} jobs succeeded for {head_sha} (attempt {attempt}).")
+          PY
+
+      - name: Download the release.json candidate artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: release-candidate-json
+          path: .tmp/release-candidate
+
+      - name: Download the unfixed-findings scan evidence artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: release-candidate-unfixed-scan
+          path: .tmp/release-scans
+
+      - name: Verify the candidate binds this run, version, channel, SHA and digests
+        env:
+          VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          SERVER_DIGEST: ${{ needs.candidate-images.outputs.server_digest }}
+          WEB_DIGEST: ${{ needs.candidate-images.outputs.web_digest }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          path = ".tmp/release-candidate/release.json"
+          with open(path, encoding="utf-8") as handle:
+              record = json.load(handle)
+          problems = []
+          def expect(condition, message):
+              if not condition:
+                  problems.append(message)
+          digest_pattern = re.compile(r"^sha256:[0-9a-f]{64}$")
+          expect(record.get("schema_version") == 1, "release.json schema_version must be 1")
+          expect(record.get("version") == os.environ["VERSION"]
+                 and re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$",
+                                  str(record.get("version", ""))) is not None,
+                 "release.json version must equal the dispatch version in semver form")
+          expect(record.get("channel") == os.environ["CHANNEL"]
+                 and record.get("channel") in ("beta", "stable"),
+                 "release.json channel must equal the dispatch channel (beta or stable)")
+          expect(record.get("sha") == os.environ["HEAD_SHA"],
+                 "release.json sha must equal the run head SHA")
+          expect(record.get("run_id") == os.environ["RUN_ID"],
+                 "release.json run_id must equal the current run")
+          expect(str(record.get("run_attempt")) == str(os.environ["RUN_ATTEMPT"]),
+                 "release.json run_attempt must equal the current attempt")
+          images = record.get("images") or {}
+          for name, expected_env in (("server", "SERVER_DIGEST"), ("web", "WEB_DIGEST")):
+              image = images.get(name) or {}
+              digest = image.get("digest") or ""
+              expect(bool(digest_pattern.fullmatch(digest)),
+                     f"release.json {name} digest must be a sha256 digest, got {digest!r}")
+              expect(digest == os.environ[expected_env],
+                     f"release.json {name} digest must equal the pushed registry digest")
+              expect(bool(image.get("name")) and bool(image.get("tag")),
+                     f"release.json {name} image name and tag must be present")
+          if problems:
+              for problem in problems:
+                  print(f"::error title=Candidate verification::{problem}")
+              raise SystemExit("Candidate verification failed: " + "; ".join(problems))
+          print(f"Candidate {record['version']}/{record['channel']} verified for {record['sha']}.")
+          PY
+
+      - name: Verify the unfixed-findings evidence against release.json
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          with open(".tmp/release-candidate/release.json", encoding="utf-8") as handle:
+              record = json.load(handle)
+          unfixed = (record.get("scan") or {}).get("unfixed") or {}
+          problems = []
+          if unfixed.get("blocking") is not False:
+              problems.append("scan.unfixed.blocking must be false (findings never block)")
+          reports = unfixed.get("reports") or {}
+          for name in ("server", "web"):
+              expected = reports.get(name) or {}
+              file_name = expected.get("file") or f"unfixed-{name}.json"
+              path = os.path.join(".tmp/release-scans", file_name)
+              digest = expected.get("sha256") or ""
+              if not os.path.isfile(path):
+                  problems.append(f"unfixed {name} evidence {file_name} is missing from the artifact")
+                  continue
+              with open(path, "rb") as handle:
+                  actual = hashlib.sha256(handle.read()).hexdigest()
+              if actual != digest:
+                  problems.append(f"unfixed {name} evidence digest mismatch: release.json binds {digest}, artifact holds {actual}")
+          if problems:
+              for problem in problems:
+                  print(f"::error title=Unfixed evidence verification::{problem}")
+              raise SystemExit("Unfixed evidence verification failed: " + "; ".join(problems))
+          print("Unfixed-findings evidence verified against release.json.")
+          PY
+
+      - name: Create the candidate tag idempotently
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "${CHANNEL}" == "beta" ]]; then
+            tag="rc-v${VERSION}-beta"
+          else
+            tag="rc-v${VERSION}"
+          fi
+          # A peeled ls-remote comparison treats lightweight and annotated
+          # tags alike; only the commit they point at decides idempotency.
+          peeled="$(git ls-remote origin "refs/tags/${tag}^{}" | awk 'NR==1{print $1}')"
+          object="$(git ls-remote origin "refs/tags/${tag}" | awk 'NR==1{print $1}')"
+          existing="${peeled:-${object}}"
+          if [[ -n "${existing}" ]]; then
+            if [[ "${existing}" == "${HEAD_SHA}" ]]; then
+              echo "Tag ${tag} already points at ${HEAD_SHA}; treating the run as idempotent."
+              exit 0
+            fi
+            echo "::error title=Candidate tag conflict::Tag ${tag} exists at ${existing} but this run verified ${HEAD_SHA}. Same tag name with a different SHA is a hard failure."
+            exit 1
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+            -f "ref=refs/tags/${tag}" -f "sha=${HEAD_SHA}" >/dev/null
+          echo "Created tag ${tag} at ${HEAD_SHA}."
