@@ -389,6 +389,33 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                 return admission
         return None
 
+    def target_execution_readiness(self) -> tuple[bool, str]:
+        # 执行就绪投影暴露 Task 运行时的所有权状态；execution_ownership_lost 表示提交将被 503 拒绝。
+        target = json.loads((self.directory / "trust-evidence.json").read_text())["bootstrap"]["target_id"]
+        status, response = self.api("GET", f"/api/runtime-targets/{target}")
+        execution = ((response.get("data") or {}).get("execution") or {}) if status == 200 else {}
+        return bool(execution.get("ready")), str(execution.get("diagnostic_code") or "")
+
+    def wait_execution_readiness(self, timeout: int = 60) -> tuple[bool, str]:
+        deadline = time.monotonic() + timeout
+        ready, diagnostic = False, ""
+        while time.monotonic() < deadline:
+            ready, diagnostic = self.target_execution_readiness()
+            if ready:
+                return ready, diagnostic
+            time.sleep(2)
+        return ready, diagnostic
+
+    def wait_stage_status(self, identifier: int, status: str, timeout: int = 120) -> list:
+        deadline = time.monotonic() + timeout
+        stages: list = []
+        while time.monotonic() < deadline:
+            stages = self.task_stages(identifier)
+            if any(stage.get("status") == status for stage in stages):
+                return stages
+            time.sleep(2)
+        return stages
+
     def material_stage_code_probe(self, identifier: int) -> None:
         # The material-missing rejection above must project its bounded provider stage attribution through
         # the delivered per-owner shapes: agent settlements carry failure_stage=material_resolve on task and
@@ -566,21 +593,24 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                 task=reconciled, engine_effect_preserved=preserved,
                 scope="Fixture operator inspected the preserved effect and cancelled the unresolved operation through the public owner-authorized API")
 
-    def recovery_probe_task(self, name: str, definition: str, policy: dict) -> int:
+    def recovery_probe_task(self, name: str, definition: str, policy: dict) -> dict:
         # 复用受管应用创建入口，让恢复探针与真实消费流程共用同一任务计划与外部执行期望。
         target = json.loads((self.directory / "trust-evidence.json").read_text())["bootstrap"]["target_id"]
         probe_body = {"display_name": name, "runtime_target_id": target, "application_name": name,
             "compose_file_path": "compose.yml", "lifecycle_configuration": policy,
             "workspace_entries": [{"path": "compose.yml", "node_type": "file", "content": definition},
                                   {"path": "probe.txt", "node_type": "file", "content": "recovery-probe"}]}
+        evidence = {"create_status": 0, "up_status": 0, "up_error_code": None}
         status, response = self.api("POST", "/api/ops/applications/create/managed", probe_body)
+        evidence["create_status"] = status
         if status not in (200, 201):
-            return 0
+            return {**evidence, "task_id": 0}
         application = response["data"]["application_id"]
         status, response = self.api("POST", f"/api/ops/applications/{application}/up", {})
+        evidence["up_status"], evidence["up_error_code"] = status, response.get("code")
         if status != 202:
-            return 0
-        return int(response["data"]["task_id"])
+            return {**evidence, "task_id": 0}
+        return {**evidence, "task_id": int(response["data"]["task_id"])}
 
     def recovery_probe_definition(self, name: str, healthcheck: str) -> tuple[str, str]:
         # 与 application_probe 的受管应用定义保持同一形状：一个 sleep 型 healthcheck 提供可观察的执行窗口。
@@ -629,32 +659,50 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         # (c) Interruption -> automatic recovery success: the agent is killed mid-up, the expired lease
         # converges to needs_attention, the declared idempotent stage auto-resumes within budget and the
         # replayed operation reaches success without recreating the observed container.
+        # 代理必须等到服务器收敛巡检把阶段重置为可领取之后再启动：先启动代理会让其过期日志把
+        # external_execution_lease_expired 覆盖为 agent_execution_interrupted，抹掉自动恢复信号。
         scenario = "agent-recovery-resume"
+        ready, diagnostic = self.wait_execution_readiness()
+        if not ready:
+            self.record(scenario, "unverified", execution_diagnostic_code=diagnostic,
+                        note=RECOVERY_POLICY_STAND_IN_NOTE,
+                        scope="Task execution admission is not ready; submissions would be refused")
+            return
         name = "graft-recovery-resume-probe-" + secrets.token_hex(3)
         definition, container = self.recovery_probe_definition(name,
             "    healthcheck:\n      test: [CMD-SHELL, 'sleep 20; exit 0']\n"
             "      interval: 1s\n      timeout: 30s\n      retries: 3\n")
-        task_id = self.recovery_probe_task(name, definition, recovery_probe_policy(True, 90))
+        admission = self.recovery_probe_task(name, definition, recovery_probe_policy(True, 90))
+        task_id = admission["task_id"]
         if not task_id or not self.wait_for_engine_container(container):
-            self.record(scenario, "unverified", scope="Recovery probe did not reach an observable side effect", note=RECOVERY_POLICY_STAND_IN_NOTE)
+            self.record(scenario, "unverified", task_id=task_id, create_status=admission["create_status"],
+                        up_status=admission["up_status"], up_error_code=admission["up_error_code"],
+                        note=RECOVERY_POLICY_STAND_IN_NOTE,
+                        scope="Recovery probe did not reach an observable side effect")
             return
         before = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", container).strip()
         self.compose("kill", "--signal", "SIGKILL", "docker-runtime-agent")
         interrupted = self.wait_task(task_id, timeout=180)
         if interrupted.get("status") != "needs_attention":
-            self.record(scenario, "failed", task=interrupted, note=RECOVERY_POLICY_STAND_IN_NOTE,
+            self.record(scenario, "failed", task_id=task_id, task=interrupted, note=RECOVERY_POLICY_STAND_IN_NOTE,
                         scope="Interrupted lease did not converge to needs_attention")
             self.compose("up", "-d", "--wait", "docker-runtime-agent")
             return
         self.sql(f"UPDATE task_stages SET recovery_policy = 'retry_if_idempotent', "
                  f"max_attempts = GREATEST(max_attempts, attempt + 1) WHERE task_id = {task_id}")
+        rearmed = self.wait_stage_status(task_id, "pending", timeout=120)
+        if not any(stage.get("status") == "pending" for stage in rearmed):
+            self.record(scenario, "failed", task_id=task_id, stages=rearmed, note=RECOVERY_POLICY_STAND_IN_NOTE,
+                        scope="Reconcile did not re-arm the declared idempotent stage")
+            self.compose("up", "-d", "--wait", "docker-runtime-agent")
+            return
         self.compose("up", "-d", "--wait", "docker-runtime-agent")
         resumed = self.wait_task_status(task_id, "success", timeout=300)
         after = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", container).strip()
         stages = self.task_stages(task_id)
         attempt = max((stage.get("attempt") or 0) for stage in stages) if stages else 0
         passed = resumed.get("status") == "success" and before == after and attempt == 2
-        self.record(scenario, "passed" if passed else "failed", task=resumed,
+        self.record(scenario, "passed" if passed else "failed", task_id=task_id, task=resumed,
                     same_container_and_started_at=before == after, resumed_stage_attempt=attempt,
                     note=RECOVERY_POLICY_STAND_IN_NOTE,
                     scope="Bounded reconcile re-arms the declared idempotent stage and the claim-path replay succeeds once")
@@ -663,25 +711,42 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         # (d) Over-budget exhaustion: with a stand-in max_attempts of 2, the first auto-resumed attempt is
         # killed mid-operation again; the second expiry crosses the budget and the reconcile converges the
         # task to needs_attention with stable budget-exhaustion diagnostics instead of an unclaimable stage.
+        # 与恢复成功场景相同：代理只在服务器已把阶段重置为可领取之后启动，避免过期日志覆盖恢复信号。
         scenario = "agent-recovery-budget-exhausted"
+        ready, diagnostic = self.wait_execution_readiness()
+        if not ready:
+            self.record(scenario, "unverified", execution_diagnostic_code=diagnostic,
+                        note=RECOVERY_POLICY_STAND_IN_NOTE,
+                        scope="Task execution admission is not ready; submissions would be refused")
+            return
         name = "graft-recovery-budget-probe-" + secrets.token_hex(3)
         definition, container = self.recovery_probe_definition(name,
             "    healthcheck:\n      test: [CMD-SHELL, 'sleep 300; exit 0']\n"
             "      interval: 1s\n      timeout: 30s\n      retries: 3\n")
-        task_id = self.recovery_probe_task(name, definition, recovery_probe_policy(True, 1800))
+        admission = self.recovery_probe_task(name, definition, recovery_probe_policy(True, 1800))
+        task_id = admission["task_id"]
         if not task_id or not self.wait_for_engine_container(container):
-            self.record(scenario, "unverified", scope="Budget probe did not reach an observable side effect", note=RECOVERY_POLICY_STAND_IN_NOTE)
+            self.record(scenario, "unverified", task_id=task_id, create_status=admission["create_status"],
+                        up_status=admission["up_status"], up_error_code=admission["up_error_code"],
+                        note=RECOVERY_POLICY_STAND_IN_NOTE,
+                        scope="Budget probe did not reach an observable side effect")
             return
         before = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", container).strip()
         self.compose("kill", "--signal", "SIGKILL", "docker-runtime-agent")
         interrupted = self.wait_task(task_id, timeout=180)
         if interrupted.get("status") != "needs_attention":
-            self.record(scenario, "failed", task=interrupted, note=RECOVERY_POLICY_STAND_IN_NOTE,
+            self.record(scenario, "failed", task_id=task_id, task=interrupted, note=RECOVERY_POLICY_STAND_IN_NOTE,
                         scope="Budget probe interruption did not converge to needs_attention")
             self.compose("up", "-d", "--wait", "docker-runtime-agent")
             return
         self.sql(f"UPDATE task_stages SET recovery_policy = 'retry_if_idempotent', "
                  f"max_attempts = GREATEST(max_attempts, 2) WHERE task_id = {task_id}")
+        rearmed = self.wait_stage_status(task_id, "pending", timeout=120)
+        if not any(stage.get("status") == "pending" for stage in rearmed):
+            self.record(scenario, "failed", task_id=task_id, stages=rearmed, note=RECOVERY_POLICY_STAND_IN_NOTE,
+                        scope="Reconcile did not re-arm the declared idempotent stage")
+            self.compose("up", "-d", "--wait", "docker-runtime-agent")
+            return
         self.compose("up", "-d", "--wait", "docker-runtime-agent")
         deadline = time.monotonic() + 240
         resumed_attempt = 0
@@ -700,7 +765,10 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                   and exhausted.get("failure_class") == "internal"
                   and stage.get("attempt") == 2 and stage.get("max_attempts") == 2
                   and before == after)
-        self.record(scenario, "passed" if passed else "failed", task=exhausted,
+        # 收敛即终态证据：不重启代理。代理重启会重放第二次终止保存的运行中日志，中断回执会
+        # 在同一 unknown 阶段被结算并覆盖预算诊断（SettleExternalExecution 按设计接受 running/unknown）。
+        # 本场景之后仅剩无需活代理的 socket 与 agent-offline 场景，后者自身会重建代理。
+        self.record(scenario, "passed" if passed else "failed", task_id=task_id, task=exhausted,
                     stage_attempt=stage.get("attempt"), stage_max_attempts=stage.get("max_attempts"),
                     same_container_and_started_at=before == after, note=RECOVERY_POLICY_STAND_IN_NOTE,
                     scope="Budget exhaustion converges to needs_attention with stable diagnostics instead of a hang")
@@ -840,10 +908,14 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                 self.record("shell-command-output", "passed" if shell_passed else "failed")
             except (OSError, ValueError) as exc:
                 self.record("shell-command-output", "failed", error_type=type(exc).__name__)
+        # 恢复成功探针尽量前置：提交暴露窗口越短，执行所有权监听的瞬时抖动越不可能拦住它。
+        if self.execution_mode == "agent":
+            self.recovery_resume_probe()
         self.application_probe()
         if self.execution_mode == "agent":
             self.claim_admission_probe()
-            self.recovery_resume_probe()
+            # 预算耗尽探针是最后一个需要活代理的场景：收敛记录成功后保持代理停止，
+            # 避免代理重启重放已保存日志、用中断回执覆盖预算耗尽诊断（4647483896）。
             self.recovery_budget_probe()
         backend_uid = self.compose("exec", "-T", "backend", "id", "-u").strip()
         ping = ("exec", "-T", "backend", "curl", "--fail", "--silent", "--show-error", "--max-time", "5",

@@ -49,7 +49,7 @@ func TestReconcileConvergesBudgetExhaustedStageToNeedsAttention(t *testing.T) {
 	fixture := submitAndExpireIdempotentExternalTask(t, 1)
 
 	fixture.runtime.reconcileInterruptedRecovery(context.Background())
-	assertBudgetExhaustedDiagnostics(t, fixture.repository, fixture.taskID)
+	assertBudgetExhaustedDiagnostics(t, fixture.repository, fixture.taskID, 1)
 	assertRecoveryEventCounts(t, fixture.repository, fixture.taskID, 1, 0)
 
 	// 预算耗尽后的第二次巡检不得重复恢复事件，也不得改变已收敛的诊断事实。
@@ -64,11 +64,11 @@ func TestReconcileConvergesBudgetExhaustedStageToNeedsAttention(t *testing.T) {
 }
 
 // assertBudgetExhaustedDiagnostics 校验预算耗尽收敛后的阶段与任务稳定诊断投影。
-func assertBudgetExhaustedDiagnostics(t *testing.T, repository *taskstore.SQLRepository, taskID uint64) {
+func assertBudgetExhaustedDiagnostics(t *testing.T, repository *taskstore.SQLRepository, taskID uint64, attempt int) {
 	t.Helper()
 	stages := mustStages(t, repository, taskID)
 	stage := stages[0]
-	if stage.Status != moduleapi.StageStatusUnknown || stage.Attempt != 1 {
+	if stage.Status != moduleapi.StageStatusUnknown || stage.Attempt != attempt {
 		t.Fatalf("budget exhausted stage = %#v", stage)
 	}
 	if stage.FailureCode == nil || *stage.FailureCode != taskstore.RecoveryBudgetExhaustedFailureCode {
@@ -237,6 +237,51 @@ func TestResumeInterruptedRecoveryRespectsCancellationRecordedAfterSelection(t *
 	}
 	if task := mustTask(t, repository, taskID); task.Status != moduleapi.TaskStatusCancelled {
 		t.Fatalf("cancelled task after refusal = %#v", task)
+	}
+}
+
+func TestBudgetConvergenceFollowsLateJournalSettlement(t *testing.T) {
+	// 预算耗尽收敛之后，代理重启会重放已保存的运行中日志：中断回执在同一 unknown 阶段被接受
+	// （SettleExternalExecution 的 CAS 按设计接受 running/unknown）并覆盖预算诊断。回归钉住交付语义：
+	// 最终诊断跟随迟到的结算，恢复候选不再匹配该 leg；语义变化必须显式更新本测试。
+	runtime, repository := newRuntimeForTest(t)
+	input := testSubmitInput(1, 2)
+	input.Plan.Stages[0].ExternalExecution = testExternalExecutionExpectation("budget-replay-operation")
+	receipt, err := runtime.Submit(context.Background(), input)
+	if err != nil {
+		t.Fatalf("submit budget replay task: %v", err)
+	}
+	first := claimTestExternalExecution(t, runtime)
+	expireClaimedExternalLease(t, repository, first)
+	runtime.reconcileInterruptedRecovery(context.Background())
+	second := claimTestExternalExecution(t, runtime)
+	if second.Attempt != 2 || second.OperationID != first.OperationID {
+		t.Fatalf("resumed lease = %#v original = %#v", second, first)
+	}
+	expireClaimedExternalLease(t, repository, second)
+	runtime.reconcileInterruptedRecovery(context.Background())
+	assertBudgetExhaustedDiagnostics(t, repository, receipt.TaskID, 2)
+
+	// 迟到的日志重放：第二个租约的中断回执在同一 unknown 阶段被接受并覆盖预算诊断。
+	replay := testExternalExecutionReceipt(second, moduleapi.ExternalReceiptOutcomeNeedsAttention, "agent_execution_interrupted")
+	replay.FailureClass = moduleapi.ExecutionFailureClassUnknown
+	if settlement, settleErr := runtime.SettleExternalExecution(context.Background(), replay); settleErr != nil || settlement.Status != moduleapi.TaskStatusNeedsAttention {
+		t.Fatalf("late journal settlement = %#v err=%v", settlement, settleErr)
+	}
+	if task := mustTask(t, repository, receipt.TaskID); task.Status != moduleapi.TaskStatusNeedsAttention || task.FailureCode == nil || *task.FailureCode != "agent_execution_interrupted" {
+		t.Fatalf("task after late journal replay = %#v", task)
+	}
+	if stage := mustStages(t, repository, receipt.TaskID)[0]; stage.Status != moduleapi.StageStatusUnknown || stage.FailureCode == nil || *stage.FailureCode != "agent_execution_interrupted" {
+		t.Fatalf("stage after late journal replay = %#v", stage)
+	}
+	candidates, err := repository.ListInterruptedRecoveryCandidates(context.Background(), 100)
+	if err != nil {
+		t.Fatalf("list recovery candidates after replay: %v", err)
+	}
+	for _, candidate := range candidates {
+		if candidate.Task.ID == receipt.TaskID {
+			t.Fatalf("superseded leg still matches recovery candidates: %#v", candidate)
+		}
 	}
 }
 
