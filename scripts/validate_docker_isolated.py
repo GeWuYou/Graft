@@ -592,17 +592,23 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
 
     def claim_admission_probe(self) -> None:
         # (a) Server-rejected claims must surface identity_rejected through the additive claim_admission
-        # projection. The fixture stand-in advances the stored trust generation so the running agent's
-        # certificate no longer matches the server binding, then restores it exactly.
+        # projection. The rejection must hit FRESH claims deterministically: the identity middleware derives
+        # the generation from the server binding, so mutating the stored generation number would still let
+        # new claims pass. The capability binding version is instead diverged from the agent's enrolled
+        # claim version, so agentCapabilityAllowed rejects every claim (HTTP 400 -> identity_rejected) while
+        # the active trust generation keeps telemetry reporting intact. The original value is restored.
         scenario = "agent-claim-admission-rejected"
-        generation = self.sql("SELECT g.id || ':' || g.generation FROM runtime_target_agent_identities i "
-                              "JOIN runtime_target_agent_generations g ON g.identity_id = i.id "
-                              "WHERE g.deleted_at = 0 ORDER BY g.generation DESC LIMIT 1")
-        if ":" not in generation:
-            self.record(scenario, "failed", scope="Fixture agent trust generation unavailable")
+        binding = self.sql("SELECT cb.id || '|' || cb.capability_version FROM runtime_target_agent_capability_bindings cb "
+                           "JOIN runtime_target_agent_identities i ON i.id = cb.identity_id "
+                           "WHERE i.deleted_at = 0 AND cb.deleted_at = 0 AND cb.provider_id = 'docker' "
+                           "ORDER BY cb.id DESC LIMIT 1")
+        if "|" not in binding:
+            self.record(scenario, "failed", scope="Fixture agent capability binding unavailable")
             return
-        generation_id, active_generation = generation.split(":", 1)
-        self.sql(f"UPDATE runtime_target_agent_generations SET generation = generation + 1 WHERE id = {int(generation_id)}")
+        binding_id, original_version = binding.split("|", 1)
+        restore_value = original_version.replace("'", "''")
+        self.sql(f"UPDATE runtime_target_agent_capability_bindings SET capability_version = 'graft-claim-rejection-fixture' "
+                 f"WHERE id = {int(binding_id)}")
         admission = None
         try:
             deadline = time.monotonic() + 240
@@ -612,8 +618,8 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                     break
                 time.sleep(3)
         finally:
-            self.sql(f"UPDATE runtime_target_agent_generations SET generation = {int(active_generation)} "
-                     f"WHERE id = {int(generation_id)}")
+            self.sql(f"UPDATE runtime_target_agent_capability_bindings SET capability_version = '{restore_value}' "
+                     f"WHERE id = {int(binding_id)}")
         passed = bool(admission) and admission.get("class") == "identity_rejected"
         self.record(scenario, "passed" if passed else "failed",
                     observed_at=(admission or {}).get("observed_at"),

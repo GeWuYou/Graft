@@ -681,26 +681,31 @@ class RecoveryScenarioTests(unittest.TestCase):
                 (200, {"data": {"agent": {"claim_admission": None}}})])
             self.assertIsNone(fixture.latest_claim_admission())
 
-    def test_claim_admission_probe_restores_the_observed_generation(self):
+    def test_claim_admission_probe_diverges_capability_version_and_restores_it(self):
+        # Generation mutation cannot reject fresh claims (the identity middleware derives the generation
+        # from the server binding), so the probe must diverge the capability binding version and restore
+        # the original value exactly.
         with tempfile.TemporaryDirectory() as directory:
             fixture = self.fixture(directory)
-            fixture.sql = Mock(side_effect=lambda statement: "5:3" if statement.startswith("SELECT") else "")
+            fixture.sql = Mock(side_effect=lambda statement: "5|runtime/v1" if statement.startswith("SELECT") else "")
             fixture.latest_claim_admission = Mock(side_effect=[None, {"class": "identity_rejected", "observed_at": "t"}])
             with self.clock([0, 1, 2, 10 ** 9]):
                 fixture.claim_admission_probe()
             self.assertEqual(fixture.record.call_args.args, ("agent-claim-admission-rejected", "passed"))
             statements = [call.args[0] for call in fixture.sql.call_args_list]
-            self.assertIn("generation = generation + 1", statements[1])
-            self.assertIn("generation = 3", statements[-1])
+            self.assertIn("runtime_target_agent_capability_bindings", statements[0])
+            self.assertIn("capability_version = 'graft-claim-rejection-fixture'", statements[1])
+            self.assertIn("capability_version = 'runtime/v1'", statements[-1])
+            self.assertIn("WHERE id = 5", statements[-1])
         with tempfile.TemporaryDirectory() as directory:
             fixture = self.fixture(directory)
-            fixture.sql = Mock(side_effect=lambda statement: "5:3" if statement.startswith("SELECT") else "")
+            fixture.sql = Mock(side_effect=lambda statement: "5|runtime/v1" if statement.startswith("SELECT") else "")
             fixture.latest_claim_admission = Mock(return_value={"class": "no_work"})
             with self.clock([0, 10 ** 9]):
                 fixture.claim_admission_probe()
             self.assertEqual(fixture.record.call_args.args, ("agent-claim-admission-rejected", "failed"))
             statements = [call.args[0] for call in fixture.sql.call_args_list]
-            self.assertEqual(statements[-1], "UPDATE runtime_target_agent_generations SET generation = 3 WHERE id = 5")
+            self.assertEqual(statements[-1], "UPDATE runtime_target_agent_capability_bindings SET capability_version = 'runtime/v1' WHERE id = 5")
 
     def test_wait_task_failure_code_matches_converged_diagnostics_only(self):
         with tempfile.TemporaryDirectory() as directory:
