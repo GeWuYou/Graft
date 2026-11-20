@@ -42,8 +42,8 @@ closeout:
 
 ## Current Recovery Point
 
-- Current batch: PR 5 plus CI corrections 1-2 committed on `chore/preview-release-consistency`, awaiting lead integration; SHAs and thread dispositions in the trace.
-- Completed: evidence reuse, suite + impact, workflow discipline, PR 3 corrections, PR 5 slices, corrections 1-2.
+- Current batch: PR 5 plus CI corrections 1-3 committed on `chore/preview-release-consistency`, awaiting lead integration; SHAs and thread dispositions in the trace.
+- Completed: evidence reuse, suite + impact, workflow discipline, PR 3 corrections, PR 5 slices, corrections 1-3.
 - Pending: observe a real pull-request run and one release-candidate dispatch; primary-checkout smoke and consistency runs.
 - Risk: `kind: optimize` extends the ADR-003 v1 vocabulary; ADR owner reconciles later.
 
@@ -55,7 +55,7 @@ closeout:
 - [x] PR 5: `check_deployment_consistency.py` no-acceptable-5xx contract, fail-closed revision markers.
 - [x] PR 5: release-candidate workflow with artifact binding and idempotent `rc-` tagging.
 - [x] PR 5: Justfile preview/release section, preview and release docs.
-- [x] Corrections 1-2 on PR #377: 13 threads repaired with tests (ids and dispositions in the trace).
+- [x] Corrections 1-3 on PR #377: 16 threads repaired (ids in the trace).
 - [ ] Observe a real pull-request run after integration; record evidence in the trace.
 - [ ] Primary-checkout follow-ups: preview smoke, deployment consistency run, one release dispatch.
 - [ ] Later: whether CI impact gates workflow job paths (separate batch).
@@ -64,7 +64,7 @@ closeout:
 
 - Scoped validation and comparisons fail closed; suites resolve dependencies, aggregate failures and enforce a deadline; CI impact stays conservative and advisory.
 - PR summary verifies every job of run/attempt/SHA except documented skips; check names unchanged.
-- Preview: deterministic identity, common-dir registry, port refusal, cap enforcement including restarts, flock-serialized registry writes, instance-scoped backups, restore of unhealthy running instances, retryable destroy on cleanup failure.
-- Deployment check fails on asset 404, wrong content type, 5xx without `--acceptable-status`, and revision expectations without declared markers; status-accepted assets are reported, not content-verified.
-- Release-candidate summary verifies run/attempt/SHA/version/channel/digests; `rc-` tags idempotent on same SHA, hard-fail on different SHA; `v*` stays semantic-release-owned; registration requires unfixed-scan evidence.
+- Preview: deterministic identity, common-dir registry, port refusal, cap enforcement including restarts, flock-serialized registry writes, instance-scoped backups, restore of unhealthy running instances, recorded-project teardown and retryable destroy on cleanup failure.
+- Deployment check resolves assets against the post-redirect final URL; fails on asset 404, wrong types, 5xx without `--acceptable-status`, and undeclared revision expectations; status-accepted assets are flagged, not content-verified.
+- Release-candidate summary verifies run/attempt/SHA/version/channel/digests; `rc-` tags idempotent on same SHA, hard-fail on different SHA; registration requires unfixed-scan evidence.
 - actionlint passes on both workflows; script tests cover changed behavior.
