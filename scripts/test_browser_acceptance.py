@@ -368,28 +368,62 @@ class AttemptEnvironmentTests(unittest.TestCase):
 class TeardownTests(unittest.TestCase):
     def test_teardown_restores_compose_port_variables_and_reports_failures(self) -> None:
         import io
+        import tempfile
 
-        manager = harness.EnvironmentManager(ROOT, Path("/tmp/teardown-test"), io.StringIO())
-        manager.state = {
-            "mode": "kept",
-            "compose_project": "graft-browser-test",
-            "compose_file": str(harness.COMPOSE_FILE),
-            "ports": {"postgres": 55001, "redis": 55002, "backend": 55003, "web": 55004},
-            "processes": {},
-        }
-        captured_calls: list[dict] = []
+        with tempfile.TemporaryDirectory() as directory:
+            # Everything the test touches lives inside this fixture directory:
+            # teardown may only remove the state file, never host paths.
+            report_dir = Path(directory) / "run"
+            report_dir.mkdir()
+            decoy = Path(directory) / "decoy.txt"
+            decoy.write_text("outside the report dir", encoding="utf-8")
+            manager = harness.EnvironmentManager(ROOT, report_dir, io.StringIO())
+            manager.state = {
+                "mode": "kept",
+                "compose_project": "graft-browser-test",
+                "compose_file": str(harness.COMPOSE_FILE),
+                "ports": {"postgres": 55001, "redis": 55002, "backend": 55003, "web": 55004},
+                "processes": {},
+            }
+            captured_calls: list[dict] = []
 
-        def fake_run(argv, cwd, env, check, capture_output, text):
-            captured_calls.append({"argv": argv, "env": dict(env)})
-            return subprocess.CompletedProcess(argv, 1, stdout="", stderr="boom")
+            def fake_run(argv, cwd, env, check, capture_output, text):
+                captured_calls.append({"argv": argv, "env": dict(env)})
+                return subprocess.CompletedProcess(argv, 1, stdout="", stderr="boom")
 
-        with mock.patch.object(harness.subprocess, "run", fake_run):
-            manager.teardown()
-        self.assertEqual(len(captured_calls), 1)
-        call = captured_calls[0]
-        self.assertIn("down", call["argv"])
-        self.assertEqual(call["env"].get("GRAFT_BROWSER_PG_HOST_PORT"), "55001")
-        self.assertEqual(call["env"].get("GRAFT_BROWSER_REDIS_HOST_PORT"), "55002")
+            with mock.patch.object(harness.subprocess, "run", fake_run):
+                manager.teardown()
+            self.assertEqual(len(captured_calls), 1)
+            call = captured_calls[0]
+            self.assertIn("down", call["argv"])
+            self.assertEqual(call["env"].get("GRAFT_BROWSER_PG_HOST_PORT"), "55001")
+            self.assertEqual(call["env"].get("GRAFT_BROWSER_REDIS_HOST_PORT"), "55002")
+            self.assertFalse((report_dir / "environment.json").exists())
+
+    def test_teardown_deletes_only_the_state_file_inside_its_fixture(self) -> None:
+        import io
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            report_dir = Path(directory) / "run"
+            nested = report_dir / "suite-engine"
+            nested.mkdir(parents=True)
+            state_file = report_dir / "environment.json"
+            state_file.write_text("{}", encoding="utf-8")
+            nested_file = nested / "attempt.json"
+            nested_file.write_text("{}", encoding="utf-8")
+            sibling = Path(directory) / "sibling.txt"
+            sibling.write_text("untouched", encoding="utf-8")
+            manager = harness.EnvironmentManager(ROOT, report_dir, io.StringIO())
+            manager.state = {"mode": "kept", "compose_project": "", "processes": {}}
+
+            with mock.patch.object(harness.subprocess, "run") as fake_run:
+                manager.teardown()
+            fake_run.assert_not_called()  # no compose project to remove
+            self.assertFalse(state_file.exists())
+            self.assertTrue(nested_file.exists())
+            self.assertTrue(sibling.exists())
+            self.assertEqual(nested_file.read_text(encoding="utf-8"), "{}")
 
     def test_self_ignored_writes_the_gitignore_marker_once(self) -> None:
         import tempfile

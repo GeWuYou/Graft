@@ -5,7 +5,7 @@
 // web/src/modules/project/contract/paths.ts.
 import { expect, test } from '@playwright/test';
 
-import { browserEnv, browserFixture } from '../support/env';
+import { browserFixture } from '../support/env';
 
 test.describe('task @chromium-only', () => {
   test('lists the fixture application tasks with their stages', async ({ page }) => {
