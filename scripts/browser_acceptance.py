@@ -42,6 +42,8 @@ SEED_DATABASE_URL_ENV = "GRAFT_BROWSER_SEED_DATABASE_URL"
 WEB_BASE_URL_ENV = "GRAFT_BROWSER_WEB_BASE_URL"
 ADMIN_USERNAME_ENV = "GRAFT_BROWSER_ADMIN_USERNAME"
 ADMIN_PASSWORD_ENV = "GRAFT_BROWSER_ADMIN_PASSWORD"
+STATE_FILE_ENV = "GRAFT_BROWSER_STATE_FILE"
+DEFAULT_STATE_FILE = Path("tests/browser/test-results/auth-state.json")
 
 DEFAULT_ADMIN_USERNAME = "graft"
 DEFAULT_ADMIN_PASSWORD = "graft-admin"
@@ -660,12 +662,13 @@ class EnvironmentManager:
         print(message, file=self.progress, flush=True)
 
 
-def build_attempt_environment(plan: RunPlan, web_port: int) -> dict:
+def build_attempt_environment(plan: RunPlan, web_port: int, state_file: Path) -> dict:
     """Assemble the deterministic per-attempt environment for Playwright."""
     attempt_env = {
         WEB_BASE_URL_ENV: f"http://127.0.0.1:{web_port}",
         ADMIN_USERNAME_ENV: os.environ.get(ADMIN_USERNAME_ENV, DEFAULT_ADMIN_USERNAME),
         ADMIN_PASSWORD_ENV: os.environ.get(ADMIN_PASSWORD_ENV, DEFAULT_ADMIN_PASSWORD),
+        STATE_FILE_ENV: str(state_file),
         "GRAFT_BROWSER_SUITE": plan.suite.name,
         "GRAFT_BROWSER_ENGINE": plan.engine.name,
         "GRAFT_BROWSER_TIER": plan.tier,
@@ -693,7 +696,10 @@ def run_attempt(
     web_port = ports.get("web")
     if not web_port:
         raise EnvironmentError_("environment state is missing the web port")
-    attempt_env = build_attempt_environment(plan, web_port)
+    # Every attempt writes and loads its own session file so concurrent runs
+    # with separate environments never share login state.
+    state_file = suite_report_dir / "auth-state.json"
+    attempt_env = build_attempt_environment(plan, web_port, state_file)
     print(f"RUN browser/{plan.suite.name}@{plan.engine.name}", file=progress, flush=True)
     merged_env = os.environ.copy()
     merged_env.update(attempt_env)

@@ -1,8 +1,13 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 import { request, type FullConfig } from '@playwright/test';
 
 import { browserEnv } from './env';
+
+// The harness points each attempt at its own session file so concurrent runs
+// with separate environments never overwrite each other's login state.
+const stateFile = process.env.GRAFT_BROWSER_STATE_FILE ?? './test-results/auth-state.json';
 
 type LoginPayload = {
   data?: {
@@ -76,7 +81,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
       },
     ],
   });
-  mkdirSync('./test-results', { recursive: true });
-  writeFileSync('./test-results/auth-state.json', JSON.stringify(state));
+  mkdirSync(dirname(stateFile), { recursive: true });
+  writeFileSync(stateFile, JSON.stringify(state));
   await api.dispose();
 }

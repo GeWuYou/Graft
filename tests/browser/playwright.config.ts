@@ -3,7 +3,10 @@ import { defineConfig, devices } from '@playwright/test';
 // Browser acceptance config driven by scripts/browser_acceptance.py.
 // Retries stay at zero by design: one attempt, one sanitized JSON report.
 // The firefox/webkit projects run @cross-browser tagged tests only.
+// The session file is per attempt (GRAFT_BROWSER_STATE_FILE) so concurrent
+// runs with separate environments never share login state.
 const baseURL = process.env.GRAFT_BROWSER_WEB_BASE_URL ?? 'http://127.0.0.1:4173';
+const stateFile = process.env.GRAFT_BROWSER_STATE_FILE ?? './test-results/auth-state.json';
 
 export default defineConfig({
   testDir: './suites',
@@ -19,7 +22,7 @@ export default defineConfig({
     headless: true,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    storageState: './test-results/auth-state.json',
+    storageState: stateFile,
   },
   projects: [
     {

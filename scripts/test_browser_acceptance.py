@@ -347,22 +347,56 @@ class AttemptEnvironmentTests(unittest.TestCase):
         )
 
     def test_daemon_permission_is_forwarded_to_the_playwright_environment(self) -> None:
-        environment = harness.build_attempt_environment(self._plan("docker", allow_daemon=True), 4173)
+        environment = harness.build_attempt_environment(
+            self._plan("docker", allow_daemon=True), 4173, Path("/tmp/state/auth-state.json")
+        )
         self.assertEqual(environment["GRAFT_BROWSER_ALLOW_DAEMON"], "1")
 
     def test_default_suites_never_receive_the_daemon_flag(self) -> None:
         for suite_name in ("workbench", "task", "runtime-target"):
-            environment = harness.build_attempt_environment(self._plan(suite_name, allow_daemon=True), 4173)
+            environment = harness.build_attempt_environment(
+                self._plan(suite_name, allow_daemon=True), 4173, Path("/tmp/state/auth-state.json")
+            )
             self.assertNotIn("GRAFT_BROWSER_ALLOW_DAEMON", environment)
 
     def test_daemon_suite_without_permission_does_not_receive_the_flag(self) -> None:
-        environment = harness.build_attempt_environment(self._plan("docker", allow_daemon=False), 4173)
+        environment = harness.build_attempt_environment(
+            self._plan("docker", allow_daemon=False), 4173, Path("/tmp/state/auth-state.json")
+        )
         self.assertNotIn("GRAFT_BROWSER_ALLOW_DAEMON", environment)
 
     def test_attempt_environment_exposes_the_web_origin(self) -> None:
-        environment = harness.build_attempt_environment(self._plan("workbench"), 4173)
+        environment = harness.build_attempt_environment(
+            self._plan("workbench"), 4173, Path("/tmp/state/auth-state.json")
+        )
         self.assertEqual(environment[harness.WEB_BASE_URL_ENV], "http://127.0.0.1:4173")
         self.assertEqual(environment["GRAFT_BROWSER_SUITE"], "workbench")
+
+    def test_every_attempt_gets_its_own_session_state_file(self) -> None:
+        first = harness.build_attempt_environment(
+            self._plan("workbench"), 4173, Path("/tmp/run-a/workbench-chromium/auth-state.json")
+        )
+        second = harness.build_attempt_environment(
+            self._plan("task"), 4174, Path("/tmp/run-b/task-chromium/auth-state.json")
+        )
+        self.assertEqual(first[harness.STATE_FILE_ENV], "/tmp/run-a/workbench-chromium/auth-state.json")
+        self.assertEqual(second[harness.STATE_FILE_ENV], "/tmp/run-b/task-chromium/auth-state.json")
+        self.assertNotEqual(
+            first[harness.STATE_FILE_ENV],
+            second[harness.STATE_FILE_ENV],
+            "concurrent runs must never share a session state file",
+        )
+
+    def test_playwright_config_and_setup_consume_the_state_file_env(self) -> None:
+        # The harness threads GRAFT_BROWSER_STATE_FILE into the Playwright
+        # environment; both TS consumers must read the same variable or the
+        # per-attempt session threading silently falls back to the shared file.
+        config = (ROOT / "tests" / "browser" / "playwright.config.ts").read_text(encoding="utf-8")
+        setup = (ROOT / "tests" / "browser" / "support" / "auth.setup.ts").read_text(encoding="utf-8")
+        self.assertIn("GRAFT_BROWSER_STATE_FILE", config)
+        self.assertIn("GRAFT_BROWSER_STATE_FILE", setup)
+        self.assertIn("storageState: stateFile", config)
+        self.assertIn("writeFileSync(stateFile", setup)
 
 
 class TeardownTests(unittest.TestCase):
