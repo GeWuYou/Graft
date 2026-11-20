@@ -436,13 +436,38 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             time.sleep(2)
         return stages
 
-    def assert_fixture_ports_exclusive(self) -> None:
+    def wait_recovery_claim(self, identifier: int, attempt: int, timeout: int = 120) -> tuple[bool, list, dict]:
+        # 代理领取与幂等重放可能在两次采样之间完成（容器已健康时重放秒级结束）：
+        # 阶段进入 running 且尝试达标，或任务先到达终态，都证明领取已经发生；
+        # 只有两者在窗口内都未出现才记录未领取失败。
+        deadline = time.monotonic() + timeout
+        stages: list = []
+        task: dict = {}
+        while time.monotonic() < deadline:
+            stages = self.task_stages(identifier)
+            if any(stage.get("status") == "running" and (stage.get("attempt") or 0) >= attempt for stage in stages):
+                return True, stages, task
+            status, response = self.api("GET", f"/api/tasks/{identifier}")
+            if status == 200:
+                task = response.get("data", {})
+                if task.get("status") in TERMINAL:
+                    return True, stages, task
+            time.sleep(2)
+        return False, stages, task
+
+    def fixture_projects(self) -> list[str]:
+        # 端口预检据此识别自有容器；官方实例子项目由 OfficialFixture 覆盖补充父项目。
+        return [self.state["project"]]
+
+    def assert_fixture_ports_exclusive(self, projects: list[str]) -> None:
         # 孤儿栈的后端会占用夹具端口：本栈的 API 调用会命中错误实例并静默污染证据。
-        # 有界预检在任何场景之前失败，携带占用容器身份。
+        # 有界预检必须在任何场景之前失败，携带占用容器身份。自有排除同时匹配 compose 项目标签与
+        # 容器名前缀（如 -official 实例），父夹具容器永远不是本夹具的占用者。
         recorded_ports = sorted({str(self.environment[key]) for key in
                                  ("GRAFT_CONFORMANCE_BACKEND_PORT", "GRAFT_CONFORMANCE_OFFICIAL_PORT",
                                   "GRAFT_CONFORMANCE_BOOTSTRAP_PORT", "GRAFT_CONFORMANCE_AGENT_PORT")
                                  if key in self.environment})
+        name_prefixes = tuple(project + "-" for project in projects)
         listing = subprocess.run(["docker", "ps", "--format",
                                   "{{.Label \"com.docker.compose.project\"}}\t{{.Names}}\t{{.Ports}}"],
                                  capture_output=True, text=True, timeout=30, check=False)
@@ -450,8 +475,9 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             raise RuntimeError("Fixture port preflight could not list containers: " + listing.stderr.strip())
         squatters = []
         for line in listing.stdout.splitlines():
-            project, _, ports = line.partition("\t")
-            if project == self.state["project"] or project == "":
+            project, _, name_and_ports = line.partition("\t")
+            name, _, ports = name_and_ports.partition("\t")
+            if project in projects or project == "" or name.startswith(name_prefixes):
                 continue
             if any(f":{port}->" in ports for port in recorded_ports):
                 squatters.append(line.strip())
@@ -739,9 +765,10 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             self.compose("up", "-d", "--wait", "docker-runtime-agent")
             return
         self.compose("up", "-d", "--wait", "docker-runtime-agent")
-        claimed = self.wait_stage_running_attempt(task_id, 2, timeout=120)
-        if not any(stage.get("status") == "running" and (stage.get("attempt") or 0) >= 2 for stage in claimed):
-            self.record(scenario, "failed", task_id=task_id, stages=claimed, note=RECOVERY_POLICY_STAND_IN_NOTE,
+        claimed, claimed_stages, claimed_task = self.wait_recovery_claim(task_id, 2, timeout=120)
+        if not claimed:
+            self.record(scenario, "failed", task_id=task_id, stages=claimed_stages, task=claimed_task,
+                        note=RECOVERY_POLICY_STAND_IN_NOTE,
                         scope="Restarted agent did not claim the re-armed stage")
             return
         resumed = self.wait_task_status(task_id, "success", timeout=300)
@@ -930,7 +957,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
 
     def probe(self) -> None:
         self.authenticate()
-        self.assert_fixture_ports_exclusive()
+        self.assert_fixture_ports_exclusive(self.fixture_projects())
         if self.execution_mode == "agent":
             self.once_probe()
         self.enable_operations()
@@ -1222,6 +1249,10 @@ class OfficialFixture(Fixture):
             "GRAFT_CONFORMANCE_BACKEND_PORT": parent.environment["GRAFT_CONFORMANCE_OFFICIAL_PORT"]}
         self.token = ""
         self.results = []
+
+    def fixture_projects(self) -> list[str]:
+        # 官方实例的探针与父夹具容器共存：父项目的容器（docker-daemon 等）永远不是占用者。
+        return [self.state["project"], self.parent.state["project"]]
 
     def compose(self, *arguments: str, check: bool = True, timeout: int = 600) -> str:
         if arguments[:3] == ("exec", "-T", "docker-daemon"):
