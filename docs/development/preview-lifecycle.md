@@ -34,10 +34,12 @@ just preview-destroy --task my-task --confirm-instance <status 输出的完整�
 - `status` 输出纯 JSON：URL、实时健康探测、日志位置、源码摘要（注册时 compose 摘要、当前实例摘要、
   检出 compose 摘要三向对比的 drift 结论）。
 - `stop` 仅 `compose stop`：容器与数据保留，可再次 `start` 收敛。`destroy` 要求
-  `--confirm-instance` 与注册身份逐字一致：先 `compose down --volumes --remove-orphans`，再通过
-  栈自身的 postgres 镜像短驻运行回收容器属主数据（UID 10001、0750 的 apps/ 与数据库目录），然后删除
-  实例目录并把注册项连同 `evidence_sha256` 归档进 `archive/` 与 `archive/manifest.json`。清理失败时
+  `--confirm-instance` 与注册身份逐字一致：先 `compose down --volumes --remove-orphans`，再在特权容器
+  （栈自身的 postgres 镜像短驻运行）内直接删除容器属主数据（apps/、backups/、.data/ 等以 UID 10001 或
+  root 写入的目录），宿主只移除开发者属主的剩余文件（compose.yml、.env、logs），目录不会留下 root
+  属主残留；随后把注册项连同 `evidence_sha256` 归档进 `archive/` 与 `archive/manifest.json`。清理失败时
   注册项保留并标记 `cleanup_failed`，阻塞解除后可原样重试 destroy，不会留下脱离注册的半清理状态。
+  `status` 对不可读的实例目录（例如失败的 destroy 遗留的 root 属主文件）报告异常而不是崩溃。
 
 ## 端口与容量
 

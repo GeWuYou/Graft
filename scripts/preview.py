@@ -486,13 +486,22 @@ def status_entry(root: Path, entry: dict) -> dict:
     directory = instance_dir(root, entry["identity"])
     compose_file = directory / "compose.yml"
     source = dict(entry.get("source") or {})
-    source["current_digest"] = digest_file(compose_file) if compose_file.is_file() else None
-    source["drifted"] = (source["current_digest"] != source.get("digest")) \
-        if compose_file.is_file() else None
-    checkout_compose = Path(entry.get("checkout") or "") / "compose.yml"
-    if checkout_compose.is_file():
-        source["checkout_digest"] = digest_file(checkout_compose)
-        source["checkout_matches_start"] = source.get("digest") == source["checkout_digest"]
+    anomalies: list[str] = []
+    try:
+        source["current_digest"] = digest_file(compose_file) if compose_file.is_file() else None
+        source["drifted"] = (source["current_digest"] != source.get("digest")) \
+            if source["current_digest"] is not None else None
+        checkout_compose = Path(entry.get("checkout") or "") / "compose.yml"
+        if checkout_compose.is_file():
+            source["checkout_digest"] = digest_file(checkout_compose)
+            source["checkout_matches_start"] = source.get("digest") == source["checkout_digest"]
+    except OSError as exc:
+        # A failed destroy can leave container-owned (root-owned) files in
+        # the instance directory; status must stay readable and report the
+        # condition instead of crashing on every reader.
+        anomalies.append(f"instance_dir_unreadable: {exc}")
+        source["current_digest"] = None
+        source["drifted"] = None
     health = None
     if entry.get("state") == "running":
         health = {"web": probe_http(web_url(entry)), "url": web_url(entry)}
@@ -508,6 +517,7 @@ def status_entry(root: Path, entry: dict) -> dict:
         "logs": {"compose_log": str(directory / "logs" / "compose.log"),
                  "instance_dir": str(directory)},
         "source": source,
+        "anomalies": anomalies,
         "created_at": entry.get("created_at"),
         "updated_at": entry.get("updated_at"),
     }
@@ -584,19 +594,22 @@ def append_archive(root: Path, entry: dict) -> dict:
     return {"archive_file": str(target), "evidence_sha256": record["evidence_sha256"]}
 
 
-def reset_container_owned_permissions(directory: Path) -> None:
-    """Reclaim container-owned files before the host-side removal.
-
-    application-root-init leaves apps/ at UID 10001 mode 0750 and postgres
-    writes similar data, so shutil.rmtree as the host user would fail. A
-    short-lived run of the stack's own postgres image (already pulled by
-    any preview start, so no extra image download) chowns the instance
-    directory back to root first.
-    """
+def remove_container_owned_data(directory: Path, timeout: float = 120) -> None:
+    """Remove the data the preview stack created, inside the privileged
+    container. The stack writes apps/, backups/ and .data/ as UID 10001 or
+    root, so a host-side rmtree cannot remove them and re-rooting the whole
+    directory (the previous chown/chmod approach) made it unreadable to the
+    tool itself. Deleting inside the container leaves no root-owned files
+    behind; the host then removes only the developer-owned remainder
+    (compose.yml, .env, logs), which needs no privilege. The pass removes
+    every top-level entry except those two files, so a retry after a partial
+    failure can always complete."""
     command = ["docker", "run", "--rm", "--user", "0:0",
                "-v", f"{directory}:/target", "postgres:16.16-alpine",
-               "sh", "-c", "chown -R 0:0 /target && chmod -R u+rwX /target"]
-    completed = subprocess.run(command, capture_output=True, text=True, timeout=120)
+               "sh", "-c",
+               "find /target -mindepth 1 -maxdepth 1 "
+               "! -name compose.yml ! -name .env -exec rm -rf {} +"]
+    completed = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
     if completed.returncode != 0:
         raise PreviewError(
             f"privileged cleanup exited with code {completed.returncode}: "
@@ -673,7 +686,7 @@ def destroy(args: argparse.Namespace) -> dict:
                 f"stack teardown failed for {identity} (entry kept for retry): {exc}") from exc
         if directory.exists():
             try:
-                reset_container_owned_permissions(directory)
+                remove_container_owned_data(directory)
                 shutil.rmtree(directory)
             except (PreviewError, subprocess.SubprocessError, OSError) as exc:
                 entry["state"] = "cleanup_failed"
