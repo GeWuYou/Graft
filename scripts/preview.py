@@ -13,7 +13,9 @@ volumes and the instance directory, requires the exact instance identity via
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as dt
+import fcntl
 import hashlib
 import json
 import os
@@ -25,6 +27,7 @@ import socket
 import subprocess
 import sys
 import time
+import uuid
 from urllib import error as urlerror
 from urllib import request as urlrequest
 
@@ -39,7 +42,8 @@ RESERVED_ENV_KEYS = frozenset({
     "GRAFT_IMAGE_TAG", "GRAFT_WEB_HOST_PORT", "COMPOSE_FILE_DIR", "COMPOSE_PROFILES",
     "COMPOSE_PROJECT_NAME", "GRAFT_EXECUTION_MODE", "GRAFT_BUILD_SNAPSHOT_VOLUME",
     "GRAFT_UPDATE_STATE_VOLUME", "GRAFT_APPLICATION_ROOT_HOST_PATH",
-    "GRAFT_APPLICATION_ROOT_CONTAINER_PATH", "POSTGRES_PASSWORD", "GRAFT_AUTH_JWT_SECRET",
+    "GRAFT_APPLICATION_ROOT_CONTAINER_PATH", "GRAFT_BACKUP_ARTIFACT_HOST_PATH",
+    "POSTGRES_PASSWORD", "GRAFT_AUTH_JWT_SECRET",
 })
 ENV_KEY_PATTERN = re.compile(r"[A-Z][A-Z0-9_]*")
 HEALTH_POLL_SECONDS = 1.0
@@ -118,10 +122,43 @@ def read_registry(root: Path) -> dict:
 def write_registry(root: Path, document: dict) -> None:
     root.mkdir(parents=True, exist_ok=True)
     path = registry_path(root)
-    temporary = path.with_suffix(".json.tmp")
+    # A per-writer temporary name: a fixed one would let two writers race
+    # on the same temp file before the rename.
+    temporary = path.parent / f".{path.name}.{os.getpid()}-{uuid.uuid4().hex[:8]}.tmp"
     temporary.write_text(json.dumps(document, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     os.replace(temporary, path)
     path.chmod(0o600)
+
+
+@contextlib.contextmanager
+def registry_lock(root: Path):
+    """Serialize registry read→change→write sections across processes.
+
+    The lock file lives beside the registry in the state root so every
+    process resolving the same registry contends on the same lock; the
+    port allocation and PREVIEW_MAX_RUNNING reservation must happen while
+    it is held or two overlapping starts could double-allocate.
+    """
+    root.mkdir(parents=True, exist_ok=True)
+    lock_path = root / "registry.lock"
+    with open(lock_path, "a+") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def update_entry(root: Path, identity: str, mutate) -> dict:
+    """Read-modify-write exactly one registry entry under the exclusive lock."""
+    with registry_lock(root):
+        document = read_registry(root)
+        entry = document["instances"].get(identity)
+        if entry is None:
+            raise PreviewError(f"no registered preview instance for identity {identity}")
+        mutate(entry)
+        write_registry(root, document)
+        return entry
 
 
 def archive_dir(root: Path) -> Path:
@@ -219,6 +256,7 @@ def build_env_file(directory: Path, identity: str, image_tag: str, web_port: int
         f"COMPOSE_FILE_DIR={directory}",
         f"GRAFT_APPLICATION_ROOT_HOST_PATH={directory / 'apps'}",
         f"GRAFT_APPLICATION_ROOT_CONTAINER_PATH={directory / 'apps'}",
+        f"GRAFT_BACKUP_ARTIFACT_HOST_PATH={directory / 'backups'}",
         f"GRAFT_BUILD_SNAPSHOT_VOLUME=graft-preview-{identity}-build-snapshots",
         f"GRAFT_UPDATE_STATE_VOLUME=graft-preview-{identity}-update-state",
     ]
@@ -300,8 +338,6 @@ def start(args: argparse.Namespace) -> dict:
     identity = identity_for(checkout, args.task)
     project = compose_project_for(identity)
     root = state_root()
-    document = read_registry(root)
-    entry = document["instances"].get(identity)
     image_tag = args.image_tag
     if not image_tag:
         raise PreviewError("--image-tag is required (the compose file refuses an empty GRAFT_IMAGE_TAG)")
@@ -314,60 +350,80 @@ def start(args: argparse.Namespace) -> dict:
     directory = instance_dir(root, identity)
     env_file = directory / ".env"
     compose_file = directory / "compose.yml"
+    web_port: int | None = None
+    source_info: dict = {}
 
-    if entry is None:
-        cap = parse_max_running()
-        if running_count(document) >= cap:
-            raise PreviewError(
-                f"PREVIEW_MAX_RUNNING={cap} reached ({running_count(document)} running instances); "
-                "stop or destroy one first")
-        web_port = allocate_port(root, document, args.port)
-        directory.mkdir(parents=True, mode=0o700, exist_ok=True)
-        build_env_file(directory, identity, image_tag, web_port, parse_extra_env(args.env))
-        shutil.copyfile(compose_source, compose_file)
-        entry = {
-            "identity": identity,
-            "task_id": args.task,
-            "checkout": str(checkout),
-            "compose_project": project,
-            "image_tag": image_tag,
-            "web_port": web_port,
-            "state": "starting",
-            "created_at": utc_now(),
-            "updated_at": utc_now(),
-            "source": {"revision": source_revision(), "digest": digest_file(compose_file)},
-        }
-        document["instances"][identity] = entry
-        write_registry(root, document)
-    else:
-        # Convergence on a registered instance keeps its reserved port and
-        # stored secrets; regenerating the env file would rotate credentials.
-        if not env_file.is_file() or not compose_file.is_file():
-            raise PreviewError(
-                f"instance {identity} is registered but its env/compose files are missing; "
-                "destroy it with --confirm-instance before starting again")
-        if args.port is not None and args.port != entry.get("web_port"):
-            raise PreviewError(
-                f"instance {identity} is registered on port {entry.get('web_port')}; "
-                "--port must match or be omitted")
-        if entry.get("state") == "running":
-            converged = wait_for_health(web_url(entry), min(args.health_timeout, 10))
-            entry["updated_at"] = utc_now()
+    # The registry read, the port allocation and the PREVIEW_MAX_RUNNING
+    # reservation form one critical section: holding the registry lock here
+    # makes double allocation impossible across overlapping processes.
+    with registry_lock(root):
+        document = read_registry(root)
+        entry = document["instances"].get(identity)
+        if entry is None:
+            cap = parse_max_running()
+            if running_count(document) >= cap:
+                raise PreviewError(
+                    f"PREVIEW_MAX_RUNNING={cap} reached ({running_count(document)} running instances); "
+                    "stop or destroy one first")
+            web_port = allocate_port(root, document, args.port)
+            directory.mkdir(parents=True, mode=0o700, exist_ok=True)
+            build_env_file(directory, identity, image_tag, web_port, parse_extra_env(args.env))
+            shutil.copyfile(compose_source, compose_file)
+            source_info = {"revision": source_revision(), "digest": digest_file(compose_file)}
+            document["instances"][identity] = {
+                "identity": identity,
+                "task_id": args.task,
+                "checkout": str(checkout),
+                "compose_project": project,
+                "image_tag": image_tag,
+                "web_port": web_port,
+                "state": "starting",
+                "created_at": utc_now(),
+                "updated_at": utc_now(),
+                "source": source_info,
+            }
             write_registry(root, document)
-            return {"identity": identity, "state": "running", "already_running": True,
-                    "health": converged, "web_url": web_url(entry)}
-        # A restart re-occupies the cap: count running instances excluding
-        # this entry so a stopped instance cannot bypass PREVIEW_MAX_RUNNING.
-        cap = parse_max_running()
-        running_others = running_count(document, exclude=identity)
-        if running_others >= cap:
-            raise PreviewError(
-                f"PREVIEW_MAX_RUNNING={cap} reached ({running_others} other running instances); "
-                "restart refuses to exceed the cap, stop or destroy one first")
+        else:
+            # Convergence on a registered instance keeps its reserved port and
+            # stored secrets; regenerating the env file would rotate credentials.
+            if not env_file.is_file() or not compose_file.is_file():
+                raise PreviewError(
+                    f"instance {identity} is registered but its env/compose files are missing; "
+                    "destroy it with --confirm-instance before starting again")
+            if args.port is not None and args.port != entry.get("web_port"):
+                raise PreviewError(
+                    f"instance {identity} is registered on port {entry.get('web_port')}; "
+                    "--port must match or be omitted")
+            web_port = entry.get("web_port")
+            source_info = entry.get("source") or {}
+            if entry.get("state") == "running":
+                converged = wait_for_health(web_url(entry), min(args.health_timeout, 10))
+                if converged["ok"]:
+                    entry["updated_at"] = utc_now()
+                    write_registry(root, document)
+                    return {"identity": identity, "state": "running", "already_running": True,
+                            "health": converged, "web_url": web_url(entry)}
+                # Marked running but unhealthy: containers may have been
+                # stopped or removed externally, so fall through and restore
+                # the stack via compose up instead of reporting a lie.
+            else:
+                # A restart re-occupies the cap: count running instances excluding
+                # this entry so a stopped instance cannot bypass PREVIEW_MAX_RUNNING.
+                cap = parse_max_running()
+                running_others = running_count(document, exclude=identity)
+                if running_others >= cap:
+                    raise PreviewError(
+                        f"PREVIEW_MAX_RUNNING={cap} reached ({running_others} other running instances); "
+                        "restart refuses to exceed the cap, stop or destroy one first")
 
-    entry["state"] = "starting"
-    entry["updated_at"] = utc_now()
-    write_registry(root, document)
+    def mark(state: str, **fields) -> None:
+        # Compose runs outside the lock; every state flip re-reads the
+        # registry under the lock so it never clobbers concurrent writers
+        # with a stale in-memory copy.
+        update_entry(root, identity,
+                     lambda current: current.update(state=state, updated_at=utc_now(), **fields))
+
+    mark("starting")
     try:
         completed = run_compose(["up", "-d", "--wait"], compose_file=compose_file, project=project,
                                 env_file=env_file, timeout=args.health_timeout + 60)
@@ -376,16 +432,11 @@ def start(args: argparse.Namespace) -> dict:
                 "compose up exited with code "
                 f"{completed.returncode}: {completed.stderr.strip()[:500]}")
     except (subprocess.SubprocessError, PreviewError) as exc:
-        entry["state"] = "failed"
-        entry["updated_at"] = utc_now()
-        entry["failure"] = str(exc)
-        write_registry(root, document)
+        mark("failed", failure=str(exc))
         raise PreviewError(f"compose up failed for {identity}: {exc}") from exc
 
-    entry["state"] = "running"
-    entry["updated_at"] = utc_now()
-    write_registry(root, document)
-    health = wait_for_health(web_url(entry), args.health_timeout)
+    mark("running")
+    health = wait_for_health(f"http://127.0.0.1:{web_port}/", args.health_timeout)
     logs_dir = directory / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     snapshot = logs_dir / "compose.log"
@@ -395,9 +446,9 @@ def start(args: argparse.Namespace) -> dict:
         snapshot.write_text(completed.stdout, encoding="utf-8")
     except (subprocess.SubprocessError, OSError) as exc:
         snapshot.write_text(f"log snapshot failed: {exc}\n", encoding="utf-8")
-    return {"identity": identity, "state": entry["state"], "already_running": False,
-            "web_url": web_url(entry), "health": health,
-            "source": entry["source"], "registry": str(registry_path(root)),
+    return {"identity": identity, "state": "running", "already_running": False,
+            "web_url": f"http://127.0.0.1:{web_port}/", "health": health,
+            "source": source_info, "registry": str(registry_path(root)),
             "instance_dir": str(directory)}
 
 
@@ -517,32 +568,67 @@ def append_archive(root: Path, entry: dict) -> dict:
     return {"archive_file": str(target), "evidence_sha256": record["evidence_sha256"]}
 
 
-def destroy(args: argparse.Namespace) -> dict:
-    root = state_root()
-    document = read_registry(root)
-    identity = resolve_identity(args, root)
-    entry = require_entry(document, identity)
-    if args.confirm_instance != identity:
+def reset_container_owned_permissions(directory: Path) -> None:
+    """Reclaim container-owned files before the host-side removal.
+
+    application-root-init leaves apps/ at UID 10001 mode 0750 and postgres
+    writes similar data, so shutil.rmtree as the host user would fail. A
+    short-lived run of the stack's own postgres image (already pulled by
+    any preview start, so no extra image download) chowns the instance
+    directory back to root first.
+    """
+    command = ["docker", "run", "--rm", "--user", "0:0",
+               "-v", f"{directory}:/target", "postgres:16.16-alpine",
+               "sh", "-c", "chown -R 0:0 /target && chmod -R u+rwX /target"]
+    completed = subprocess.run(command, capture_output=True, text=True, timeout=120)
+    if completed.returncode != 0:
         raise PreviewError(
-            f"destroy requires --confirm-instance {identity} (the exact registered identity)")
-    directory = instance_dir(root, identity)
-    compose_file = directory / "compose.yml"
-    env_file = directory / ".env"
-    if compose_file.is_file() and env_file.is_file():
-        try:
-            completed = run_compose(["down", "--volumes", "--remove-orphans"],
-                                    compose_file=compose_file, project=entry["compose_project"],
-                                    env_file=env_file, timeout=180)
-        except subprocess.SubprocessError as exc:
-            raise PreviewError(f"compose down failed for {identity}: {exc}") from exc
-        if completed.returncode != 0:
+            f"privileged cleanup exited with code {completed.returncode}: "
+            f"{completed.stderr.strip()[:300]}")
+
+
+def destroy(args: argparse.Namespace) -> dict:
+    """Order matters: tear down the stack, reclaim container-owned data,
+    and only then archive evidence and drop the registry entry. A cleanup
+    failure keeps the entry with a cleanup_failed marker so destroy stays
+    retryable instead of leaving an untracked half-cleanup."""
+    root = state_root()
+    identity = resolve_identity(args, root)
+    # The lock spans the whole teardown so a concurrent start cannot
+    # reserve this instance's port while its entry is mid-destruction.
+    with registry_lock(root):
+        document = read_registry(root)
+        entry = require_entry(document, identity)
+        if args.confirm_instance != identity:
             raise PreviewError(
-                f"compose down exited with code {completed.returncode}: {completed.stderr.strip()[:500]}")
-    archive = append_archive(root, entry)
-    del document["instances"][identity]
-    write_registry(root, document)
-    if directory.exists():
-        shutil.rmtree(directory)
+                f"destroy requires --confirm-instance {identity} (the exact registered identity)")
+        directory = instance_dir(root, identity)
+        compose_file = directory / "compose.yml"
+        env_file = directory / ".env"
+        if compose_file.is_file() and env_file.is_file():
+            try:
+                completed = run_compose(["down", "--volumes", "--remove-orphans"],
+                                        compose_file=compose_file, project=entry["compose_project"],
+                                        env_file=env_file, timeout=180)
+            except subprocess.SubprocessError as exc:
+                raise PreviewError(f"compose down failed for {identity}: {exc}") from exc
+            if completed.returncode != 0:
+                raise PreviewError(
+                    f"compose down exited with code {completed.returncode}: {completed.stderr.strip()[:500]}")
+        if directory.exists():
+            try:
+                reset_container_owned_permissions(directory)
+                shutil.rmtree(directory)
+            except (PreviewError, subprocess.SubprocessError, OSError) as exc:
+                entry["state"] = "cleanup_failed"
+                entry["cleanup_error"] = str(exc)
+                entry["updated_at"] = utc_now()
+                write_registry(root, document)
+                raise PreviewError(
+                    f"instance data cleanup failed for {identity} (entry kept for retry): {exc}") from exc
+        archive = append_archive(root, entry)
+        del document["instances"][identity]
+        write_registry(root, document)
     return {"identity": identity, "state": "destroyed", "volumes_removed": True, **archive}
 
 

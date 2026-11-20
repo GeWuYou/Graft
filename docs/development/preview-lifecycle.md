@@ -24,14 +24,18 @@ just preview-destroy --task my-task --confirm-instance <status 输出的完整�
 ```
 
 - `start` 生成实例 `.env`（GRAFT_IMAGE_TAG、随机 POSTGRES_PASSWORD / GRAFT_AUTH_JWT_SECRET、
-  每实例命名的 build-snapshot/update-state 卷）并复制 compose 文件；已注册实例收敛启动（复用保留端口与
-  已存密钥，不重新生成凭据）。`--image-tag` 必须是裸 tag（不含 `/` 或 `:`）：compose.yml 已固定镜像名，
+  每实例命名的 build-snapshot/update-state 卷、实例独立的备份目录）并复制 compose 文件；已注册实例收敛启动
+  （复用保留端口与已存密钥，不重新生成凭据）；注册态为 running 但健康探测失败时（容器被外部停止或删除），
+  start 会回落到 compose up 重建栈而不是虚报成功。注册表读写段由 git-common-dir 下的文件锁串行化，
+  端口分配与容量预留都在锁内完成。`--image-tag` 必须是裸 tag（不含 `/` 或 `:`）：compose.yml 已固定镜像名，
   传入完整镜像引用会造成双重引用，脚本直接拒绝。`--env KEY=VALUE` 可追加变量，保留键不可覆盖。
 - `status` 输出纯 JSON：URL、实时健康探测、日志位置、源码摘要（注册时 compose 摘要、当前实例摘要、
   检出 compose 摘要三向对比的 drift 结论）。
 - `stop` 仅 `compose stop`：容器与数据保留，可再次 `start` 收敛。`destroy` 要求
-  `--confirm-instance` 与注册身份逐字一致，执行 `compose down --volumes --remove-orphans`，
-  删除实例目录，并把注册项连同 `evidence_sha256` 归档进 `archive/` 与 `archive/manifest.json`。
+  `--confirm-instance` 与注册身份逐字一致：先 `compose down --volumes --remove-orphans`，再通过
+  栈自身的 postgres 镜像短驻运行回收容器属主数据（UID 10001、0750 的 apps/ 与数据库目录），然后删除
+  实例目录并把注册项连同 `evidence_sha256` 归档进 `archive/` 与 `archive/manifest.json`。清理失败时
+  注册项保留并标记 `cleanup_failed`，阻塞解除后可原样重试 destroy，不会留下脱离注册的半清理状态。
 
 ## 端口与容量
 

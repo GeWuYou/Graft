@@ -1,5 +1,7 @@
 """Regression checks for the checkout-owned preview lifecycle."""
 import argparse
+import contextlib
+import fcntl
 import hashlib
 import io
 import json
@@ -123,6 +125,78 @@ class RegistryTests(unittest.TestCase):
             preview.read_registry(self.root)
 
 
+class RegistryLockTests(unittest.TestCase):
+    def test_registry_lock_excludes_other_holders_with_a_real_flock(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with preview.registry_lock(root):
+                probe = open(root / "registry.lock", "a+")
+                try:
+                    with self.assertRaises(OSError):
+                        fcntl.flock(probe.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                finally:
+                    probe.close()
+            # After release another exclusive holder acquires cleanly.
+            with preview.registry_lock(root):
+                pass
+
+    def test_start_reserves_the_port_inside_the_registry_lock(self):
+        # Port allocation and cap reservation must happen while the exclusive
+        # registry lock is held, or overlapping starts could double-allocate.
+        events = []
+        original_allocate = preview.allocate_port
+        original_lock = preview.registry_lock
+
+        @contextlib.contextmanager
+        def recording_lock(root):
+            events.append("lock:enter")
+            try:
+                with original_lock(root):
+                    events.append("locked")
+                    yield
+            finally:
+                events.append("lock:exit")
+
+        def recording_allocate(*args, **kwargs):
+            events.append("allocate")
+            return original_allocate(*args, **kwargs)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.dict(os.environ, {"GRAFT_PREVIEW_STATE_DIR": temporary}):
+                with patch.object(preview, "registry_lock", recording_lock), \
+                        patch.object(preview, "allocate_port", recording_allocate), \
+                        patch.object(preview, "run_compose", fake_compose([])), \
+                        patch.object(preview, "probe_http",
+                                     return_value={"ok": True, "status": 200, "error": None}):
+                    preview.start(lifecycle_args(task="locked-port"))
+        # Allocation must sit inside the first locked span (the later spans
+        # are the post-compose state flips re-acquiring the same lock).
+        self.assertIn("allocate", events)
+        self.assertEqual(events.index("allocate"), events.index("locked") + 1)
+        self.assertLess(events.index("allocate"), events.index("lock:exit"))
+
+    def test_two_starts_allocate_distinct_ports(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.dict(os.environ, {"GRAFT_PREVIEW_STATE_DIR": temporary,
+                                         "GRAFT_PREVIEW_PORT_BASE": "38200"}):
+                with patch.object(preview, "run_compose", fake_compose([])), \
+                        patch.object(preview, "probe_http",
+                                     return_value={"ok": True, "status": 200, "error": None}):
+                    first = preview.start(lifecycle_args(task="first-port"))
+                    second = preview.start(lifecycle_args(task="second-port"))
+        self.assertNotEqual(first["web_url"], second["web_url"])
+
+    def test_registry_writes_use_unique_temp_files(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            document = {"schema_version": 1, "instances": {}}
+            with patch.object(preview.os, "getpid", return_value=12345):
+                preview.write_registry(root, document)
+            leftovers = [path.name for path in root.iterdir() if path.suffix == ".tmp"]
+            self.assertEqual(leftovers, [])
+            self.assertTrue((root / "registry.json").is_file())
+
+
 class PortAllocationTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -215,6 +289,12 @@ class StartStopDestroyTests(unittest.TestCase):
                                           return_value={"ok": True, "status": 200, "error": None})
         self.probe_patcher.start()
         self.addCleanup(self.probe_patcher.stop)
+        self.cleanup_calls = []
+        self.privileged_cleanup_patcher = patch.object(
+            preview, "reset_container_owned_permissions",
+            side_effect=lambda directory: self.cleanup_calls.append(str(directory)))
+        self.privileged_cleanup_patcher.start()
+        self.addCleanup(self.privileged_cleanup_patcher.stop)
 
     def env(self, **extra):
         mapping = {"GRAFT_PREVIEW_STATE_DIR": str(self.root)}
@@ -247,6 +327,7 @@ class StartStopDestroyTests(unittest.TestCase):
         env_text = (directory / ".env").read_text(encoding="utf-8")
         self.assertIn("GRAFT_IMAGE_TAG=graft-test", env_text)
         self.assertIn("GRAFT_DATABASE_URL=x", env_text)
+        self.assertIn(f"GRAFT_BACKUP_ARTIFACT_HOST_PATH={directory / 'backups'}", env_text)
         self.assertIn(f"GRAFT_BUILD_SNAPSHOT_VOLUME=graft-preview-{identity}-build-snapshots", env_text)
         self.assertIn(f"GRAFT_UPDATE_STATE_VOLUME=graft-preview-{identity}-update-state", env_text)
         self.assertTrue((directory / "compose.yml").is_file())
@@ -266,6 +347,24 @@ class StartStopDestroyTests(unittest.TestCase):
         self.assertEqual(result["state"], "running")
         self.assertEqual(result["web_url"], f"http://127.0.0.1:{registered_port}/")
         self.assertEqual(self.calls, [])
+
+    def test_start_restores_an_unhealthy_marked_running_instance(self):
+        # A registry entry can say "running" while the containers were
+        # stopped or removed externally; start must fall through to compose
+        # up and restore the stack instead of returning a lying early success.
+        identity = preview.identity_for(preview.checkout_root(), "restore-one")
+        self.register(identity, state="running")
+        with self.env():
+            with patch.object(preview, "wait_for_health", side_effect=[
+                    {"ok": False, "status": None, "error": "connection refused"},
+                    {"ok": True, "status": 200, "error": None}]):
+                result = preview.start(lifecycle_args(task="restore-one"))
+        self.assertFalse(result["already_running"])
+        self.assertEqual(result["state"], "running")
+        up_calls = [call for call in self.calls if call["arguments"] == ["up", "-d", "--wait"]]
+        self.assertEqual(len(up_calls), 1)
+        self.assertEqual(preview.read_registry(self.root)["instances"][identity]["state"],
+                         "running")
 
     def test_start_refuses_port_mismatch_on_registered_instance(self):
         identity = preview.identity_for(preview.checkout_root(), "pinned-port")
@@ -307,6 +406,9 @@ class StartStopDestroyTests(unittest.TestCase):
         with self.env():
             with self.assertRaises(PreviewError):
                 preview.start(lifecycle_args(task="reserved-env", env=["GRAFT_IMAGE_TAG=evil"]))
+            with self.assertRaises(PreviewError):
+                preview.start(lifecycle_args(task="reserved-backup-path",
+                                             env=["GRAFT_BACKUP_ARTIFACT_HOST_PATH=/opt/graft/backups"]))
             with self.assertRaises(PreviewError):
                 preview.start(lifecycle_args(task="malformed-env", env=["bad-key=1"]))
 
@@ -375,6 +477,9 @@ class StartStopDestroyTests(unittest.TestCase):
         down_calls = [call for call in self.calls if call["arguments"]]
         self.assertIn(["down", "--volumes", "--remove-orphans"],
                       [call["arguments"] for call in down_calls])
+        # Container-owned data is reclaimed through the privileged cleanup
+        # before the instance directory is removed.
+        self.assertEqual(self.cleanup_calls, [str(preview.instance_dir(self.root, identity))])
         archive_file = Path(result["archive_file"])
         record = json.loads(archive_file.read_text(encoding="utf-8"))
         self.assertEqual(record["registry_entry"], entry_before)
@@ -383,6 +488,31 @@ class StartStopDestroyTests(unittest.TestCase):
         manifest = preview.read_archive_manifest(self.root)
         self.assertEqual(manifest["entries"][archive_file.name]["sha256"],
                          preview.digest_file(archive_file))
+
+    def test_destroy_cleanup_failure_keeps_the_entry_retryable(self):
+        # Cleanup failure must not leave an untracked half-cleanup: the entry
+        # stays registered with a cleanup_failed marker and destroy can be
+        # retried once the blocker is gone.
+        identity = preview.identity_for(preview.checkout_root(), "destroy-retry")
+        self.register(identity, state="running")
+        arguments = argparse.Namespace(task="destroy-retry", identity=None,
+                                       confirm_instance=identity)
+        with self.env():
+            with patch.object(preview, "reset_container_owned_permissions",
+                              side_effect=PreviewError("docker run failed: image missing")):
+                with self.assertRaises(PreviewError) as context:
+                    preview.destroy(arguments)
+        self.assertIn("entry kept for retry", str(context.exception))
+        entry = preview.read_registry(self.root)["instances"][identity]
+        self.assertEqual(entry["state"], "cleanup_failed")
+        self.assertIn("docker run failed", entry["cleanup_error"])
+        self.assertEqual(preview.read_archive_manifest(self.root).get("entries", {}), {})
+        self.assertTrue(preview.instance_dir(self.root, identity).exists())
+        with self.env():
+            result = preview.destroy(arguments)
+        self.assertEqual(result["state"], "destroyed")
+        self.assertNotIn(identity, preview.read_registry(self.root)["instances"])
+        self.assertFalse(preview.instance_dir(self.root, identity).exists())
 
 
 class StatusTests(unittest.TestCase):
