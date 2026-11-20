@@ -512,6 +512,9 @@ class StartStopDestroyTests(unittest.TestCase):
         down_calls = [call for call in self.calls if call["arguments"]]
         self.assertIn(["down", "--volumes", "--remove-orphans"],
                       [call["arguments"] for call in down_calls])
+        # Stack-created data never triggers the ownership restore: the
+        # privileged removal deletes it after the stack is stopped.
+        self.assertEqual(self.restore_calls, [])
         archive_file = Path(result["archive_file"])
         record = json.loads(archive_file.read_text(encoding="utf-8"))
         self.assertEqual(record["registry_entry"], entry_before)
@@ -633,7 +636,9 @@ class StartStopDestroyTests(unittest.TestCase):
     def test_destroy_without_stored_files_tears_down_the_recorded_project(self):
         # A lost instance directory must not free the entry while containers
         # or volumes from the recorded project may still be live: destroy
-        # tears down by the recorded project name instead of skipping.
+        # tears down by the recorded project name instead of skipping, and
+        # never starts the image-dependent ownership restore for a
+        # directory that does not exist.
         identity = preview.identity_for(preview.checkout_root(), "destroy-fileless")
         self.register(identity, state="running")
         recorded_project = f"graft-preview-{identity}"
@@ -643,6 +648,7 @@ class StartStopDestroyTests(unittest.TestCase):
         with self.env():
             result = preview.destroy(arguments)
         self.assertEqual(self.teardown_calls, [recorded_project])
+        self.assertEqual(self.restore_calls, [])
         self.assertEqual(result["state"], "destroyed")
         self.assertNotIn(identity, preview.read_registry(self.root)["instances"])
         self.assertEqual(self.cleanup_calls, [])
@@ -740,6 +746,53 @@ class StartStopDestroyTests(unittest.TestCase):
         self.assertIn("chmod -R u+rwX /target", script)
         self.assertIn(f"{temporary}:/target", command)
 
+    def test_destroy_teardowns_before_touching_ownership(self):
+        # The ownership restore must run only on the stopped stack's data:
+        # healthy running containers are torn down first, never chowned
+        # mid-run.
+        identity = preview.identity_for(preview.checkout_root(), "destroy-order")
+        self.register(identity, state="running")
+        arguments = argparse.Namespace(task="destroy-order", identity=None,
+                                       confirm_instance=identity)
+        events = []
+        base_compose = preview.run_compose
+
+        def recording_compose(arguments, **kwargs):
+            events.append("compose-down")
+            return base_compose(arguments, **kwargs)
+
+        with self.env():
+            with patch.object(preview, "run_compose", side_effect=recording_compose), \
+                    patch.object(preview, "needs_ownership_restore", return_value=True), \
+                    patch.object(preview, "restore_developer_ownership",
+                                 side_effect=lambda directory: events.append("restore")):
+                result = preview.destroy(arguments)
+        self.assertEqual(result["state"], "destroyed")
+        self.assertEqual(events, ["compose-down", "restore"])
+
+    def test_destroy_teardown_failure_never_touches_ownership(self):
+        # A teardown failure must leave the stack intact and the entry
+        # retryable WITHOUT having chowned any live file.
+        identity = preview.identity_for(preview.checkout_root(), "destroy-order-fail")
+        self.register(identity, state="running")
+        arguments = argparse.Namespace(task="destroy-order-fail", identity=None,
+                                       confirm_instance=identity)
+
+        def failing_compose(arguments, **kwargs):
+            return subprocess.CompletedProcess(["docker"], 1, stdout="", stderr="compose down failed")
+
+        with self.env():
+            with patch.object(preview, "run_compose", failing_compose), \
+                    patch.object(preview, "needs_ownership_restore", return_value=True), \
+                    patch.object(preview, "restore_developer_ownership",
+                                 side_effect=AssertionError("must not chown before teardown")):
+                with self.assertRaises(PreviewError) as context:
+                    preview.destroy(arguments)
+        self.assertIn("stack teardown failed", str(context.exception))
+        entry = preview.read_registry(self.root)["instances"][identity]
+        self.assertEqual(entry["state"], "cleanup_failed")
+        self.assertIn("compose down failed", entry["cleanup_error"])
+
 
 class StatusTests(unittest.TestCase):
     def setUp(self):
@@ -804,6 +857,41 @@ class StatusTests(unittest.TestCase):
                 preview.main(["status", "--identity", "status-one"])
         document = json.loads(buffer.getvalue())
         self.assertEqual(document["identity"], "status-one")
+
+    def test_unsearchable_checkout_dir_reports_anomaly_for_all_instances(self):
+        # pathlib's is_file() re-raises EACCES on an unsearchable checkout
+        # directory; status --all must survive it and report the anomaly on
+        # the affected instance only.
+        broken_identity = "broken-checkout"
+        with tempfile.TemporaryDirectory() as temporary:
+            checkout_dir = Path(temporary) / "checkout"
+            checkout_dir.mkdir()
+            (checkout_dir / "compose.yml").write_text("services: {}\n", encoding="utf-8")
+            document = preview.read_registry(self.root)
+            document["instances"][broken_identity] = {
+                "identity": broken_identity, "task_id": broken_identity,
+                "state": "running", "web_port": self.http.port,
+                "compose_project": f"graft-preview-{broken_identity}",
+                "checkout": str(checkout_dir),
+                "source": {"revision": "a" * 40, "digest": "0" * 64}}
+            preview.write_registry(self.root, document)
+            checkout_dir.chmod(0o000)
+            try:
+                with self.env():
+                    report = preview.status(argparse.Namespace(task=None,
+                                                               identity=None, all=True))
+            finally:
+                checkout_dir.chmod(0o700)
+        instances = {item["identity"]: item for item in report["instances"]}
+        self.assertEqual(len(report["instances"]), 2)
+        self.assertTrue(any("checkout_compose_unreadable" in anomaly
+                            for anomaly in instances[broken_identity]["anomalies"]))
+        self.assertFalse(any("instance_dir_unreadable" in anomaly
+                             for anomaly in instances[broken_identity]["anomalies"]))
+        self.assertEqual(instances["status-one"]["anomalies"], [])
+        # The healthy instance reads its own (missing here) instance file
+        # without the broken checkout affecting it.
+        self.assertIsNone(instances["status-one"]["source"]["current_digest"])
 
 
 class EnvFileTests(unittest.TestCase):

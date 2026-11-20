@@ -488,9 +488,13 @@ def status_entry(root: Path, entry: dict) -> dict:
     source = dict(entry.get("source") or {})
     anomalies: list[str] = []
     try:
-        source["current_digest"] = digest_file(compose_file) if compose_file.is_file() else None
+        # pathlib's is_file() re-raises EACCES on unsearchable directories,
+        # so the probe itself must sit inside the try: an unreadable
+        # instance dir is reported as an anomaly, not a crash.
+        instance_present = compose_file.is_file()
+        source["current_digest"] = digest_file(compose_file) if instance_present else None
         source["drifted"] = (source["current_digest"] != source.get("digest")) \
-            if source["current_digest"] is not None else None
+            if instance_present else None
     except OSError as exc:
         # A failed destroy can leave root-owned files in the instance
         # directory; status must stay readable and report the condition
@@ -498,15 +502,16 @@ def status_entry(root: Path, entry: dict) -> dict:
         anomalies.append(f"instance_dir_unreadable: {exc}")
         source["current_digest"] = None
         source["drifted"] = None
-    checkout_compose = Path(entry.get("checkout") or "") / "compose.yml"
-    if checkout_compose.is_file():
-        try:
+    try:
+        checkout_compose = Path(entry.get("checkout") or "") / "compose.yml"
+        if checkout_compose.is_file():
             source["checkout_digest"] = digest_file(checkout_compose)
             source["checkout_matches_start"] = source.get("digest") == source["checkout_digest"]
-        except OSError as exc:
-            # A checkout-side read failure must not be mistaken for instance
-            # damage: the instance digest and drift verdict stay untouched.
-            anomalies.append(f"checkout_compose_unreadable: {exc}")
+    except OSError as exc:
+        # A checkout-side failure (unsearchable checkout dir included) must
+        # not be mistaken for instance damage: the instance digest and
+        # drift verdict stay untouched, and other instances are unaffected.
+        anomalies.append(f"checkout_compose_unreadable: {exc}")
     health = None
     if entry.get("state") == "running":
         health = {"web": probe_http(web_url(entry)), "url": web_url(entry)}
@@ -650,17 +655,24 @@ def teardown_recorded_project(project: str, timeout: float = 180) -> None:
 
 
 def needs_ownership_restore(directory: Path) -> bool:
-    """True when the instance directory or any top-level entry is not
-    owned by the invoking user, or the directory cannot even be listed —
-    the leftover state of older destroy attempts that re-rooted the
-    directory. Container-written data (UID 10001) counts too: restoring
-    developer ownership over it is harmless because the privileged pass
-    removes it afterwards anyway."""
+    """True when the directory or its developer-owned files (compose.yml,
+    .env) are root-owned or unreadable — the leftover state of older
+    destroy attempts. Stack data with other uids (10001) is never flagged:
+    the privileged removal pass deletes it after the stack has stopped, so
+    healthy previews never get chowned. A missing directory has nothing to
+    restore and goes straight to the label-based recorded teardown, which
+    needs no compose file and no image."""
+    if not directory.exists():
+        return False
     try:
         if directory.stat().st_uid != os.getuid():
             return True
-        for child in directory.iterdir():
-            if child.lstat().st_uid != os.getuid():
+        for name in ("compose.yml", ".env"):
+            try:
+                info = (directory / name).lstat()
+            except FileNotFoundError:
+                continue
+            if info.st_uid != os.getuid():
                 return True
     except OSError:
         return True
@@ -684,11 +696,15 @@ def restore_developer_ownership(directory: Path, timeout: float = 120) -> None:
 
 
 def destroy(args: argparse.Namespace) -> dict:
-    """Order matters: tear down the stack, reclaim container-owned data,
-    and only then archive evidence and drop the registry entry. A cleanup
-    failure keeps the entry with a cleanup_failed marker so destroy stays
-    retryable instead of leaving an untracked half-cleanup. Destroy never
-    reports success while the recorded stack may still be live."""
+    """Order matters: stop the stack first (compose down, or the label-based
+    recorded teardown when files are missing/unreadable), then restore
+    developer ownership over the stopped stack's leftover files, then
+    remove container-owned data inside the privileged container, then the
+    host removes the developer-owned remainder, and only then are evidence
+    archived and the registry entry dropped. Any failure keeps the entry
+    with a cleanup_failed marker so destroy stays retryable; destroy never
+    reports success while the recorded stack may still be live, and never
+    chowns files of running containers."""
     root = state_root()
     identity = resolve_identity(args, root)
     # The lock spans the whole teardown so a concurrent start cannot
@@ -700,23 +716,26 @@ def destroy(args: argparse.Namespace) -> dict:
             raise PreviewError(
                 f"destroy requires --confirm-instance {identity} (the exact registered identity)")
         directory = instance_dir(root, identity)
-        # Older cleanup attempts could leave the directory or its files
-        # root-owned; restore developer ownership once so the normal path
-        # can even see the files its checks and removal need.
-        if needs_ownership_restore(directory):
-            try:
-                restore_developer_ownership(directory)
-            except (PreviewError, subprocess.SubprocessError, OSError) as exc:
-                entry["state"] = "cleanup_failed"
-                entry["cleanup_error"] = str(exc)
-                entry["updated_at"] = utc_now()
-                write_registry(root, document)
-                raise PreviewError(
-                    f"ownership restore failed for {identity} (entry kept for retry): {exc}") from exc
         compose_file = directory / "compose.yml"
         env_file = directory / ".env"
+
+        def mark_cleanup_failed(reason: str) -> None:
+            entry["state"] = "cleanup_failed"
+            entry["cleanup_error"] = reason
+            entry["updated_at"] = utc_now()
+            write_registry(root, document)
+
+        # Teardown runs FIRST and never touches file ownership: healthy
+        # running containers must not be chowned mid-run, and a teardown
+        # failure leaves the stack intact with the entry retryable.
         try:
-            if compose_file.is_file() and env_file.is_file():
+            try:
+                files_usable = compose_file.is_file() and env_file.is_file()
+            except OSError:
+                # Unreadable instance files cannot drive compose down; the
+                # label-based recorded teardown needs neither file nor image.
+                files_usable = False
+            if files_usable:
                 completed = run_compose(["down", "--volumes", "--remove-orphans"],
                                         compose_file=compose_file, project=entry["compose_project"],
                                         env_file=env_file, timeout=180)
@@ -725,26 +744,33 @@ def destroy(args: argparse.Namespace) -> dict:
                         f"compose down exited with code {completed.returncode}: "
                         f"{completed.stderr.strip()[:500]}")
             else:
-                # Files may be gone (worktree loss, manual deletion) while the
-                # stack lives on; tear down from the recorded project name so
-                # the entry is never dropped while containers or volumes run.
+                # Files may be unreadable or gone (worktree loss, manual
+                # deletion, older failed attempts) while the stack lives on;
+                # tear down from the recorded project name so the entry is
+                # never dropped while containers or volumes run.
                 teardown_recorded_project(entry["compose_project"])
-        except (PreviewError, subprocess.SubprocessError) as exc:
-            entry["state"] = "cleanup_failed"
-            entry["cleanup_error"] = str(exc)
-            entry["updated_at"] = utc_now()
-            write_registry(root, document)
+        except (PreviewError, subprocess.SubprocessError, OSError) as exc:
+            mark_cleanup_failed(str(exc))
             raise PreviewError(
                 f"stack teardown failed for {identity} (entry kept for retry): {exc}") from exc
+
+        # Ownership restore only on the STOPPED stack's data, and only for
+        # the developer-owned files an older attempt re-rooted (never for
+        # stack data uids — the privileged removal handles those).
+        if needs_ownership_restore(directory):
+            try:
+                restore_developer_ownership(directory)
+            except (PreviewError, subprocess.SubprocessError, OSError) as exc:
+                mark_cleanup_failed(str(exc))
+                raise PreviewError(
+                    f"ownership restore failed for {identity} (entry kept for retry): {exc}") from exc
+
         if directory.exists():
             try:
                 remove_container_owned_data(directory)
                 shutil.rmtree(directory)
             except (PreviewError, subprocess.SubprocessError, OSError) as exc:
-                entry["state"] = "cleanup_failed"
-                entry["cleanup_error"] = str(exc)
-                entry["updated_at"] = utc_now()
-                write_registry(root, document)
+                mark_cleanup_failed(str(exc))
                 raise PreviewError(
                     f"instance data cleanup failed for {identity} (entry kept for retry): {exc}") from exc
         archive = append_archive(root, entry)

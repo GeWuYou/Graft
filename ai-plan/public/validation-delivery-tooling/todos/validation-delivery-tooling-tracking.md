@@ -51,7 +51,7 @@ closeout:
 
 - [x] PR 3: evidence reuse, check-suite groups, ci-impact selection, workflow regroup + summary cross-check, corrections 1-3.
 - [x] PR 4: browser acceptance harness, tests/browser fixtures + specs, test-only seeds, docs, corrections 1-3.
-- [x] PR 5: preview lifecycle + recovery + deployment consistency + release-candidate workflow, docs, corrections 1-6.
+- [x] PR 5: preview lifecycle + recovery + deployment consistency + release-candidate workflow, docs, corrections 1-7.
 - [ ] Observe a real pull-request run and one release dispatch; record evidence in the trace.
 - [ ] Primary-checkout follow-ups: preview smoke, deployment consistency, chromium local-tier browser run.
 - [ ] Later: CI impact gating workflow job paths (separate batch).
@@ -61,5 +61,5 @@ closeout:
 - Scoped validation and comparisons fail closed; suites resolve dependencies, aggregate failures and enforce a deadline; CI impact stays conservative and advisory.
 - PR summary verifies every job of run/attempt/SHA except documented skips; check names unchanged.
 - Browser acceptance: risk-tiered suites x engines, zero retries, sanitized per-attempt reports, per-attempt session state and daemon page assertions; primary-checkout only.
-- Preview/deployment/release semantics per the delivered docs: deterministic identity and guarded destroy with in-container data removal plus an ownership-restore pre-step, flock-serialized registry, post-redirect asset resolution, compose child env stripped of reserved keys, idempotent `rc-` tags with unfixed-scan evidence; status stays readable and separates instance from checkout anomalies.
+- Preview/deployment/release semantics per the delivered docs: deterministic identity and guarded destroy with teardown-first ordering (ownership restore only on stopped stacks), in-container data removal, label teardown for missing/unreadable files, flock-serialized registry, post-redirect asset resolution, compose child env stripped of reserved keys, idempotent `rc-` tags with unfixed-scan evidence; status stays readable and separates instance from checkout anomalies.
 - actionlint passes on both workflows; script tests cover changed behavior.
