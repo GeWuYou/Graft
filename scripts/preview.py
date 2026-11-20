@@ -282,14 +282,30 @@ def parse_extra_env(pairs: list[str]) -> dict[str, str]:
     return parsed
 
 
+COMPOSE_FILE_SELECTION_KEYS = frozenset({"COMPOSE_FILE", "COMPOSE_PATH_SEPARATOR"})
+
+
+def compose_child_environment(env_file: Path) -> dict:
+    """Child environment for Compose: the developer's shell passes through
+    except every key the instance .env owns (RESERVED_ENV_KEYS) and the
+    compose file-selection controls. Compose gives the process environment
+    precedence over --env-file, so exported deployment settings would
+    otherwise override the registered port, image tag and per-instance
+    volumes, making previews share state and destroy remove shared data.
+    COMPOSE_FILE_DIR is re-set explicitly from the instance file location,
+    not inherited."""
+    environment = {key: value for key, value in os.environ.items()
+                   if key not in RESERVED_ENV_KEYS and key not in COMPOSE_FILE_SELECTION_KEYS}
+    environment["COMPOSE_FILE_DIR"] = str(env_file.parent)
+    return environment
+
+
 def run_compose(arguments: list[str], *, compose_file: Path, project: str, env_file: Path,
                 timeout: float | None = None, capture: bool = True) -> subprocess.CompletedProcess:
     command = ["docker", "compose", "-f", str(compose_file), "-p", project,
                "--env-file", str(env_file), *arguments]
-    environment = dict(os.environ)
-    environment["COMPOSE_FILE_DIR"] = str(env_file.parent)
     return subprocess.run(command, capture_output=capture, text=True, timeout=timeout,
-                          env=environment)
+                          env=compose_child_environment(env_file))
 
 
 def probe_http(url: str, timeout: float = 5.0) -> dict:

@@ -27,7 +27,9 @@ just preview-destroy --task my-task --confirm-instance <status 输出的完整�
   每实例命名的 build-snapshot/update-state 卷、实例独立的备份目录）并复制 compose 文件；已注册实例收敛启动
   （复用保留端口与已存密钥，不重新生成凭据）；注册态为 running 但健康探测失败时（容器被外部停止或删除），
   start 会回落到 compose up 重建栈而不是虚报成功。注册表读写段由 git-common-dir 下的文件锁串行化，
-  端口分配与容量预留都在锁内完成。`--image-tag` 必须是裸 tag（不含 `/` 或 `:`）：compose.yml 已固定镜像名，
+  端口分配与容量预留都在锁内完成；调用 Compose 时宿主 shell 导出的保留键（注册端口、镜像 tag、
+  实例卷、备份路径等）会被剥离，Compose 只读实例 `.env`，导出的部署设置无法破坏预览隔离。
+  `--image-tag` 必须是裸 tag（不含 `/` 或 `:`）：compose.yml 已固定镜像名，
   传入完整镜像引用会造成双重引用，脚本直接拒绝。`--env KEY=VALUE` 可追加变量，保留键不可覆盖。
 - `status` 输出纯 JSON：URL、实时健康探测、日志位置、源码摘要（注册时 compose 摘要、当前实例摘要、
   检出 compose 摘要三向对比的 drift 结论）。

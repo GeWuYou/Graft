@@ -637,5 +637,62 @@ class EnvFileTests(unittest.TestCase):
             preview.parse_extra_env(["COMPOSE_FILE_DIR=/elsewhere"])
 
 
+class ComposeEnvironmentTests(unittest.TestCase):
+    def test_reserved_keys_are_stripped_from_the_compose_child_environment(self):
+        # Compose gives the process environment precedence over --env-file,
+        # so exported deployment settings (shared update-state volume,
+        # different web port or image) must be stripped before the call or
+        # previews would share state that destroy --volumes could remove.
+        host_env = {
+            "PATH": "/usr/bin",
+            "HOME": "/home/dev",
+            "GRAFT_UPDATE_STATE_VOLUME": "graft-update-state",
+            "GRAFT_BUILD_SNAPSHOT_VOLUME": "graft-build-snapshots",
+            "GRAFT_WEB_HOST_PORT": "3000",
+            "GRAFT_IMAGE_TAG": "latest",
+            "GRAFT_EXECUTION_MODE": "agent",
+            "POSTGRES_PASSWORD": "shared-secret",
+            "COMPOSE_FILE": "/elsewhere/compose.yml",
+            "COMPOSE_PATH_SEPARATOR": ";",
+            "GRAFT_DATABASE_URL": "host=shared",
+        }
+        recorded = {}
+
+        def fake_run(command, capture_output, text, timeout, env):
+            recorded["command"] = command
+            recorded["env"] = env
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            env_file = Path(temporary) / ".env"
+            compose_file = Path(temporary) / "compose.yml"
+            with patch.dict(os.environ, host_env, clear=True):
+                with patch.object(preview.subprocess, "run", side_effect=fake_run):
+                    completed = preview.run_compose(
+                        ["up", "-d"], compose_file=compose_file,
+                        project="graft-preview-x", env_file=env_file)
+        self.assertEqual(completed.returncode, 0)
+        child = recorded["env"]
+        for reserved in ("GRAFT_UPDATE_STATE_VOLUME", "GRAFT_BUILD_SNAPSHOT_VOLUME",
+                         "GRAFT_WEB_HOST_PORT", "GRAFT_IMAGE_TAG", "GRAFT_EXECUTION_MODE",
+                         "POSTGRES_PASSWORD", "COMPOSE_FILE", "COMPOSE_PATH_SEPARATOR"):
+            self.assertNotIn(reserved, child)
+        self.assertEqual(child["GRAFT_DATABASE_URL"], "host=shared")
+        self.assertEqual(child["PATH"], "/usr/bin")
+        self.assertEqual(child["HOME"], "/home/dev")
+        self.assertEqual(child["COMPOSE_FILE_DIR"], str(env_file.parent))
+        self.assertIn("--env-file", recorded["command"])
+        self.assertEqual(recorded["command"][4:6], ["-p", "graft-preview-x"])
+
+    def test_every_env_file_key_is_stripped_from_the_child_environment(self):
+        # Guards the strip list against drift: every key build_env_file
+        # writes must be a reserved key the child environment removes.
+        with tempfile.TemporaryDirectory() as temporary:
+            env_file = preview.build_env_file(Path(temporary), "env-cover", "bare-tag", 38000, {})
+            keys = {line.partition("=")[0]
+                    for line in env_file.read_text(encoding="utf-8").splitlines() if line}
+        self.assertTrue(keys.issubset(preview.RESERVED_ENV_KEYS))
+
+
 if __name__ == "__main__":
     unittest.main()

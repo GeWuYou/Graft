@@ -51,7 +51,7 @@ closeout:
 
 - [x] PR 3: evidence reuse, check-suite groups, ci-impact selection, workflow regroup + summary cross-check, corrections 1-3.
 - [x] PR 4: browser acceptance harness, tests/browser fixtures + specs, test-only seeds, docs, corrections 1-3.
-- [x] PR 5: preview lifecycle + recovery + deployment consistency + release-candidate workflow, docs, corrections 1-3.
+- [x] PR 5: preview lifecycle + recovery + deployment consistency + release-candidate workflow, docs, corrections 1-4.
 - [ ] Observe a real pull-request run and one release dispatch; record evidence in the trace.
 - [ ] Primary-checkout follow-ups: preview smoke, deployment consistency, chromium local-tier browser run.
 - [ ] Later: CI impact gating workflow job paths (separate batch).
@@ -61,5 +61,5 @@ closeout:
 - Scoped validation and comparisons fail closed; suites resolve dependencies, aggregate failures and enforce a deadline; CI impact stays conservative and advisory.
 - PR summary verifies every job of run/attempt/SHA except documented skips; check names unchanged.
 - Browser acceptance: risk-tiered suites x engines, zero retries, sanitized per-attempt reports, per-attempt session state and daemon page assertions; primary-checkout only.
-- Preview/deployment/release semantics per the delivered docs: deterministic identity and guarded destroy, post-redirect asset resolution, idempotent `rc-` tags with unfixed-scan evidence.
+- Preview/deployment/release semantics per the delivered docs: deterministic identity and guarded destroy, flock-serialized registry, post-redirect asset resolution, compose child env stripped of reserved keys, idempotent `rc-` tags with unfixed-scan evidence.
 - actionlint passes on both workflows; script tests cover changed behavior.

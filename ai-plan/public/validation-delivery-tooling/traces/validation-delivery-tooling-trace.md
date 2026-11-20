@@ -16,12 +16,13 @@
 - `browser_acceptance.py` (suite/engine/tier registry, zero retries, sanitized per-attempt reports), `browser/serve_dist.py`, `tests/browser/` overlay + specs, `TestSeedBrowserFixture` test-only seeds, docs, Justfile section.
 - Commits: c1501a2b5, 77612a329, 9c335138c, 1c3b193f5, 997d43575, 16fe0722b.
 
-## 2026-11-20 PR 5 corrections 1-3 (1-2 lead-authorized, 3 standing-authorized per D1)
+## 2026-11-20/21 PR 5 corrections 1-4 (2-4 standing-authorized per D1)
 
 - C1 (7 fixed, 1 partial): identity suggestions, orphan baseline, IDENTITY=TASK_ID claims, restart cap, bare tag, `accepted_status`, non-blocking unfixed scan bound into `release.json`, docs. Commits: 2cd8ed20d, 35b13d50a, e832f0f77, 476f49f1b, a93444916, 27bad57c1.
 - C2 (5 P1 real): workspace release-binary path (4634415765); registry flock + in-lock allocation/cap (4634415791); instance-scoped backups (4634415825); unhealthy running restored (4634415848); destroy reclaims container-owned data, retryable `cleanup_failed` (4634415808). Commits: 4adf9e6d4, 09848a85b.
 - C3 (3 P1 real): assets resolve against the final URL after redirects; missing-files destroy tears down by recorded project, retryable; recovery withholds suggestions for running-or-unknown stacks. Commits: 2fb131273, f562536fd, 2666dc4b7.
-- Validation after C3: 85 tests OK, actionlint 0, heredoc compile OK.
+- C4 (1 P1 real, thread 4645472263): compose child env strips every key the instance `.env` owns plus file-selection controls; exported settings cannot override port, image or per-instance volumes (shell env beats `--env-file`).
+- Validation after C4: 87 tests OK, `git diff --check` clean.
 
 ## 2026-11-20 PR 4 corrections 1-3 (1 lead-verified + 2 standing-authorized per D1)
 
