@@ -12,14 +12,14 @@
 - Branch feature/bounded-execution-recovery from main 9abe8cc1c; scope: server/modules/task +
   scripts/validate_docker_isolated.py + its unit tests + this topic; no openapi edits.
 - Store: candidates cover lease-expired unknown retry_if_idempotent external stages plus unclaimable
-  pending stages at attempt==max (startup hang defect, fixed); ResumeInterruptedRecovery atomically
-  resumes the needs_attention task with all matching unknown stages; ConvergeRecoveryBudgetExhausted
-  converges stage+task to needs_attention with budget-exhaustion diagnostics. Runtime:
-  reconcileInterruptedRecovery runs on the 30s convergence ticker.
+  pending stages at attempt==max; ResumeInterruptedRecovery atomically resumes the needs_attention task
+  with all matching unknown stages; ConvergeRecoveryBudgetExhausted converges stage+task to
+  needs_attention with budget-exhaustion diagnostics. Runtime: reconcileInterruptedRecovery runs on the
+  30s convergence ticker.
 - Decisions: auto path resumes only the runtime-recorded interruption signature
   (failure_code=external_execution_lease_expired); manual_reconcile and explicit needs_attention
   verdicts are never auto-replayed. Consumer retry_if_idempotent adoption is deferred to the owning
-  modules per the product roadmap (all current consumers submit manual_reconcile MaxAttempts=1).
+  modules (all current consumers submit manual_reconcile MaxAttempts=1).
 - Harness: compose-material-stage-code joins LOCAL_REQUIRED_SCENARIOS; three agent recovery scenarios
   join a new AGENT_REQUIRED_SCENARIOS. Recovery scenarios use a documented store stand-in
   (RECOVERY_POLICY_STAND_IN_NOTE) solely to exercise the runtime policy path.
@@ -33,24 +33,24 @@
 - Correction 2: admission probe diverges the capability binding version so fresh claims are rejected
   with telemetry intact; agent expired journals settle the delivered interruption receipt and clear;
   whole-task resume refuses with ErrRecoveryBlocked while any unknown stage is over budget.
-- Correction 3 (threads 4645868796 + 4645868804): the candidate query excludes resumable legs whose task
-  holds any unknown over-budget stage (bounded progress past blocked tasks); the resume transaction
-  re-checks cancel_requested_at; cyclop refactor.
+- Correction 3 (threads 4645868796 + 4645868804): bounded progress past blocked tasks; the resume
+  transaction re-checks cancel_requested_at; cyclop refactor.
+- Correction 4 (agent-mode live run 2e16e610c): both recovery probes hit 503 — the execution-admission
+  latch (execution_ownership_lost) had fired earlier; probes pre-check readiness, run before the
+  kill-heavy scenarios, and start the agent only after the reconcile re-arms the stage.
+- Correction 5 (thread 4647483896): the budget probe's trailing agent restart overwrote the budget
+  diagnostics via a journal replay; converge, record, leave the agent down; GO regression pins the
+  delivered supersede semantics.
 
-## 2026-11-21 Correction 4 (standing-authorized, agent-mode live run 2e16e610c)
+## 2026-11-21 Correction 6 (agent-mode live run agent-smoke2)
 
-- Both recovery probes recorded unverified: their ups hit 503 common.task_execution_unavailable — the
-  execution-admission latch (execution_ownership_lost) had fired earlier; the trigger is not in the
-  captured evidence (transient ownership-ping failure suspected — platform follow-up). Probes now
-  pre-check the readiness projection, run before the kill-heavy scenarios, and start the agent only
-  after the reconcile re-arms the stage (a real journal-vs-reconcile race found while tuning).
-
-## 2026-11-21 Correction 5 (PR #382, thread 4647483896)
-
-- Budget probe trailing agent restart erased the convergence evidence: the restarted agent replayed the
-  second kill journal and the interruption receipt was accepted on the same unknown stage (the
-  settlement CAS accepts running/unknown by design), replacing the budget diagnostics.
-- Fix: converge, record success, leave the agent down — the budget probe moved to the end of the agent
-  block (only socket and agent-offline follow; the latter rebuilds the agent). GO regression pins the
-  delivered final state (a late journal settlement supersedes the budget diagnostics); harness
-  regression asserts no trailing restart.
+- The rerun failed on a 401 AUTH_TOKEN_EXPIRED cascade from the claim-admission probe onward (56 401s):
+  the login token aged out mid-run; the orphan stack's port presence remains a possible
+  confounder. api() now re-authenticates once on AUTH_TOKEN_EXPIRED (never on login paths) and retries
+  the same request.
+- A port-squat preflight (assert_fixture_ports_exclusive) fails the run before any scenario when a
+  foreign compose project holds the recorded fixture ports, naming the squatter.
+- The rerun also exposed the restarted agent never claiming the re-armed stage (attempt stayed 1):
+  the resume probe now waits for the claim (bounded) and records the unclaimed stage evidence;
+  root cause needs agent logs.
+- Evidence: harness 52 ok; validate backend 0; diff --check clean. Live rerun pending.
