@@ -292,7 +292,7 @@ class StartStopDestroyTests(unittest.TestCase):
         self.addCleanup(self.probe_patcher.stop)
         self.cleanup_calls = []
         self.privileged_cleanup_patcher = patch.object(
-            preview, "reset_container_owned_permissions",
+            preview, "remove_container_owned_data",
             side_effect=lambda directory: self.cleanup_calls.append(str(directory)))
         self.privileged_cleanup_patcher.start()
         self.addCleanup(self.privileged_cleanup_patcher.stop)
@@ -302,6 +302,12 @@ class StartStopDestroyTests(unittest.TestCase):
             side_effect=lambda project: self.teardown_calls.append(project))
         self.teardown_patcher.start()
         self.addCleanup(self.teardown_patcher.stop)
+        self.restore_calls = []
+        self.restore_patcher = patch.object(
+            preview, "restore_developer_ownership",
+            side_effect=lambda directory: self.restore_calls.append(str(directory)))
+        self.restore_patcher.start()
+        self.addCleanup(self.restore_patcher.stop)
 
     def env(self, **extra):
         mapping = {"GRAFT_PREVIEW_STATE_DIR": str(self.root)}
@@ -474,19 +480,41 @@ class StartStopDestroyTests(unittest.TestCase):
         identity = preview.identity_for(preview.checkout_root(), "destroy-ok")
         document = self.register(identity, state="running")
         entry_before = document["instances"][identity]
+        directory = preview.instance_dir(self.root, identity)
+        # Simulate the container-owned data roots the stack creates
+        # (application root, backups, compose-managed .data) as they look
+        # after a run: present, host-unremovable in production.
+        (directory / "apps").mkdir(parents=True)
+        (directory / "apps" / "data.bin").write_text("container data", encoding="utf-8")
+        (directory / "backups").mkdir(parents=True)
+        (directory / ".data" / "postgres").mkdir(parents=True)
+
+        def in_container_removal(target):
+            # Mirrors remove_container_owned_data: the privileged container
+            # deletes every top-level entry except the two host files.
+            for child in target.iterdir():
+                if child.name in ("compose.yml", ".env"):
+                    continue
+                if child.is_dir():
+                    shutil.rmtree(child)
+                else:
+                    child.unlink()
+
         arguments = argparse.Namespace(task="destroy-ok", identity=None,
                                        confirm_instance=identity)
         with self.env():
-            result = preview.destroy(arguments)
+            with patch.object(preview, "remove_container_owned_data",
+                              side_effect=in_container_removal):
+                result = preview.destroy(arguments)
         self.assertEqual(result["state"], "destroyed")
         self.assertNotIn(identity, preview.read_registry(self.root)["instances"])
-        self.assertFalse(preview.instance_dir(self.root, identity).exists())
+        self.assertFalse(directory.exists())
         down_calls = [call for call in self.calls if call["arguments"]]
         self.assertIn(["down", "--volumes", "--remove-orphans"],
                       [call["arguments"] for call in down_calls])
-        # Container-owned data is reclaimed through the privileged cleanup
-        # before the instance directory is removed.
-        self.assertEqual(self.cleanup_calls, [str(preview.instance_dir(self.root, identity))])
+        # Stack-created data never triggers the ownership restore: the
+        # privileged removal deletes it after the stack is stopped.
+        self.assertEqual(self.restore_calls, [])
         archive_file = Path(result["archive_file"])
         record = json.loads(archive_file.read_text(encoding="utf-8"))
         self.assertEqual(record["registry_entry"], entry_before)
@@ -499,13 +527,13 @@ class StartStopDestroyTests(unittest.TestCase):
     def test_destroy_cleanup_failure_keeps_the_entry_retryable(self):
         # Cleanup failure must not leave an untracked half-cleanup: the entry
         # stays registered with a cleanup_failed marker and destroy can be
-        # retried once the blocker is gone.
+        # retried once the blocker is gone; status stays readable meanwhile.
         identity = preview.identity_for(preview.checkout_root(), "destroy-retry")
         self.register(identity, state="running")
         arguments = argparse.Namespace(task="destroy-retry", identity=None,
                                        confirm_instance=identity)
         with self.env():
-            with patch.object(preview, "reset_container_owned_permissions",
+            with patch.object(preview, "remove_container_owned_data",
                               side_effect=PreviewError("docker run failed: image missing")):
                 with self.assertRaises(PreviewError) as context:
                     preview.destroy(arguments)
@@ -516,15 +544,101 @@ class StartStopDestroyTests(unittest.TestCase):
         self.assertEqual(preview.read_archive_manifest(self.root).get("entries", {}), {})
         self.assertTrue(preview.instance_dir(self.root, identity).exists())
         with self.env():
+            status_report = preview.status(argparse.Namespace(task=None, identity=None, all=True))
+        self.assertEqual(status_report["instances"][0]["state"], "cleanup_failed")
+        with self.env():
             result = preview.destroy(arguments)
         self.assertEqual(result["state"], "destroyed")
         self.assertNotIn(identity, preview.read_registry(self.root)["instances"])
         self.assertFalse(preview.instance_dir(self.root, identity).exists())
 
+    def test_privileged_removal_deletes_inside_the_container_not_chmod_for_the_host(self):
+        recorded = {}
+
+        def fake_run(command, capture_output, text, timeout):
+            recorded["command"] = command
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            # Suspend the class-level recorder so the real privileged
+            # function executes under the stubbed docker call.
+            self.privileged_cleanup_patcher.stop()
+            try:
+                with patch.object(preview.subprocess, "run", side_effect=fake_run):
+                    preview.remove_container_owned_data(Path(temporary))
+                with patch.object(preview.subprocess, "run",
+                                  return_value=subprocess.CompletedProcess(
+                                      [], 1, stdout="", stderr="no such image")):
+                    with self.assertRaises(PreviewError):
+                        preview.remove_container_owned_data(Path(temporary))
+            finally:
+                self.privileged_cleanup_patcher.start()
+            command = recorded["command"]
+            self.assertEqual(command[:5], ["docker", "run", "--rm", "--user", "0:0"])
+            self.assertIn("postgres:16.16-alpine", command)
+            script = command[command.index("sh") + 2]
+            self.assertIn("rm -rf", script)
+            self.assertIn("! -name compose.yml", script)
+            self.assertIn("! -name .env", script)
+            self.assertIn("/target", script)
+            self.assertNotIn("chown", script)
+            self.assertIn(f"{temporary}:/target", command)
+
+    def test_status_all_reports_unreadable_instance_dir_without_crashing(self):
+        # A failed destroy can leave root-owned files in the instance
+        # directory; status --all must report the anomaly instead of
+        # crashing on every reader.
+        identity = preview.identity_for(preview.checkout_root(), "unreadable-status")
+        self.register(identity, state="running")
+        compose_file = preview.instance_dir(self.root, identity) / "compose.yml"
+        compose_file.chmod(0o000)
+        try:
+            with self.env():
+                report = preview.status(argparse.Namespace(task=None, identity=None, all=True))
+        finally:
+            compose_file.chmod(0o600)
+        instance = report["instances"][0]
+        self.assertTrue(any("instance_dir_unreadable" in anomaly
+                            for anomaly in instance["anomalies"]))
+        self.assertIsNone(instance["source"]["current_digest"])
+        self.assertEqual(instance["state"], "running")
+
+    def test_unreadable_checkout_preserves_the_instance_verdict(self):
+        # A checkout-side read failure is a different anomaly: it must not
+        # clear the instance digest and drift verdict computed from the
+        # readable instance side, nor point the developer at the wrong
+        # directory.
+        identity = preview.identity_for(preview.checkout_root(), "checkout-unreadable")
+        self.register(identity, state="running")
+        with tempfile.TemporaryDirectory() as temporary:
+            checkout_compose = Path(temporary) / "compose.yml"
+            checkout_compose.write_text("services: {}\n", encoding="utf-8")
+            checkout_compose.chmod(0o000)
+            document = preview.read_registry(self.root)
+            document["instances"][identity]["checkout"] = temporary
+            preview.write_registry(self.root, document)
+            try:
+                with self.env():
+                    report = preview.status(argparse.Namespace(task=None,
+                                                               identity=identity, all=False))
+            finally:
+                checkout_compose.chmod(0o600)
+        instance = report
+        self.assertTrue(any("checkout_compose_unreadable" in anomaly
+                            for anomaly in instance["anomalies"]))
+        self.assertFalse(any("instance_dir_unreadable" in anomaly
+                             for anomaly in instance["anomalies"]))
+        instance_compose = preview.instance_dir(self.root, identity) / "compose.yml"
+        self.assertEqual(instance["source"]["current_digest"],
+                         preview.digest_file(instance_compose))
+        self.assertTrue(instance["source"]["drifted"])
+
     def test_destroy_without_stored_files_tears_down_the_recorded_project(self):
         # A lost instance directory must not free the entry while containers
         # or volumes from the recorded project may still be live: destroy
-        # tears down by the recorded project name instead of skipping.
+        # tears down by the recorded project name instead of skipping, and
+        # never starts the image-dependent ownership restore for a
+        # directory that does not exist.
         identity = preview.identity_for(preview.checkout_root(), "destroy-fileless")
         self.register(identity, state="running")
         recorded_project = f"graft-preview-{identity}"
@@ -534,6 +648,7 @@ class StartStopDestroyTests(unittest.TestCase):
         with self.env():
             result = preview.destroy(arguments)
         self.assertEqual(self.teardown_calls, [recorded_project])
+        self.assertEqual(self.restore_calls, [])
         self.assertEqual(result["state"], "destroyed")
         self.assertNotIn(identity, preview.read_registry(self.root)["instances"])
         self.assertEqual(self.cleanup_calls, [])
@@ -559,6 +674,124 @@ class StartStopDestroyTests(unittest.TestCase):
             result = preview.destroy(arguments)
         self.assertEqual(result["state"], "destroyed")
         self.assertNotIn(identity, preview.read_registry(self.root)["instances"])
+
+    def test_destroy_restores_developer_ownership_for_root_owned_leftovers(self):
+        # Instances left by older cleanup attempts carry root-owned dirs and
+        # files; destroy must restore developer ownership once and then
+        # complete end-to-end instead of failing before the reclaim.
+        identity = preview.identity_for(preview.checkout_root(), "destroy-root-owned")
+        self.register(identity, state="running")
+        directory = preview.instance_dir(self.root, identity)
+        directory.chmod(0o000)
+
+        def privileged_restore(target):
+            self.restore_calls.append(str(target))
+            target.chmod(0o700)
+
+        arguments = argparse.Namespace(task="destroy-root-owned", identity=None,
+                                       confirm_instance=identity)
+        with self.env():
+            with patch.object(preview, "restore_developer_ownership",
+                              side_effect=privileged_restore):
+                result = preview.destroy(arguments)
+        self.assertEqual(result["state"], "destroyed")
+        self.assertEqual(self.restore_calls, [str(directory)])
+        self.assertNotIn(identity, preview.read_registry(self.root)["instances"])
+        self.assertFalse(directory.exists())
+
+    def test_destroy_proceeds_when_only_the_checkout_is_unreadable(self):
+        # An unreadable checkout compose file must not block the instance
+        # destroy or trigger an ownership restore of the instance data.
+        identity = preview.identity_for(preview.checkout_root(), "destroy-checkout-lock")
+        self.register(identity, state="running")
+        with tempfile.TemporaryDirectory() as temporary:
+            checkout_compose = Path(temporary) / "compose.yml"
+            checkout_compose.write_text("services: {}\n", encoding="utf-8")
+            checkout_compose.chmod(0o000)
+            document = preview.read_registry(self.root)
+            document["instances"][identity]["checkout"] = temporary
+            preview.write_registry(self.root, document)
+            arguments = argparse.Namespace(task="destroy-checkout-lock", identity=None,
+                                           confirm_instance=identity)
+            with self.env():
+                result = preview.destroy(arguments)
+        self.assertEqual(result["state"], "destroyed")
+        self.assertEqual(self.restore_calls, [])
+        self.assertNotIn(identity, preview.read_registry(self.root)["instances"])
+
+    def test_ownership_restore_command_uses_numeric_identity(self):
+        recorded = {}
+
+        def fake_run(command, capture_output, text, timeout):
+            recorded["command"] = command
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            self.restore_patcher.stop()
+            try:
+                with patch.object(preview.subprocess, "run", side_effect=fake_run):
+                    preview.restore_developer_ownership(Path(temporary))
+                with patch.object(preview.subprocess, "run",
+                                  return_value=subprocess.CompletedProcess(
+                                      [], 1, stdout="", stderr="denied")):
+                    with self.assertRaises(PreviewError):
+                        preview.restore_developer_ownership(Path(temporary))
+            finally:
+                self.restore_patcher.start()
+        command = recorded["command"]
+        self.assertEqual(command[:5], ["docker", "run", "--rm", "--user", "0:0"])
+        self.assertIn("postgres:16.16-alpine", command)
+        script = command[command.index("sh") + 2]
+        self.assertIn(f"chown -R {os.getuid()}:{os.getgid()} /target", script)
+        self.assertIn("chmod -R u+rwX /target", script)
+        self.assertIn(f"{temporary}:/target", command)
+
+    def test_destroy_teardowns_before_touching_ownership(self):
+        # The ownership restore must run only on the stopped stack's data:
+        # healthy running containers are torn down first, never chowned
+        # mid-run.
+        identity = preview.identity_for(preview.checkout_root(), "destroy-order")
+        self.register(identity, state="running")
+        arguments = argparse.Namespace(task="destroy-order", identity=None,
+                                       confirm_instance=identity)
+        events = []
+        base_compose = preview.run_compose
+
+        def recording_compose(arguments, **kwargs):
+            events.append("compose-down")
+            return base_compose(arguments, **kwargs)
+
+        with self.env():
+            with patch.object(preview, "run_compose", side_effect=recording_compose), \
+                    patch.object(preview, "needs_ownership_restore", return_value=True), \
+                    patch.object(preview, "restore_developer_ownership",
+                                 side_effect=lambda directory: events.append("restore")):
+                result = preview.destroy(arguments)
+        self.assertEqual(result["state"], "destroyed")
+        self.assertEqual(events, ["compose-down", "restore"])
+
+    def test_destroy_teardown_failure_never_touches_ownership(self):
+        # A teardown failure must leave the stack intact and the entry
+        # retryable WITHOUT having chowned any live file.
+        identity = preview.identity_for(preview.checkout_root(), "destroy-order-fail")
+        self.register(identity, state="running")
+        arguments = argparse.Namespace(task="destroy-order-fail", identity=None,
+                                       confirm_instance=identity)
+
+        def failing_compose(arguments, **kwargs):
+            return subprocess.CompletedProcess(["docker"], 1, stdout="", stderr="compose down failed")
+
+        with self.env():
+            with patch.object(preview, "run_compose", failing_compose), \
+                    patch.object(preview, "needs_ownership_restore", return_value=True), \
+                    patch.object(preview, "restore_developer_ownership",
+                                 side_effect=AssertionError("must not chown before teardown")):
+                with self.assertRaises(PreviewError) as context:
+                    preview.destroy(arguments)
+        self.assertIn("stack teardown failed", str(context.exception))
+        entry = preview.read_registry(self.root)["instances"][identity]
+        self.assertEqual(entry["state"], "cleanup_failed")
+        self.assertIn("compose down failed", entry["cleanup_error"])
 
 
 class StatusTests(unittest.TestCase):
@@ -624,6 +857,41 @@ class StatusTests(unittest.TestCase):
                 preview.main(["status", "--identity", "status-one"])
         document = json.loads(buffer.getvalue())
         self.assertEqual(document["identity"], "status-one")
+
+    def test_unsearchable_checkout_dir_reports_anomaly_for_all_instances(self):
+        # pathlib's is_file() re-raises EACCES on an unsearchable checkout
+        # directory; status --all must survive it and report the anomaly on
+        # the affected instance only.
+        broken_identity = "broken-checkout"
+        with tempfile.TemporaryDirectory() as temporary:
+            checkout_dir = Path(temporary) / "checkout"
+            checkout_dir.mkdir()
+            (checkout_dir / "compose.yml").write_text("services: {}\n", encoding="utf-8")
+            document = preview.read_registry(self.root)
+            document["instances"][broken_identity] = {
+                "identity": broken_identity, "task_id": broken_identity,
+                "state": "running", "web_port": self.http.port,
+                "compose_project": f"graft-preview-{broken_identity}",
+                "checkout": str(checkout_dir),
+                "source": {"revision": "a" * 40, "digest": "0" * 64}}
+            preview.write_registry(self.root, document)
+            checkout_dir.chmod(0o000)
+            try:
+                with self.env():
+                    report = preview.status(argparse.Namespace(task=None,
+                                                               identity=None, all=True))
+            finally:
+                checkout_dir.chmod(0o700)
+        instances = {item["identity"]: item for item in report["instances"]}
+        self.assertEqual(len(report["instances"]), 2)
+        self.assertTrue(any("checkout_compose_unreadable" in anomaly
+                            for anomaly in instances[broken_identity]["anomalies"]))
+        self.assertFalse(any("instance_dir_unreadable" in anomaly
+                             for anomaly in instances[broken_identity]["anomalies"]))
+        self.assertEqual(instances["status-one"]["anomalies"], [])
+        # The healthy instance reads its own (missing here) instance file
+        # without the broken checkout affecting it.
+        self.assertIsNone(instances["status-one"]["source"]["current_digest"])
 
 
 class EnvFileTests(unittest.TestCase):
