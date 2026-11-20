@@ -167,12 +167,29 @@ class AcceptableStatusContractTests(unittest.TestCase):
         self.assertEqual(report["verdict"], "fail")
         self.assertEqual(report["acceptable_status"], [])
         self.assertTrue(any("HTTP 503" in failure for failure in report["failures"]))
+        app_asset = next(asset for asset in report["assets"]
+                         if asset["url"].endswith("/assets/app.js"))
+        self.assertFalse(app_asset["accepted_status"])
 
     def test_503_passes_only_when_explicitly_acceptable(self):
-        routes = good_routes(**{"/assets/app.js": (503, "text/javascript", b"later")})
+        # An accepted status is an error page by definition: ok-semantics
+        # stay, the report marks accepted_status, and the asset is NOT
+        # content-verified (wrong content type must not fail it).
+        routes = good_routes(**{"/assets/app.js": (503, "text/html", b"later")})
         report = run(routes=routes, acceptable_status=[503])
         self.assertEqual(report["verdict"], "pass")
         self.assertEqual(report["acceptable_status"], [503])
+        app_asset = next(asset for asset in report["assets"]
+                         if asset["url"].endswith("/assets/app.js"))
+        self.assertTrue(app_asset["accepted_status"])
+        self.assertTrue(app_asset["ok"])
+        self.assertEqual(report["failures"], [])
+
+    def test_2xx_assets_are_content_verified_without_accepted_status(self):
+        report = run()
+        for asset in report["assets"]:
+            self.assertFalse(asset["accepted_status"])
+            self.assertTrue(asset["ok"])
 
     def test_503_entry_html_is_unacceptable_by_default(self):
         routes = good_routes(**{"/": (503, "text/html", GOOD_HTML.encode("utf-8"))})

@@ -157,10 +157,16 @@ def check(args: argparse.Namespace) -> dict:
         asset_type = media_type(response["content_type"])
         expected_types = JS_MEDIA_TYPES if asset["kind"] == "js" else CSS_MEDIA_TYPES
         asset_ok = True
+        accepted_status = False
         reason = status_failure("entry asset", asset["url"], response["status"], acceptable)
         if reason:
             failures.append(reason)
             asset_ok = False
+        elif 200 > response["status"] or response["status"] >= 300:
+            # The status passed only through the explicit --acceptable-status
+            # contract: it is an error page by definition, so it is accepted
+            # but never content-verified.
+            accepted_status = True
         if response["status"] in range(200, 300) and asset_type not in expected_types:
             expected_display = " or ".join(sorted(expected_types))
             failures.append(f"entry asset {asset['url']} ({asset['kind']}) has content type "
@@ -169,6 +175,7 @@ def check(args: argparse.Namespace) -> dict:
         asset_reports.append({"url": asset["url"], "kind": asset["kind"], "spec": asset["spec"],
                               "status": response["status"], "content_type": asset_type,
                               "sha256": hashlib.sha256(response["body"]).hexdigest(),
+                              "accepted_status": accepted_status,
                               "ok": asset_ok})
 
     def verify_marker(markers_key: str, marker_names: tuple[str, ...],
