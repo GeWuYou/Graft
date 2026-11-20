@@ -14,8 +14,11 @@
    ```
 
 2. 构建与扫描：workflow 从 dispatch SHA 构建带版本链接信息的 server 二进制与 web release 分发，
-   构建镜像（`org.opencontainers.image.revision` 标签绑定源码 SHA），用固定版本 trivy（HIGH,CRITICAL）
-   扫描；未修复项记录进 release.json 供发布决策，不静默放行。
+   构建镜像（`org.opencontainers.image.revision` 标签绑定源码 SHA），并用固定版本 trivy 扫描两遍：
+   非阻断全量扫描（`ignore-unfixed: false`）记录包含未修复项的完整报告，上传为
+   `release-candidate-unfixed-scan` artifact，其 SHA-256 摘要绑定进 release.json 供发布决策审计；
+   阻断门禁（`ignore-unfixed: true`，HIGH,CRITICAL，exit-code 1）只让存在修复方案的发现拦截
+   candidate。未修复项不拦截发布，但扫描证据缺失同样使 candidate 注册失败，不会静默放行。
 3. 推送与登记：镜像以 `candidate-v<version>-<sha>` 推到 ghcr，`release.json` candidate artifact
    绑定 run_id、run_attempt、SHA、version、channel 与两个镜像的 `sha256:` 摘要并上传。
 4. 汇总门禁（`Required checks passed`）：needs 结果校验 + Actions API jobs 列表逐 job 校验

@@ -139,9 +139,52 @@ jobs:
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
 
+      - name: Prepare release scan evidence directory
+        run: mkdir -p .tmp/release-scans
+
+      # Non-blocking visibility pass: records every finding including
+      # unfixed ones. The step tolerates trivy failures, but the release.json
+      # evidence step below refuses to run without the report files, so a
+      # candidate can never ship without this evidence.
+      - name: Record unfixed findings for the server image (non-blocking)
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          scan-type: image
+          image-ref: graft-candidate-server:${{ github.sha }}
+          format: json
+          output: .tmp/release-scans/unfixed-server.json
+          ignore-unfixed: false
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          trivy-timeout: 10m
+
+      - name: Record unfixed findings for the web image (non-blocking)
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          scan-type: image
+          image-ref: graft-candidate-web:${{ github.sha }}
+          format: json
+          output: .tmp/release-scans/unfixed-web.json
+          ignore-unfixed: false
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+          trivy-timeout: 10m
+
+      - name: Upload the unfixed-findings scan evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: release-candidate-unfixed-scan
+          path: .tmp/release-scans/*.json
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Scan the server candidate image
-        # Unfixed vulnerabilities inside base images are recorded for the
-        # release decision instead of blocking a candidate outright.
+        # Blocking gate: only findings with an available fix fail the
+        # candidate; unfixed findings stay visible through the non-blocking
+        # evidence pass above instead of silently disappearing.
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           scan-type: image
@@ -199,7 +242,15 @@ jobs:
           set -euo pipefail
           mkdir -p .tmp/release-candidate
           python3 - <<'PY'
-          import datetime as dt, json, os
+          import datetime as dt, hashlib, json, os
+          def evidence(name):
+              path = f".tmp/release-scans/unfixed-{name}.json"
+              if not os.path.isfile(path):
+                  raise SystemExit(
+                      f"::error title=Missing unfixed scan evidence::{path} was not produced; "
+                      "a candidate cannot be registered without its full scan evidence.")
+              with open(path, "rb") as handle:
+                  return hashlib.sha256(handle.read()).hexdigest()
           record = {
               "schema_version": 1,
               "version": os.environ["VERSION"],
@@ -224,7 +275,21 @@ jobs:
               "scan": {
                   "tool": "trivy",
                   "severity": "HIGH,CRITICAL",
+                  # Blocking gate: only findings with an available fix block.
                   "ignore_unfixed": True,
+                  # Non-blocking full pass including unfixed findings; the
+                  # report files are uploaded as an artifact and their
+                  # digests are bound here for auditability.
+                  "unfixed": {
+                      "blocking": False,
+                      "artifact": "release-candidate-unfixed-scan",
+                      "reports": {
+                          "server": {"file": "unfixed-server.json",
+                                     "sha256": evidence("server")},
+                          "web": {"file": "unfixed-web.json",
+                                  "sha256": evidence("web")},
+                      },
+                  },
               },
           }
           target = ".tmp/release-candidate/release.json"
@@ -331,6 +396,12 @@ jobs:
           name: release-candidate-json
           path: .tmp/release-candidate
 
+      - name: Download the unfixed-findings scan evidence artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: release-candidate-unfixed-scan
+          path: .tmp/release-scans
+
       - name: Verify the candidate binds this run, version, channel, SHA and digests
         env:
           VERSION: ${{ inputs.version }}
@@ -380,6 +451,36 @@ jobs:
                   print(f"::error title=Candidate verification::{problem}")
               raise SystemExit("Candidate verification failed: " + "; ".join(problems))
           print(f"Candidate {record['version']}/{record['channel']} verified for {record['sha']}.")
+          PY
+
+      - name: Verify the unfixed-findings evidence against release.json
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os
+          with open(".tmp/release-candidate/release.json", encoding="utf-8") as handle:
+              record = json.load(handle)
+          unfixed = (record.get("scan") or {}).get("unfixed") or {}
+          problems = []
+          if unfixed.get("blocking") is not False:
+              problems.append("scan.unfixed.blocking must be false (findings never block)")
+          reports = unfixed.get("reports") or {}
+          for name in ("server", "web"):
+              expected = reports.get(name) or {}
+              file_name = expected.get("file") or f"unfixed-{name}.json"
+              path = os.path.join(".tmp/release-scans", file_name)
+              digest = expected.get("sha256") or ""
+              if not os.path.isfile(path):
+                  problems.append(f"unfixed {name} evidence {file_name} is missing from the artifact")
+                  continue
+              with open(path, "rb") as handle:
+                  actual = hashlib.sha256(handle.read()).hexdigest()
+              if actual != digest:
+                  problems.append(f"unfixed {name} evidence digest mismatch: release.json binds {digest}, artifact holds {actual}")
+          if problems:
+              for problem in problems:
+                  print(f"::error title=Unfixed evidence verification::{problem}")
+              raise SystemExit("Unfixed evidence verification failed: " + "; ".join(problems))
+          print("Unfixed-findings evidence verified against release.json.")
           PY
 
       - name: Create the candidate tag idempotently
