@@ -6,7 +6,7 @@
 - Delivered: receipt settlement diagnostics, agent claim admission telemetry, provider redaction,
   runtime-target readiness projection, web presentation; corrections 1-3 fixed admission timing,
   summary provenance, and latest-snapshot scheduling eligibility (d51d047f5).
-- Evidence then: openapi-check 0, validate backend 0, web check 0, no live-DB migration in worktree.
+- Evidence then: openapi-check 0, validate backend 0, web check 0.
 
 ## 2026-11-21 Bounded Auto-Recovery Round (worker track1-recovery, PR 2)
 
@@ -40,3 +40,10 @@
   `python3 scripts/validate_docker_isolated.py init --project graft-isolated-<task> --source-revision <sha40>
   --backend-image <img> --agent-image <img> --driver-image <img> --execution-mode agent --directory <dir>`,
   then `... up --directory <dir>`, then `... probe --directory <dir>`; see tests/conformance/docker-runtime-agent/README.md.
+
+## 2026-11-21 Correction 1 (PR #380)
+
+- CI run 44777511166 (local): compose-material-stage-code asserted the agent shape; local settlements
+  deliver the stage attribution as failure_code=local_material_resolve_failed (stage folded into the
+  code, failure_stage=NULL). Probe now asserts each owner's delivered shape; regressions cover both.
+  validate backend 0, unittest 45 ok. Agent-mode projection stays CI-verified on the next run.
