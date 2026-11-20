@@ -2,7 +2,16 @@
 
 Archived from traces/validation-delivery-tooling-trace.md to keep the active
 trace within the ai-plan size budget. Content preserved verbatim from the
-correction entries recorded on 2026-11-20.
+entries recorded on 2026-11-20.
+
+## PR 3 implementation batch detail
+
+- Long-running `optimize` work, `docs/automation`; active topic only (no design, roadmap, or ADR). `kind: optimize` extends the ADR-003 v1 vocabulary; left for the ADR owner to reconcile.
+- Evidence reuse: plans bind head SHA and SHA-256 digests with per-file reasons and coverage; plan mode fails on empty selection, missing tests, or coverage gaps; `--compare-report` verifies previous reports fail-closed; `--report-out` persists executed reports; `just check-local-verify` verifies then executes.
+- Check suite: six groups from Justfile/workflow reality; cross-group `requires=` with auto-include and cycle/unknown rejection; independent failures; process-level deadline with process-group kill; JSON + terminal summary; self-ignored logs under `.artifacts/checks/<group>/`.
+- CI impact: conservative path-to-job mapping; unknown/workflow/script/toolchain/image surfaces force FULL; subsets always include hygiene and summary jobs. Advisory only.
+- Workflow: grouped jobs; `web-check` timeout; `Required checks passed` needs every other job and verifies every job of the current run/attempt/SHA via the Actions API (push-event Secret Scan skip only); job names unchanged; push runs never cancelled.
+- Commits (base 270c2fb3c): 2edcdc3f6, 7902543de, 2e0cc9734, c621ce40c. The lead pushes and integrates.
 
 ## Corrections 1-2 (cross-check hardening)
 
