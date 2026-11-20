@@ -641,13 +641,26 @@ class RecoveryScenarioTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "agent-recovery-resume"):
             require_agent_acceptance([item for item in complete if item["scenario"] != "agent-recovery-resume"])
 
-    def test_material_stage_code_requires_task_and_stage_projection(self):
-        for stage_items, expected in (([{"failure_stage": "material_resolve"}], "passed"),
-                                      ([{"failure_stage": None}], "failed"), ([], "failed")):
-            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as directory:
+    def test_material_stage_code_asserts_the_delivered_owner_shape(self):
+        # CI correction (run 44777511166): local settlements fold the bounded stage into the stable failure
+        # code local_material_resolve_failed and keep failure_stage empty; agent settlements project
+        # failure_stage=material_resolve. The probe must assert each owner's delivered shape exactly.
+        for execution_mode, task_detail, stage_items, expected in (
+                ("agent", {"failure_stage": "material_resolve"},
+                 [{"failure_stage": "material_resolve"}], "passed"),
+                ("agent", {"failure_stage": "material_resolve"}, [{"failure_stage": None}], "failed"),
+                ("local", {"failure_code": "local_material_resolve_failed", "failure_stage": None},
+                 [{"failure_code": "local_material_resolve_failed", "failure_stage": None}], "passed"),
+                ("local", {"failure_code": "local_material_resolve_failed", "failure_stage": None},
+                 [{"failure_code": "provider_operation_failed", "failure_stage": None}], "failed"),
+                ("local", {"failure_code": "local_material_resolve_failed", "failure_stage": None}, [], "failed"),
+                ("agent", {"failure_code": "local_material_resolve_failed", "failure_stage": None},
+                 [{"failure_code": "local_material_resolve_failed"}], "failed")):
+            with self.subTest(execution_mode=execution_mode, expected=expected), tempfile.TemporaryDirectory() as directory:
                 fixture = self.fixture(directory)
+                fixture.state["execution_mode"] = execution_mode
                 fixture.api = Mock(side_effect=[
-                    (200, {"data": {"id": 3, "status": "failed", "failure_stage": "material_resolve"}}),
+                    (200, {"data": {"id": 3, "status": "failed", **task_detail}}),
                     (200, {"data": {"items": stage_items}})])
                 fixture.material_stage_code_probe(3)
                 self.assertEqual(fixture.record.call_args.args, ("compose-material-stage-code", expected))

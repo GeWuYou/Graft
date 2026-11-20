@@ -390,16 +390,25 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         return None
 
     def material_stage_code_probe(self, identifier: int) -> None:
-        # The material-missing rejection above must project its bounded provider stage attribution.
+        # The material-missing rejection above must project its bounded provider stage attribution through
+        # the delivered per-owner shapes: agent settlements carry failure_stage=material_resolve on task and
+        # stage views, while local settlements fold the bounded stage into the stable code
+        # local_material_resolve_failed (local failure attribution has no failure_stage field).
         scenario = "compose-material-stage-code"
         detail_status, detail = self.api("GET", f"/api/tasks/{identifier}") if identifier else (0, {})
         task = (detail.get("data") or {}) if detail_status == 200 else {}
         stage_items = self.task_stages(identifier) if identifier else []
         stage_codes = [stage.get("failure_stage") for stage in stage_items]
-        passed = task.get("failure_stage") == "material_resolve" and "material_resolve" in stage_codes
-        self.record(scenario, "passed" if passed else "failed", failure_stage=task.get("failure_stage"),
-                    stage_failure_stages=stage_codes,
-                    scope="Material resolve failures project failure_stage=material_resolve to task and stage views")
+        stage_failure_codes = [stage.get("failure_code") for stage in stage_items]
+        if self.execution_mode == "agent":
+            projected = task.get("failure_stage") == "material_resolve" and "material_resolve" in stage_codes
+        else:
+            projected = (task.get("failure_code") == "local_material_resolve_failed"
+                         and "local_material_resolve_failed" in stage_failure_codes)
+        self.record(scenario, "passed" if projected else "failed", failure_stage=task.get("failure_stage"),
+                    failure_code=task.get("failure_code"), stage_failure_stages=stage_codes,
+                    stage_failure_codes=stage_failure_codes,
+                    scope="Material resolve failures project the bounded stage attribution per execution owner")
 
     def shell_output(self, relative_url: str) -> bool:
         port = int(self.environment["GRAFT_CONFORMANCE_BACKEND_PORT"])
