@@ -17,6 +17,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -107,6 +108,36 @@ def evidence_verification(state_root: Path) -> list[dict]:
     return findings
 
 
+def stack_state(compose_project: str) -> dict:
+    """Read-only container probe for the recorded compose project.
+
+    Preview stacks live in the git common directory and can outlive their
+    checkout, so a destroy suggestion requires ruling out a live stack.
+    Docker absence or query failure counts as unknown: a live stack cannot
+    be ruled out, and unknown never receives a destroy suggestion.
+    """
+    command = ["docker", "ps", "-a", "--filter",
+               f"label=com.docker.compose.project={compose_project}",
+               "--format", "{{.State}}"]
+    try:
+        completed = subprocess.run(command, capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {"state": "unknown", "evidence": f"docker query failed: {exc}"}
+    if completed.returncode != 0:
+        return {"state": "unknown",
+                "evidence": (f"docker ps exited with code {completed.returncode}: "
+                             f"{completed.stderr.strip()[:200]}")}
+    states = sorted({line.strip() for line in completed.stdout.splitlines() if line.strip()})
+    if not states:
+        return {"state": "dead",
+                "evidence": "no containers exist for the recorded compose project"}
+    if "running" in states:
+        return {"state": "running",
+                "evidence": "containers in states: " + ", ".join(states)}
+    return {"state": "dead",
+            "evidence": "containers in states: " + ", ".join(states) + " (none running)"}
+
+
 def instance_report(entry: dict, state_root: Path, repository_bound: bool,
                     claims: argparse.Namespace) -> dict:
     identity = entry["identity"]
@@ -124,17 +155,21 @@ def instance_report(entry: dict, state_root: Path, repository_bound: bool,
         findings.append("instance_files_missing")
     proven, reason = ownership_proof(entry, state_root, repository_bound, claims)
     suggestion = None
+    stack = {"state": "not-probed", "evidence": "not a destruction candidate"}
     # A destroy suggestion is reconciliation output for leftovers only; a
-    # healthy running instance is never suggested for destruction.
+    # healthy or unprovable-dead stack is never suggested for destruction.
     if proven and findings:
-        suggestion = {
-            # A lost worktree cannot re-derive the identity from --task, so
-            # the suggestion must name the registered identity directly.
-            "command": (f"python3 scripts/preview.py destroy --identity {identity} "
-                        f"--confirm-instance {identity}"),
-            "ownership_proof": reason,
-            "warning": "destroy removes containers, volumes and instance data",
-        }
+        stack = stack_state(entry.get("compose_project") or "")
+        if stack["state"] == "dead":
+            suggestion = {
+                # A lost worktree cannot re-derive the identity from --task, so
+                # the suggestion must name the registered identity directly.
+                "command": (f"python3 scripts/preview.py destroy --identity {identity} "
+                            f"--confirm-instance {identity}"),
+                "ownership_proof": reason,
+                "stack_evidence": stack["evidence"],
+                "warning": "destroy removes containers, volumes and instance data",
+            }
     return {
         "identity": identity,
         "task_id": entry.get("task_id"),
@@ -144,6 +179,7 @@ def instance_report(entry: dict, state_root: Path, repository_bound: bool,
         "instance_dir": str(directory),
         "instance_files_present": files_present,
         "findings": findings,
+        "stack_state": stack,
         "destroy_suggestion": suggestion,
         "ownership": {"proven": proven, "reason": reason},
     }

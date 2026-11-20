@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -34,6 +35,13 @@ class RecoveryFixture(unittest.TestCase):
         self.state.start()
         self.addCleanup(self.state.stop)
         self.checkout = preview.checkout_root()
+        # Deterministic stack probe: the fixture's lost-task instance is a
+        # confirmed-dead stack unless a test overrides this stub.
+        self.stack_patcher = patch.object(
+            preview_recovery, "stack_state",
+            return_value={"state": "dead", "evidence": "stub: no containers"})
+        self.stack_patcher.start()
+        self.addCleanup(self.stack_patcher.stop)
 
         document = {"schema_version": 1, "instances": {
             "healthy-task-111111111111": {
@@ -215,6 +223,93 @@ class OwnershipProofTests(RecoveryFixture):
         instance = report["instances"][0]
         self.assertEqual(instance["findings"], [])
         self.assertIsNone(instance["destroy_suggestion"])
+
+    def test_running_stack_withholds_destroy_suggestion(self):
+        # Preview stacks live in the git common directory and can outlive
+        # their checkout; a live stack is never recommended for deletion.
+        args = scan_args(identity="lost-task-222222222222")
+        args.claim_ownership = {"lost-task-222222222222"}
+        args.claim_task_id = {"lost-task-222222222222": "lost-task"}
+        with patch.object(preview_recovery, "resolve_state_dir",
+                          return_value=(self.root, True)), \
+                patch.object(preview_recovery, "stack_state",
+                             return_value={"state": "running",
+                                           "evidence": "containers in states: running"}):
+            report = preview_recovery.scan(args)
+        instance = report["instances"][0]
+        self.assertEqual(instance["stack_state"]["state"], "running")
+        self.assertIn("running", instance["stack_state"]["evidence"])
+        self.assertIsNone(instance["destroy_suggestion"])
+
+    def test_unknown_stack_state_withholds_destroy_suggestion(self):
+        # Docker absence or query failure means a live stack cannot be ruled
+        # out, so the suggestion is withheld and the state reported as
+        # running-or-unknown with evidence.
+        args = scan_args(identity="lost-task-222222222222")
+        args.claim_ownership = {"lost-task-222222222222"}
+        args.claim_task_id = {"lost-task-222222222222": "lost-task"}
+        with patch.object(preview_recovery, "resolve_state_dir",
+                          return_value=(self.root, True)), \
+                patch.object(preview_recovery, "stack_state",
+                             return_value={"state": "unknown",
+                                           "evidence": "docker query failed: no docker"}):
+            report = preview_recovery.scan(args)
+        instance = report["instances"][0]
+        self.assertEqual(instance["stack_state"]["state"], "unknown")
+        self.assertIsNone(instance["destroy_suggestion"])
+
+    def test_confirmed_dead_stack_allows_destroy_suggestion(self):
+        args = scan_args(identity="lost-task-222222222222")
+        args.claim_ownership = {"lost-task-222222222222"}
+        args.claim_task_id = {"lost-task-222222222222": "lost-task"}
+        with patch.object(preview_recovery, "resolve_state_dir",
+                          return_value=(self.root, True)), \
+                patch.object(preview_recovery, "stack_state",
+                             return_value={"state": "dead",
+                                           "evidence": "no containers exist for the recorded compose project"}):
+            report = preview_recovery.scan(args)
+        instance = report["instances"][0]
+        self.assertEqual(instance["stack_state"]["state"], "dead")
+        self.assertIsNotNone(instance["destroy_suggestion"])
+        self.assertEqual(instance["destroy_suggestion"]["stack_evidence"],
+                         "no containers exist for the recorded compose project")
+
+
+class StackStateTests(unittest.TestCase):
+    def test_no_containers_counts_as_dead(self):
+        completed = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        with patch.object(preview_recovery.subprocess, "run", return_value=completed):
+            state = preview_recovery.stack_state("graft-preview-x")
+        self.assertEqual(state["state"], "dead")
+        self.assertIn("no containers", state["evidence"])
+
+    def test_running_containers_report_running(self):
+        completed = subprocess.CompletedProcess([], 0, stdout="running\nexited\n", stderr="")
+        with patch.object(preview_recovery.subprocess, "run", return_value=completed):
+            state = preview_recovery.stack_state("graft-preview-x")
+        self.assertEqual(state["state"], "running")
+        self.assertIn("running", state["evidence"])
+
+    def test_only_stopped_containers_count_as_dead(self):
+        completed = subprocess.CompletedProcess([], 0, stdout="exited\ncreated\n", stderr="")
+        with patch.object(preview_recovery.subprocess, "run", return_value=completed):
+            state = preview_recovery.stack_state("graft-preview-x")
+        self.assertEqual(state["state"], "dead")
+        self.assertIn("none running", state["evidence"])
+
+    def test_docker_failure_counts_as_unknown(self):
+        with patch.object(preview_recovery.subprocess, "run",
+                          side_effect=FileNotFoundError("no docker binary")):
+            state = preview_recovery.stack_state("graft-preview-x")
+        self.assertEqual(state["state"], "unknown")
+        self.assertIn("docker query failed", state["evidence"])
+
+    def test_nonzero_docker_exit_counts_as_unknown(self):
+        completed = subprocess.CompletedProcess([], 1, stdout="", stderr="permission denied")
+        with patch.object(preview_recovery.subprocess, "run", return_value=completed):
+            state = preview_recovery.stack_state("graft-preview-x")
+        self.assertEqual(state["state"], "unknown")
+        self.assertIn("docker ps exited with code 1", state["evidence"])
 
 
 class AnomalyTests(RecoveryFixture):
