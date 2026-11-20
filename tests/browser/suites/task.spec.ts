@@ -15,8 +15,9 @@ test.describe('task @chromium-only', () => {
     await page.goto(`/applications/${browserFixture.applicationId}`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByText(browserFixture.applicationDisplayName).first()).toBeVisible();
     const tasks = await tasksResponse;
-    const payload = (await tasks.json()) as { total?: number; items?: Array<{ id?: number }> };
-    expect(payload.total).toBeGreaterThan(0);
+    // The raw HTTP response keeps the success envelope; totals live under data.
+    const payload = (await tasks.json()) as { data?: { total?: number } };
+    expect(payload.data?.total).toBeGreaterThan(0);
     // The task history surface renders inside the application detail page.
     await expect(page.locator('body')).not.toContainText('Application error');
   });

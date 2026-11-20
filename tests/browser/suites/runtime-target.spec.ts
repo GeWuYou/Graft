@@ -14,8 +14,9 @@ test.describe('runtime-target @cross-browser', () => {
     );
     await page.goto('/infrastructure/runtime-targets', { waitUntil: 'domcontentloaded' });
     const targets = await targetsResponse;
-    const payload = (await targets.json()) as { total?: number; items?: Array<{ display_name?: string }> };
-    expect(payload.total).toBeGreaterThan(0);
+    // The raw HTTP response keeps the success envelope; totals live under data.
+    const payload = (await targets.json()) as { data?: { total?: number } };
+    expect(payload.data?.total).toBeGreaterThan(0);
     await expect(page.getByText(browserFixture.runtimeTargetDisplayName).first()).toBeVisible();
     await expect(page.locator('body')).not.toContainText('Application error');
     expect(browserEnv.engine).toBeDefined();

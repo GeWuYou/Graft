@@ -15,7 +15,7 @@ test.describe('workbench @chromium-only', () => {
     await summaryResponse;
     // The authenticated session must not bounce back to the auth entry.
     await expect(page).not.toHaveURL(/login/);
-    await expect(page.getByRole('main').or(page.locator('body'))).toBeVisible();
+    await expect(page.locator('body')).toBeVisible();
     await expect(page.locator('body')).not.toContainText('Application error');
     // Keep the harness-provided environment identity traceable in the report.
     expect(browserEnv.suite).toBe('workbench');
