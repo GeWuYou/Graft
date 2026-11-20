@@ -105,6 +105,7 @@ class RunPlan:
     keep: bool
     reuse_environment: bool
     skip_build: bool
+    allow_daemon: bool = False
 
     def to_json(self, root: Path = ROOT) -> dict:
         return {
@@ -116,6 +117,7 @@ class RunPlan:
             "reuse_environment": self.reuse_environment,
             "skip_build": self.skip_build,
             "daemon_required": self.suite.daemon_required,
+            "allow_daemon": self.allow_daemon,
         }
 
 
@@ -217,7 +219,13 @@ def filter_suites_for_engine(suites: list[SuiteSpec], engine: EngineSpec) -> lis
 
 def select_plan(args: argparse.Namespace) -> list[RunPlan]:
     """Build the full suites x engine plan for one invocation."""
-    suites = resolve_suites(args.suite, allow_daemon=args.allow_daemon)
+    requested = [
+        name.strip()
+        for chunk in args.suite
+        for name in chunk.split(",")
+        if name.strip()
+    ]
+    suites = resolve_suites(requested, allow_daemon=args.allow_daemon)
     engine_names = [name.strip() for name in args.engine.split(",") if name.strip()]
     engines: list[EngineSpec] = []
     for name in engine_names:
@@ -249,6 +257,7 @@ def select_plan(args: argparse.Namespace) -> list[RunPlan]:
                     keep=args.keep,
                     reuse_environment=args.reuse_environment,
                     skip_build=args.skip_build,
+                    allow_daemon=args.allow_daemon,
                 )
             )
     return plans
@@ -291,7 +300,13 @@ def _relative_or_absolute(path: Path, root: Path) -> str:
         return str(path)
 
 
-def build_environment_commands(pg_port: int, redis_port: int, backend_port: int, proxy_port: int) -> dict[str, list[str]]:
+def build_environment_commands(
+    pg_port: int,
+    redis_port: int,
+    backend_port: int,
+    proxy_port: int,
+    compose_project: str = "graft-browser-acceptance",
+) -> dict[str, list[str]]:
     """Expose every provisioning command for dry-run inspection and execution."""
     database_url = local_database_url(pg_port)
     server_env_export = {
@@ -309,7 +324,7 @@ def build_environment_commands(pg_port: int, redis_port: int, backend_port: int,
             f"GRAFT_BROWSER_PG_HOST_PORT={pg_port}",
             f"GRAFT_BROWSER_REDIS_HOST_PORT={redis_port}",
             "docker", "compose", "-f", str(COMPOSE_FILE),
-            "-p", "graft-browser-acceptance", "up", "-d", "--wait",
+            "-p", compose_project, "up", "-d", "--wait",
         ],
         "migrate_up": ["env", *f"{env_prefix} go run ./cmd/graft migrate up".split()],
         "seed_fixtures": [
@@ -472,8 +487,28 @@ class EnvironmentManager:
         redis_port = reserve_local_port()
         backend_port = reserve_local_port()
         proxy_port = reserve_local_port()
-        commands = build_environment_commands(pg_port, redis_port, backend_port, proxy_port)
-        self._log(f"PROVISION compose project (postgres:{pg_port} redis:{redis_port})")
+        # A unique project per fresh environment keeps concurrent or kept runs
+        # from recreating each other's compose services.
+        compose_project = f"graft-browser-{self.report_dir.name}"
+        commands = build_environment_commands(
+            pg_port, redis_port, backend_port, proxy_port, compose_project
+        )
+        # Record every resource as soon as it exists so a mid-startup failure
+        # still tears down what was already created.
+        self.state = {
+            "mode": "fresh",
+            "compose_project": compose_project,
+            "compose_file": str(COMPOSE_FILE),
+            "ports": {
+                "postgres": pg_port,
+                "redis": redis_port,
+                "backend": backend_port,
+                "web": proxy_port,
+            },
+            "processes": {},
+            "created_at": _utcnow(),
+        }
+        self._log(f"PROVISION compose project {compose_project} (postgres:{pg_port} redis:{redis_port})")
         run_command(commands["compose_up"], self.root)
         self._log("MIGRATE schema via graft migrate up")
         run_command(commands["migrate_up"], self.root / SERVER_DIR)
@@ -488,26 +523,12 @@ class EnvironmentManager:
             run_command(commands["web_build"], self.root / "web")
         self._log("START real backend (graft serve)")
         backend_proc = self._spawn(commands["backend_serve"], self.root / SERVER_DIR)
+        self.state["processes"]["backend_pid"] = backend_proc.pid
         wait_for_http(f"http://127.0.0.1:{backend_port}/healthz", 180)
         self._log("START production dist server with backend proxy")
         proxy_proc = self._spawn(commands["dist_server"], self.root)
+        self.state["processes"]["web_pid"] = proxy_proc.pid
         wait_for_http(f"http://127.0.0.1:{proxy_port}/healthz", 60)
-        self.state = {
-            "mode": "fresh",
-            "compose_project": "graft-browser-acceptance",
-            "compose_file": str(COMPOSE_FILE),
-            "ports": {
-                "postgres": pg_port,
-                "redis": redis_port,
-                "backend": backend_port,
-                "web": proxy_port,
-            },
-            "processes": {
-                "backend_pid": backend_proc.pid,
-                "web_pid": proxy_proc.pid,
-            },
-            "created_at": _utcnow(),
-        }
         self._write_state()
         return self.state
 
@@ -539,10 +560,13 @@ class EnvironmentManager:
         self.state["mode"] = "kept"
         self._write_state()
         ports = self.state.get("ports", {})
+        project = self.state.get("compose_project", "graft-browser-acceptance")
         self._log(
             "KEEP environment for diagnostics: "
-            f"docker compose -f {COMPOSE_FILE} -p graft-browser-acceptance down -v removes the "
-            f"containers; the harness pids {self.state.get('processes', {})} and ports {ports} stay alive."
+            f"GRAFT_BROWSER_PG_HOST_PORT={ports.get('postgres')} "
+            f"GRAFT_BROWSER_REDIS_HOST_PORT={ports.get('redis')} "
+            f"docker compose -f {COMPOSE_FILE} -p {project} down -v removes the containers; "
+            f"the harness pids {self.state.get('processes', {})} and ports {ports} stay alive."
         )
 
     def teardown(self) -> None:
@@ -555,13 +579,30 @@ class EnvironmentManager:
         compose_file = self.state.get("compose_file", str(COMPOSE_FILE))
         if project:
             self._log(f"TEARDOWN compose project {project}")
-            subprocess.run(
+            # The overlay requires the recorded host ports to load; restore
+            # them so `down` cannot fail on missing compose variables.
+            ports = self.state.get("ports", {})
+            down_env = os.environ.copy()
+            if ports.get("postgres"):
+                down_env["GRAFT_BROWSER_PG_HOST_PORT"] = str(ports["postgres"])
+            if ports.get("redis"):
+                down_env["GRAFT_BROWSER_REDIS_HOST_PORT"] = str(ports["redis"])
+            result = subprocess.run(
                 ["docker", "compose", "-f", compose_file, "-p", project, "down", "-v", "--remove-orphans"],
                 cwd=self.root,
+                env=down_env,
                 check=False,
                 capture_output=True,
                 text=True,
             )
+            if result.returncode != 0:
+                detail = sanitize_text((result.stderr or result.stdout or "")[-500:])
+                print(
+                    f"TEARDOWN compose project {project} failed ({result.returncode}); "
+                    f"manual cleanup may be required. {detail}",
+                    file=self.progress,
+                    flush=True,
+                )
         if self.state_path.exists():
             self.state_path.unlink()
 
@@ -619,6 +660,23 @@ class EnvironmentManager:
         print(message, file=self.progress, flush=True)
 
 
+def build_attempt_environment(plan: RunPlan, web_port: int) -> dict:
+    """Assemble the deterministic per-attempt environment for Playwright."""
+    attempt_env = {
+        WEB_BASE_URL_ENV: f"http://127.0.0.1:{web_port}",
+        ADMIN_USERNAME_ENV: os.environ.get(ADMIN_USERNAME_ENV, DEFAULT_ADMIN_USERNAME),
+        ADMIN_PASSWORD_ENV: os.environ.get(ADMIN_PASSWORD_ENV, DEFAULT_ADMIN_PASSWORD),
+        "GRAFT_BROWSER_SUITE": plan.suite.name,
+        "GRAFT_BROWSER_ENGINE": plan.engine.name,
+        "GRAFT_BROWSER_TIER": plan.tier,
+    }
+    if plan.suite.daemon_required and plan.allow_daemon:
+        # The daemon-required specs skip themselves unless the explicit
+        # permission is forwarded into the Playwright environment.
+        attempt_env["GRAFT_BROWSER_ALLOW_DAEMON"] = "1"
+    return attempt_env
+
+
 def run_attempt(
     plan: RunPlan,
     root: Path,
@@ -635,14 +693,7 @@ def run_attempt(
     web_port = ports.get("web")
     if not web_port:
         raise EnvironmentError_("environment state is missing the web port")
-    attempt_env = {
-        WEB_BASE_URL_ENV: f"http://127.0.0.1:{web_port}",
-        ADMIN_USERNAME_ENV: os.environ.get(ADMIN_USERNAME_ENV, DEFAULT_ADMIN_USERNAME),
-        ADMIN_PASSWORD_ENV: os.environ.get(ADMIN_PASSWORD_ENV, DEFAULT_ADMIN_PASSWORD),
-        "GRAFT_BROWSER_SUITE": plan.suite.name,
-        "GRAFT_BROWSER_ENGINE": plan.engine.name,
-        "GRAFT_BROWSER_TIER": plan.tier,
-    }
+    attempt_env = build_attempt_environment(plan, web_port)
     print(f"RUN browser/{plan.suite.name}@{plan.engine.name}", file=progress, flush=True)
     merged_env = os.environ.copy()
     merged_env.update(attempt_env)
@@ -678,7 +729,7 @@ def run_attempt(
         "result": _attempt_result(plan, exit_code, failure_reason),
         "playwright": {
             "argv": [sanitize_text(item, root) for item in command],
-            "report": _relative_or_absolute(json_path, root),
+            "report": sanitize_text(_relative_or_absolute(json_path, root), root),
             "retries": 0,
         },
         "environment": {
@@ -700,7 +751,8 @@ def run_attempt(
     report_path = suite_report_dir / "attempt.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     marker = report["result"].upper()
-    print(f"{marker} browser/{plan.suite.name}@{plan.engine.name} report={_relative_or_absolute(report_path, root)}",
+    print(f"{marker} browser/{plan.suite.name}@{plan.engine.name} "
+          f"report={sanitize_text(_relative_or_absolute(report_path, root), root)}",
           file=progress, flush=True)
     return exit_code if exit_code is not None else EXIT_TEST_FAILURE, report
 
@@ -729,6 +781,13 @@ def check_prerequisites(root: Path, skip_build: bool) -> list[str]:
     if not (root / WEB_DIST_DIR / "index.html").exists() and skip_build:
         missing.append("web/dist/index.html (--skip-build without a previous production build)")
     return missing
+
+
+def ensure_self_ignored(report_dir: Path) -> None:
+    """Keep generated reports out of git status without editing the repo .gitignore."""
+    marker = report_dir / ".gitignore"
+    if not marker.exists():
+        marker.write_text("*\n", encoding="utf-8")
 
 
 def print_list_suites(progress: TextIO, registry: dict[str, SuiteSpec] = SUITES) -> None:
@@ -844,7 +903,8 @@ def main(argv: list[str] | None = None) -> int:
             # Plan inspection must work without any prerequisite installed so
             # leased worktrees can verify the wiring without executing anything.
             commands = build_environment_commands(
-                reserve_local_port(), reserve_local_port(), reserve_local_port(), reserve_local_port()
+                reserve_local_port(), reserve_local_port(), reserve_local_port(), reserve_local_port(),
+                f"graft-browser-{report_dir.name}",
             )
             attempts = []
             for plan in plans:
@@ -870,6 +930,7 @@ def main(argv: list[str] | None = None) -> int:
             return EXIT_ENVIRONMENT
 
         report_dir.mkdir(parents=True, exist_ok=True)
+        ensure_self_ignored(report_dir)
         try:
             if args.reuse_environment:
                 manager.reuse()

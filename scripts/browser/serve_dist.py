@@ -142,17 +142,33 @@ class DistProxyHandler(BaseHTTPRequestHandler):
                 self.command,
                 self.path,
                 body=body,
-                headers=filter_hop_by_hop(self.headers),
+                headers=dict(filter_hop_by_hop(self.headers)),
             )
             response = connection.getresponse()
-            payload = response.read()
             self.send_response(response.status)
+            content_length: int | None = None
             for name, value in filter_hop_by_hop(response.getheaders()):
+                if name.lower() == "content-length":
+                    content_length = int(value)
                 self.send_header(name, value)
-            self.send_header("Content-Length", str(len(payload)))
+            if content_length is None and not response.will_close:
+                # Streaming responses (SSE heartbeats, long polls) have no known
+                # length; forward bytes as they arrive and close when the
+                # backend finishes instead of buffering the whole stream.
+                self.send_header("Connection", "close")
+                self.close_connection = True
             self.end_headers()
-            if self.command != "HEAD" and payload:
-                self.wfile.write(payload)
+            if self.command == "HEAD":
+                return
+            while True:
+                # read1 returns as soon as any bytes are available so streaming
+                # responses (SSE heartbeats) reach the browser without waiting
+                # for the backend to close or fill the full chunk size.
+                chunk = response.read1(65536)
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+                self.wfile.flush()
         except OSError as error:
             self._write_plain(502, f"backend unreachable: {error}")
         finally:
@@ -163,7 +179,7 @@ class DistProxyHandler(BaseHTTPRequestHandler):
         origin = urlsplit(self.backend_origin)
         try:
             upstream = socket.create_connection(
-                (origin.hostname or "127.0.0.1"), origin.port or 80, timeout=30
+                (origin.hostname or "127.0.0.1", origin.port or 80), timeout=30
             )
         except OSError as error:
             self._write_plain(502, f"backend unreachable: {error}")
