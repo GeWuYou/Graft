@@ -1,30 +1,38 @@
 # Validation Delivery Tooling Trace
 
-## 2026-11-20 Intake and PR 3 implementation batch
+## 2026-11-20 Intake and PR 3 batch
 
-- Long-running `optimize` work, `docs/automation`; active topic only (no design, roadmap, or ADR). `kind: optimize` extends the ADR-003 v1 vocabulary; left for the ADR owner to reconcile.
-- Evidence reuse, check suite, CI impact and workflow discipline implemented as summarized in the tracking checklist; full batch detail archived in `archive/trace-history-corrections.md` (commits 2edcdc3f6, 7902543de, 2e0cc9734, c621ce40c on base 270c2fb3c).
+- Long-running `optimize` work, `docs/automation`; `kind: optimize` extends the ADR-003 v1 vocabulary; ADR owner to reconcile.
+- Evidence reuse (SHA-bound, fail-closed), grouped suite, conservative CI impact, `Required checks passed` run/attempt/SHA cross-check with PR-head binding; push runs never cancelled.
+- Commits (base 270c2fb3c): 2edcdc3f6, 7902543de, 2e0cc9734, c621ce40c; corrections 8cb4d491c, 8bc145d60, d6b912342, 8977741a0, 56f7df274, ae83ae328. Detail in trace git history and `archive/trace-history-corrections.md`.
 
-## 2026-11-20 Corrections 1-3 (cross-check hardening, GET pin, PR head SHA binding)
+## 2026-11-20 PR 5 batch (preview lifecycle + deployment consistency + release candidates)
 
-- Archived in `archive/trace-history-corrections.md` with commits and CI evidence; dispositions fixed. Commits: 56f7df274, ae83ae328.
+- `preview.py`: deterministic identity; common-dir registry; port refusal; cap; guarded destroy with evidence archives. `preview_recovery.py`: read-only reconciliation, ownership-proof gating, digest verification. `check_deployment_consistency.py`: no-acceptable-5xx default, fail-closed revision markers. `release-candidate.yml`: pinned trivy, ghcr candidate tags, `release.json` binding, idempotent `rc-` tags avoiding `v*`. Justfile section; two docs.
+- Commits: 25613647d, 69a9123d0, 30a0617d7, 3d8a622ab, 68dcd57c7, ff5ca9070.
 
-## 2026-11-20 Browser acceptance harness batch (PR 4, worker track2-browser)
+## 2026-11-20 PR 4 batch (browser acceptance harness)
 
-- Added `scripts/browser_acceptance.py` + unit tests (suite/engine/tier registry, zero retries, keep/reuse diagnostics, sanitized per-attempt reports, dry-run/list modes), `scripts/browser/serve_dist.py`, `tests/browser/` (tmpfs compose overlay, Playwright config, five tagged suite specs), `docs/development/browser-acceptance.md`, separated Justfile section, and test-only `TestSeedBrowserFixture` seeds in `server/modules/{project,task,runtime-target}` (no non-test server code touched). Full capability list lives in the docs and tracking checklist.
+- `browser_acceptance.py` (suite/engine/tier registry, zero retries, sanitized per-attempt reports), `browser/serve_dist.py`, `tests/browser/` overlay + specs, `TestSeedBrowserFixture` test-only seeds, docs, Justfile section.
 - Commits: c1501a2b5, 77612a329, 9c335138c, 1c3b193f5, 997d43575, 16fe0722b.
 
-## 2026-11-20 Browser batch correction 1 (PR 378 CI: Secret Scan + 15 Greptile findings)
+## 2026-11-20/21 PR 5 corrections 1-4 (2-4 standing-authorized per D1)
 
-- All 15 Greptile findings verified real and fixed; none noise/stale. Proof anchors: `authenticateRequest` extracts bearer tokens only (authz.go:197); password-change routes sit behind authenticated+required/restricted guards (route_handlers.go:233,255); the success envelope nests totals under `data` (httpx/response.go:99); proxy header-pair misuse in `http.client.request`; `socket.create_connection` positional misuse; `response.read(n)` buffers until length/EOF (SSE); daemon suites checked an env var the harness never set.
-- Secret Scan blocking finding reproduced with the CI trufflehog image: NOT the compose password but a literal invented DSN in the sanitization test fixture (c1501a2b5, scripts/test_browser_acceptance.py:245, raw_sha256 f70d79c0964d779078ce1d8890c855a879f79d59d13cb912b26a074455facf58). Fixed per synthetic-fixture policy: the current test composes the credential at runtime (eda72736d). The historical introduction commit still fails the base→head range scan; the lead owns the disposition — extend `scripts/scan_secrets.py`'s exact-finding exemption with that entry (same class as the existing synthetic finding) or force-push a rewritten branch. The current tree is clean.
-- eda72736d: streaming dist proxy (read1, header mapping, websocket tuple), incremental environment state with compose down port restore and failure reporting, unique compose project per run, `--allow-daemon` forwarded to Playwright, comma-separated `--suite`, sanitized report paths, self-ignored report dir; 45 unit tests including ephemeral in-process proxy servers.
-- 39ab2e5f5: auth setup sends the login access token as the required-change bearer, falls back between initial and acceptance credentials, seeds the localStorage session snapshot; specs read envelope `data.total`; single-element workbench assertion; fixture ports bound to 127.0.0.1.
-- Validation: 45 unittest cases OK; `go vet`/`go build` and DB-free fixture tests OK; `just -n` OK; `git diff --check` OK; trufflehog on the corrected head reports only the historical finding above.
+- C1 (7 fixed, 1 partial): identity suggestions, orphan baseline, IDENTITY=TASK_ID claims, restart cap, bare tag, `accepted_status`, non-blocking unfixed scan bound into `release.json`, docs. Commits: 2cd8ed20d, 35b13d50a, e832f0f77, 476f49f1b, a93444916, 27bad57c1.
+- C2 (5 P1 real): workspace release-binary path (4634415765); registry flock + in-lock allocation/cap (4634415791); instance-scoped backups (4634415825); unhealthy running restored (4634415848); destroy reclaims container-owned data, retryable `cleanup_failed` (4634415808). Commits: 4adf9e6d4, 09848a85b.
+- C3 (3 P1 real): assets resolve against the final URL after redirects; missing-files destroy tears down by recorded project, retryable; recovery withholds suggestions for running-or-unknown stacks. Commits: 2fb131273, f562536fd, 2666dc4b7.
+- C4 (1 P1 real, thread 4645472263): compose child env strips every key the instance `.env` owns plus file-selection controls; exported settings cannot override port, image or per-instance volumes (shell env beats `--env-file`).
+- Validation after C4: 87 tests OK, `git diff --check` clean.
+
+## 2026-11-20 PR 4 corrections 1-3 (1 lead-verified + 2 standing-authorized per D1)
+
+- C1 (Secret Scan + 15 Greptile findings, all real): proof anchors in `archive/trace-history-corrections.md`. Secret Scan = invented DSN in the sanitization fixture (c1501a2b5, raw_sha256 f70d79c0…acf58), registered per synthetic-fixture policy in 7ac2f3c8c; current test composes the credential at runtime. eda72736d streaming proxy + per-run project + suite parsing; 39ab2e5f5 authenticated fixture session + envelope-correct specs; 45 unit tests incl. in-process proxy servers.
+- C2: teardown test contained in `TemporaryDirectory`; unused `browserEnv` import removed (CodeQL). Commit 915b507b0.
+- C3: per-attempt session state files with regression-pinned harness↔TS contract; daemon suites assert live list state on real pages. Commit 501b0e6ed.
 
 ## Next Steps
 
-- Observe a real pull-request run with the fixed cross-check after the lead pushes.
-- Record chromium local-tier browser acceptance evidence from a primary-checkout run (docs/development/browser-acceptance.md).
-- Lead disposes the historical Secret Scan finding (exemption entry or branch rewrite) and re-runs CI.
-- Later batch: evaluate gating workflow jobs with `scripts/ci_impact.py` output (own scope and acceptance).
+- After integration: observe a real pull-request run and one release-candidate dispatch.
+- Primary-checkout follow-ups (commands in docs): preview smoke, deployment consistency with `--expect-revision` once web declares markers, chromium local-tier browser run.
+- Later batch: gating workflow jobs with `ci_impact.py` output (own scope).
+- ADR owner: reconcile the `kind: optimize` vocabulary.
