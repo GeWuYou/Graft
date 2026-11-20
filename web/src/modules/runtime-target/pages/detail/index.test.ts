@@ -176,6 +176,32 @@ describe('RuntimeTargetDetailPage', () => {
     expect(wrapper.text()).toContain('agent-local');
     expect(wrapper.text()).not.toContain('runtimeTarget.executionModes.local');
   });
+
+  it.each(['no_work', 'identity_rejected', 'transport_failed'])(
+    'renders the agent claim admission %s with its observation time',
+    async (admissionClass) => {
+      apiMocks.getRuntimeTarget.mockResolvedValue({
+        ...targetDetail(),
+        agent: {
+          ...targetDetail().agent,
+          claim_admission: { class: admissionClass, observed_at: '2026-11-20T08:30:00Z' },
+        },
+      });
+      const wrapper = mount(RuntimeTargetDetailPage, { global: { stubs: baseStubs() } });
+      await flushPromises();
+      expect(wrapper.text()).toContain(`runtimeTarget.agentAdmissions.${admissionClass}`);
+      expect(wrapper.text()).toContain('en-US:2026-11-20T08:30:00Z');
+    },
+  );
+
+  it('hides the claim admission row when the agent has no fresh receipt', async () => {
+    apiMocks.getRuntimeTarget.mockResolvedValue(targetDetail());
+    const wrapper = mount(RuntimeTargetDetailPage, { global: { stubs: baseStubs() } });
+    await flushPromises();
+    expect(wrapper.text()).not.toContain('runtimeTarget.detail.agentClaimAdmission');
+    expect(wrapper.text()).not.toContain('runtimeTarget.agentAdmissions.');
+  });
+
   it('renders Docker provider details separately from neutral runtime resources', async () => {
     apiMocks.getRuntimeTarget.mockResolvedValue({
       id: 7,

@@ -44,6 +44,23 @@
         "localControllerPullFailed": "The update controller image could not be pulled. Check the registry and network connection.",
         "unknown": "The task failed. Review task logs for sanitized diagnostic details."
       },
+      "failureStages": {
+        "material_resolve": "Execution material resolution stage",
+        "compose_load": "Compose configuration loading stage",
+        "compose_apply": "Compose side-effect stage",
+        "container_apply": "Container side-effect stage",
+        "controller_pull": "Update controller image pull stage"
+      },
+      "failureClasses": {
+        "transient": "Transient failure; the existing idempotent retry policy applies",
+        "permanent": "Deterministic failure; retrying will not change the outcome",
+        "configuration": "Controlled configuration needs correction",
+        "authorization": "Authorization or credential scope does not satisfy execution",
+        "provider": "The runtime provider did not satisfy the frozen execution contract",
+        "infrastructure": "Infrastructure failure; re-verify the execution environment",
+        "internal": "Internal failure; manual recovery facts are retained",
+        "unknown": "The external result cannot be safely confirmed"
+      },
       "identifier": "Task #{id}",
       "loadFailed": "Task details could not be loaded.",
       "logs": "Execution Logs",

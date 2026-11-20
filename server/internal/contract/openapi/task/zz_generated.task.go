@@ -51,6 +51,69 @@ func (e ListTasksParamsStatus) Valid() bool {
 	}
 }
 
+// Defines values for ListTasks200JSONResponseBodyDataItemsFailureClass.
+const (
+	ListTasks200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassAuthorization  ListTasks200JSONResponseBodyDataItemsFailureClass = "authorization"
+	ListTasks200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassConfiguration  ListTasks200JSONResponseBodyDataItemsFailureClass = "configuration"
+	ListTasks200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassInfrastructure ListTasks200JSONResponseBodyDataItemsFailureClass = "infrastructure"
+	ListTasks200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassInternal       ListTasks200JSONResponseBodyDataItemsFailureClass = "internal"
+	ListTasks200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassPermanent      ListTasks200JSONResponseBodyDataItemsFailureClass = "permanent"
+	ListTasks200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassProvider       ListTasks200JSONResponseBodyDataItemsFailureClass = "provider"
+	ListTasks200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassTransient      ListTasks200JSONResponseBodyDataItemsFailureClass = "transient"
+	ListTasks200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassUnknown        ListTasks200JSONResponseBodyDataItemsFailureClass = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ListTasks200JSONResponseBodyDataItemsFailureClass enum.
+func (e ListTasks200JSONResponseBodyDataItemsFailureClass) Valid() bool {
+	switch e {
+	case ListTasks200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassAuthorization:
+		return true
+	case ListTasks200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassConfiguration:
+		return true
+	case ListTasks200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassInfrastructure:
+		return true
+	case ListTasks200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassInternal:
+		return true
+	case ListTasks200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassPermanent:
+		return true
+	case ListTasks200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassProvider:
+		return true
+	case ListTasks200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassTransient:
+		return true
+	case ListTasks200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTasks200JSONResponseBodyDataItemsFailureStage.
+const (
+	ListTasks200JSONResponseBodyDataItemsFailureStageTaskExecutionStageComposeApply    ListTasks200JSONResponseBodyDataItemsFailureStage = "compose_apply"
+	ListTasks200JSONResponseBodyDataItemsFailureStageTaskExecutionStageComposeLoad     ListTasks200JSONResponseBodyDataItemsFailureStage = "compose_load"
+	ListTasks200JSONResponseBodyDataItemsFailureStageTaskExecutionStageContainerApply  ListTasks200JSONResponseBodyDataItemsFailureStage = "container_apply"
+	ListTasks200JSONResponseBodyDataItemsFailureStageTaskExecutionStageControllerPull  ListTasks200JSONResponseBodyDataItemsFailureStage = "controller_pull"
+	ListTasks200JSONResponseBodyDataItemsFailureStageTaskExecutionStageMaterialResolve ListTasks200JSONResponseBodyDataItemsFailureStage = "material_resolve"
+)
+
+// Valid indicates whether the value is a known member of the ListTasks200JSONResponseBodyDataItemsFailureStage enum.
+func (e ListTasks200JSONResponseBodyDataItemsFailureStage) Valid() bool {
+	switch e {
+	case ListTasks200JSONResponseBodyDataItemsFailureStageTaskExecutionStageComposeApply:
+		return true
+	case ListTasks200JSONResponseBodyDataItemsFailureStageTaskExecutionStageComposeLoad:
+		return true
+	case ListTasks200JSONResponseBodyDataItemsFailureStageTaskExecutionStageContainerApply:
+		return true
+	case ListTasks200JSONResponseBodyDataItemsFailureStageTaskExecutionStageControllerPull:
+		return true
+	case ListTasks200JSONResponseBodyDataItemsFailureStageTaskExecutionStageMaterialResolve:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListTasks200JSONResponseBodyDataItemsStatus.
 const (
 	ListTasks200JSONResponseBodyDataItemsStatusCancelled      ListTasks200JSONResponseBodyDataItemsStatus = "cancelled"
@@ -147,6 +210,69 @@ func (e ListTasks500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for GetTask200JSONResponseBodyDataFailureClass.
+const (
+	GetTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassAuthorization  GetTask200JSONResponseBodyDataFailureClass = "authorization"
+	GetTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassConfiguration  GetTask200JSONResponseBodyDataFailureClass = "configuration"
+	GetTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassInfrastructure GetTask200JSONResponseBodyDataFailureClass = "infrastructure"
+	GetTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassInternal       GetTask200JSONResponseBodyDataFailureClass = "internal"
+	GetTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassPermanent      GetTask200JSONResponseBodyDataFailureClass = "permanent"
+	GetTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassProvider       GetTask200JSONResponseBodyDataFailureClass = "provider"
+	GetTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassTransient      GetTask200JSONResponseBodyDataFailureClass = "transient"
+	GetTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassUnknown        GetTask200JSONResponseBodyDataFailureClass = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetTask200JSONResponseBodyDataFailureClass enum.
+func (e GetTask200JSONResponseBodyDataFailureClass) Valid() bool {
+	switch e {
+	case GetTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassAuthorization:
+		return true
+	case GetTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassConfiguration:
+		return true
+	case GetTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassInfrastructure:
+		return true
+	case GetTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassInternal:
+		return true
+	case GetTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassPermanent:
+		return true
+	case GetTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassProvider:
+		return true
+	case GetTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassTransient:
+		return true
+	case GetTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetTask200JSONResponseBodyDataFailureStage.
+const (
+	GetTask200JSONResponseBodyDataFailureStageTaskExecutionStageComposeApply    GetTask200JSONResponseBodyDataFailureStage = "compose_apply"
+	GetTask200JSONResponseBodyDataFailureStageTaskExecutionStageComposeLoad     GetTask200JSONResponseBodyDataFailureStage = "compose_load"
+	GetTask200JSONResponseBodyDataFailureStageTaskExecutionStageContainerApply  GetTask200JSONResponseBodyDataFailureStage = "container_apply"
+	GetTask200JSONResponseBodyDataFailureStageTaskExecutionStageControllerPull  GetTask200JSONResponseBodyDataFailureStage = "controller_pull"
+	GetTask200JSONResponseBodyDataFailureStageTaskExecutionStageMaterialResolve GetTask200JSONResponseBodyDataFailureStage = "material_resolve"
+)
+
+// Valid indicates whether the value is a known member of the GetTask200JSONResponseBodyDataFailureStage enum.
+func (e GetTask200JSONResponseBodyDataFailureStage) Valid() bool {
+	switch e {
+	case GetTask200JSONResponseBodyDataFailureStageTaskExecutionStageComposeApply:
+		return true
+	case GetTask200JSONResponseBodyDataFailureStageTaskExecutionStageComposeLoad:
+		return true
+	case GetTask200JSONResponseBodyDataFailureStageTaskExecutionStageContainerApply:
+		return true
+	case GetTask200JSONResponseBodyDataFailureStageTaskExecutionStageControllerPull:
+		return true
+	case GetTask200JSONResponseBodyDataFailureStageTaskExecutionStageMaterialResolve:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GetTask200JSONResponseBodyDataStagesExecutionMode.
 const (
 	GetTask200JSONResponseBodyDataStagesExecutionModeAgent      GetTask200JSONResponseBodyDataStagesExecutionMode = "agent"
@@ -165,6 +291,69 @@ func (e GetTask200JSONResponseBodyDataStagesExecutionMode) Valid() bool {
 	case GetTask200JSONResponseBodyDataStagesExecutionModeLocal:
 		return true
 	case GetTask200JSONResponseBodyDataStagesExecutionModeServer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetTask200JSONResponseBodyDataStagesFailureClass.
+const (
+	GetTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassAuthorization  GetTask200JSONResponseBodyDataStagesFailureClass = "authorization"
+	GetTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassConfiguration  GetTask200JSONResponseBodyDataStagesFailureClass = "configuration"
+	GetTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassInfrastructure GetTask200JSONResponseBodyDataStagesFailureClass = "infrastructure"
+	GetTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassInternal       GetTask200JSONResponseBodyDataStagesFailureClass = "internal"
+	GetTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassPermanent      GetTask200JSONResponseBodyDataStagesFailureClass = "permanent"
+	GetTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassProvider       GetTask200JSONResponseBodyDataStagesFailureClass = "provider"
+	GetTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassTransient      GetTask200JSONResponseBodyDataStagesFailureClass = "transient"
+	GetTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassUnknown        GetTask200JSONResponseBodyDataStagesFailureClass = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the GetTask200JSONResponseBodyDataStagesFailureClass enum.
+func (e GetTask200JSONResponseBodyDataStagesFailureClass) Valid() bool {
+	switch e {
+	case GetTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassAuthorization:
+		return true
+	case GetTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassConfiguration:
+		return true
+	case GetTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassInfrastructure:
+		return true
+	case GetTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassInternal:
+		return true
+	case GetTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassPermanent:
+		return true
+	case GetTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassProvider:
+		return true
+	case GetTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassTransient:
+		return true
+	case GetTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetTask200JSONResponseBodyDataStagesFailureStage.
+const (
+	GetTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageComposeApply    GetTask200JSONResponseBodyDataStagesFailureStage = "compose_apply"
+	GetTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageComposeLoad     GetTask200JSONResponseBodyDataStagesFailureStage = "compose_load"
+	GetTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageContainerApply  GetTask200JSONResponseBodyDataStagesFailureStage = "container_apply"
+	GetTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageControllerPull  GetTask200JSONResponseBodyDataStagesFailureStage = "controller_pull"
+	GetTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageMaterialResolve GetTask200JSONResponseBodyDataStagesFailureStage = "material_resolve"
+)
+
+// Valid indicates whether the value is a known member of the GetTask200JSONResponseBodyDataStagesFailureStage enum.
+func (e GetTask200JSONResponseBodyDataStagesFailureStage) Valid() bool {
+	switch e {
+	case GetTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageComposeApply:
+		return true
+	case GetTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageComposeLoad:
+		return true
+	case GetTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageContainerApply:
+		return true
+	case GetTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageControllerPull:
+		return true
+	case GetTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageMaterialResolve:
 		return true
 	default:
 		return false
@@ -318,6 +507,69 @@ func (e GetTask500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for CancelTask200JSONResponseBodyDataFailureClass.
+const (
+	CancelTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassAuthorization  CancelTask200JSONResponseBodyDataFailureClass = "authorization"
+	CancelTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassConfiguration  CancelTask200JSONResponseBodyDataFailureClass = "configuration"
+	CancelTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassInfrastructure CancelTask200JSONResponseBodyDataFailureClass = "infrastructure"
+	CancelTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassInternal       CancelTask200JSONResponseBodyDataFailureClass = "internal"
+	CancelTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassPermanent      CancelTask200JSONResponseBodyDataFailureClass = "permanent"
+	CancelTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassProvider       CancelTask200JSONResponseBodyDataFailureClass = "provider"
+	CancelTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassTransient      CancelTask200JSONResponseBodyDataFailureClass = "transient"
+	CancelTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassUnknown        CancelTask200JSONResponseBodyDataFailureClass = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the CancelTask200JSONResponseBodyDataFailureClass enum.
+func (e CancelTask200JSONResponseBodyDataFailureClass) Valid() bool {
+	switch e {
+	case CancelTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassAuthorization:
+		return true
+	case CancelTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassConfiguration:
+		return true
+	case CancelTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassInfrastructure:
+		return true
+	case CancelTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassInternal:
+		return true
+	case CancelTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassPermanent:
+		return true
+	case CancelTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassProvider:
+		return true
+	case CancelTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassTransient:
+		return true
+	case CancelTask200JSONResponseBodyDataFailureClassTaskExecutionFailureClassUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CancelTask200JSONResponseBodyDataFailureStage.
+const (
+	CancelTask200JSONResponseBodyDataFailureStageTaskExecutionStageComposeApply    CancelTask200JSONResponseBodyDataFailureStage = "compose_apply"
+	CancelTask200JSONResponseBodyDataFailureStageTaskExecutionStageComposeLoad     CancelTask200JSONResponseBodyDataFailureStage = "compose_load"
+	CancelTask200JSONResponseBodyDataFailureStageTaskExecutionStageContainerApply  CancelTask200JSONResponseBodyDataFailureStage = "container_apply"
+	CancelTask200JSONResponseBodyDataFailureStageTaskExecutionStageControllerPull  CancelTask200JSONResponseBodyDataFailureStage = "controller_pull"
+	CancelTask200JSONResponseBodyDataFailureStageTaskExecutionStageMaterialResolve CancelTask200JSONResponseBodyDataFailureStage = "material_resolve"
+)
+
+// Valid indicates whether the value is a known member of the CancelTask200JSONResponseBodyDataFailureStage enum.
+func (e CancelTask200JSONResponseBodyDataFailureStage) Valid() bool {
+	switch e {
+	case CancelTask200JSONResponseBodyDataFailureStageTaskExecutionStageComposeApply:
+		return true
+	case CancelTask200JSONResponseBodyDataFailureStageTaskExecutionStageComposeLoad:
+		return true
+	case CancelTask200JSONResponseBodyDataFailureStageTaskExecutionStageContainerApply:
+		return true
+	case CancelTask200JSONResponseBodyDataFailureStageTaskExecutionStageControllerPull:
+		return true
+	case CancelTask200JSONResponseBodyDataFailureStageTaskExecutionStageMaterialResolve:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CancelTask200JSONResponseBodyDataStagesExecutionMode.
 const (
 	CancelTask200JSONResponseBodyDataStagesExecutionModeAgent      CancelTask200JSONResponseBodyDataStagesExecutionMode = "agent"
@@ -336,6 +588,69 @@ func (e CancelTask200JSONResponseBodyDataStagesExecutionMode) Valid() bool {
 	case CancelTask200JSONResponseBodyDataStagesExecutionModeLocal:
 		return true
 	case CancelTask200JSONResponseBodyDataStagesExecutionModeServer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CancelTask200JSONResponseBodyDataStagesFailureClass.
+const (
+	CancelTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassAuthorization  CancelTask200JSONResponseBodyDataStagesFailureClass = "authorization"
+	CancelTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassConfiguration  CancelTask200JSONResponseBodyDataStagesFailureClass = "configuration"
+	CancelTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassInfrastructure CancelTask200JSONResponseBodyDataStagesFailureClass = "infrastructure"
+	CancelTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassInternal       CancelTask200JSONResponseBodyDataStagesFailureClass = "internal"
+	CancelTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassPermanent      CancelTask200JSONResponseBodyDataStagesFailureClass = "permanent"
+	CancelTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassProvider       CancelTask200JSONResponseBodyDataStagesFailureClass = "provider"
+	CancelTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassTransient      CancelTask200JSONResponseBodyDataStagesFailureClass = "transient"
+	CancelTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassUnknown        CancelTask200JSONResponseBodyDataStagesFailureClass = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the CancelTask200JSONResponseBodyDataStagesFailureClass enum.
+func (e CancelTask200JSONResponseBodyDataStagesFailureClass) Valid() bool {
+	switch e {
+	case CancelTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassAuthorization:
+		return true
+	case CancelTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassConfiguration:
+		return true
+	case CancelTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassInfrastructure:
+		return true
+	case CancelTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassInternal:
+		return true
+	case CancelTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassPermanent:
+		return true
+	case CancelTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassProvider:
+		return true
+	case CancelTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassTransient:
+		return true
+	case CancelTask200JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CancelTask200JSONResponseBodyDataStagesFailureStage.
+const (
+	CancelTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageComposeApply    CancelTask200JSONResponseBodyDataStagesFailureStage = "compose_apply"
+	CancelTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageComposeLoad     CancelTask200JSONResponseBodyDataStagesFailureStage = "compose_load"
+	CancelTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageContainerApply  CancelTask200JSONResponseBodyDataStagesFailureStage = "container_apply"
+	CancelTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageControllerPull  CancelTask200JSONResponseBodyDataStagesFailureStage = "controller_pull"
+	CancelTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageMaterialResolve CancelTask200JSONResponseBodyDataStagesFailureStage = "material_resolve"
+)
+
+// Valid indicates whether the value is a known member of the CancelTask200JSONResponseBodyDataStagesFailureStage enum.
+func (e CancelTask200JSONResponseBodyDataStagesFailureStage) Valid() bool {
+	switch e {
+	case CancelTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageComposeApply:
+		return true
+	case CancelTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageComposeLoad:
+		return true
+	case CancelTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageContainerApply:
+		return true
+	case CancelTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageControllerPull:
+		return true
+	case CancelTask200JSONResponseBodyDataStagesFailureStageTaskExecutionStageMaterialResolve:
 		return true
 	default:
 		return false
@@ -738,6 +1053,69 @@ func (e ListTaskStages200JSONResponseBodyDataItemsExecutionMode) Valid() bool {
 	}
 }
 
+// Defines values for ListTaskStages200JSONResponseBodyDataItemsFailureClass.
+const (
+	ListTaskStages200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassAuthorization  ListTaskStages200JSONResponseBodyDataItemsFailureClass = "authorization"
+	ListTaskStages200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassConfiguration  ListTaskStages200JSONResponseBodyDataItemsFailureClass = "configuration"
+	ListTaskStages200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassInfrastructure ListTaskStages200JSONResponseBodyDataItemsFailureClass = "infrastructure"
+	ListTaskStages200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassInternal       ListTaskStages200JSONResponseBodyDataItemsFailureClass = "internal"
+	ListTaskStages200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassPermanent      ListTaskStages200JSONResponseBodyDataItemsFailureClass = "permanent"
+	ListTaskStages200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassProvider       ListTaskStages200JSONResponseBodyDataItemsFailureClass = "provider"
+	ListTaskStages200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassTransient      ListTaskStages200JSONResponseBodyDataItemsFailureClass = "transient"
+	ListTaskStages200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassUnknown        ListTaskStages200JSONResponseBodyDataItemsFailureClass = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the ListTaskStages200JSONResponseBodyDataItemsFailureClass enum.
+func (e ListTaskStages200JSONResponseBodyDataItemsFailureClass) Valid() bool {
+	switch e {
+	case ListTaskStages200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassAuthorization:
+		return true
+	case ListTaskStages200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassConfiguration:
+		return true
+	case ListTaskStages200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassInfrastructure:
+		return true
+	case ListTaskStages200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassInternal:
+		return true
+	case ListTaskStages200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassPermanent:
+		return true
+	case ListTaskStages200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassProvider:
+		return true
+	case ListTaskStages200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassTransient:
+		return true
+	case ListTaskStages200JSONResponseBodyDataItemsFailureClassTaskExecutionFailureClassUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListTaskStages200JSONResponseBodyDataItemsFailureStage.
+const (
+	ListTaskStages200JSONResponseBodyDataItemsFailureStageTaskExecutionStageComposeApply    ListTaskStages200JSONResponseBodyDataItemsFailureStage = "compose_apply"
+	ListTaskStages200JSONResponseBodyDataItemsFailureStageTaskExecutionStageComposeLoad     ListTaskStages200JSONResponseBodyDataItemsFailureStage = "compose_load"
+	ListTaskStages200JSONResponseBodyDataItemsFailureStageTaskExecutionStageContainerApply  ListTaskStages200JSONResponseBodyDataItemsFailureStage = "container_apply"
+	ListTaskStages200JSONResponseBodyDataItemsFailureStageTaskExecutionStageControllerPull  ListTaskStages200JSONResponseBodyDataItemsFailureStage = "controller_pull"
+	ListTaskStages200JSONResponseBodyDataItemsFailureStageTaskExecutionStageMaterialResolve ListTaskStages200JSONResponseBodyDataItemsFailureStage = "material_resolve"
+)
+
+// Valid indicates whether the value is a known member of the ListTaskStages200JSONResponseBodyDataItemsFailureStage enum.
+func (e ListTaskStages200JSONResponseBodyDataItemsFailureStage) Valid() bool {
+	switch e {
+	case ListTaskStages200JSONResponseBodyDataItemsFailureStageTaskExecutionStageComposeApply:
+		return true
+	case ListTaskStages200JSONResponseBodyDataItemsFailureStageTaskExecutionStageComposeLoad:
+		return true
+	case ListTaskStages200JSONResponseBodyDataItemsFailureStageTaskExecutionStageContainerApply:
+		return true
+	case ListTaskStages200JSONResponseBodyDataItemsFailureStageTaskExecutionStageControllerPull:
+		return true
+	case ListTaskStages200JSONResponseBodyDataItemsFailureStageTaskExecutionStageMaterialResolve:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListTaskStages200JSONResponseBodyDataItemsRecoveryPolicy.
 const (
 	ListTaskStages200JSONResponseBodyDataItemsRecoveryPolicyManualReconcile   ListTaskStages200JSONResponseBodyDataItemsRecoveryPolicy = "manual_reconcile"
@@ -849,6 +1227,69 @@ func (e ListTaskStages500JSONResponseBodySuccess) Valid() bool {
 	}
 }
 
+// Defines values for RetryTaskStage202JSONResponseBodyDataFailureClass.
+const (
+	RetryTaskStage202JSONResponseBodyDataFailureClassTaskExecutionFailureClassAuthorization  RetryTaskStage202JSONResponseBodyDataFailureClass = "authorization"
+	RetryTaskStage202JSONResponseBodyDataFailureClassTaskExecutionFailureClassConfiguration  RetryTaskStage202JSONResponseBodyDataFailureClass = "configuration"
+	RetryTaskStage202JSONResponseBodyDataFailureClassTaskExecutionFailureClassInfrastructure RetryTaskStage202JSONResponseBodyDataFailureClass = "infrastructure"
+	RetryTaskStage202JSONResponseBodyDataFailureClassTaskExecutionFailureClassInternal       RetryTaskStage202JSONResponseBodyDataFailureClass = "internal"
+	RetryTaskStage202JSONResponseBodyDataFailureClassTaskExecutionFailureClassPermanent      RetryTaskStage202JSONResponseBodyDataFailureClass = "permanent"
+	RetryTaskStage202JSONResponseBodyDataFailureClassTaskExecutionFailureClassProvider       RetryTaskStage202JSONResponseBodyDataFailureClass = "provider"
+	RetryTaskStage202JSONResponseBodyDataFailureClassTaskExecutionFailureClassTransient      RetryTaskStage202JSONResponseBodyDataFailureClass = "transient"
+	RetryTaskStage202JSONResponseBodyDataFailureClassTaskExecutionFailureClassUnknown        RetryTaskStage202JSONResponseBodyDataFailureClass = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the RetryTaskStage202JSONResponseBodyDataFailureClass enum.
+func (e RetryTaskStage202JSONResponseBodyDataFailureClass) Valid() bool {
+	switch e {
+	case RetryTaskStage202JSONResponseBodyDataFailureClassTaskExecutionFailureClassAuthorization:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataFailureClassTaskExecutionFailureClassConfiguration:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataFailureClassTaskExecutionFailureClassInfrastructure:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataFailureClassTaskExecutionFailureClassInternal:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataFailureClassTaskExecutionFailureClassPermanent:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataFailureClassTaskExecutionFailureClassProvider:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataFailureClassTaskExecutionFailureClassTransient:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataFailureClassTaskExecutionFailureClassUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RetryTaskStage202JSONResponseBodyDataFailureStage.
+const (
+	RetryTaskStage202JSONResponseBodyDataFailureStageTaskExecutionStageComposeApply    RetryTaskStage202JSONResponseBodyDataFailureStage = "compose_apply"
+	RetryTaskStage202JSONResponseBodyDataFailureStageTaskExecutionStageComposeLoad     RetryTaskStage202JSONResponseBodyDataFailureStage = "compose_load"
+	RetryTaskStage202JSONResponseBodyDataFailureStageTaskExecutionStageContainerApply  RetryTaskStage202JSONResponseBodyDataFailureStage = "container_apply"
+	RetryTaskStage202JSONResponseBodyDataFailureStageTaskExecutionStageControllerPull  RetryTaskStage202JSONResponseBodyDataFailureStage = "controller_pull"
+	RetryTaskStage202JSONResponseBodyDataFailureStageTaskExecutionStageMaterialResolve RetryTaskStage202JSONResponseBodyDataFailureStage = "material_resolve"
+)
+
+// Valid indicates whether the value is a known member of the RetryTaskStage202JSONResponseBodyDataFailureStage enum.
+func (e RetryTaskStage202JSONResponseBodyDataFailureStage) Valid() bool {
+	switch e {
+	case RetryTaskStage202JSONResponseBodyDataFailureStageTaskExecutionStageComposeApply:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataFailureStageTaskExecutionStageComposeLoad:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataFailureStageTaskExecutionStageContainerApply:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataFailureStageTaskExecutionStageControllerPull:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataFailureStageTaskExecutionStageMaterialResolve:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RetryTaskStage202JSONResponseBodyDataStagesExecutionMode.
 const (
 	RetryTaskStage202JSONResponseBodyDataStagesExecutionModeAgent      RetryTaskStage202JSONResponseBodyDataStagesExecutionMode = "agent"
@@ -867,6 +1308,69 @@ func (e RetryTaskStage202JSONResponseBodyDataStagesExecutionMode) Valid() bool {
 	case RetryTaskStage202JSONResponseBodyDataStagesExecutionModeLocal:
 		return true
 	case RetryTaskStage202JSONResponseBodyDataStagesExecutionModeServer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RetryTaskStage202JSONResponseBodyDataStagesFailureClass.
+const (
+	RetryTaskStage202JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassAuthorization  RetryTaskStage202JSONResponseBodyDataStagesFailureClass = "authorization"
+	RetryTaskStage202JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassConfiguration  RetryTaskStage202JSONResponseBodyDataStagesFailureClass = "configuration"
+	RetryTaskStage202JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassInfrastructure RetryTaskStage202JSONResponseBodyDataStagesFailureClass = "infrastructure"
+	RetryTaskStage202JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassInternal       RetryTaskStage202JSONResponseBodyDataStagesFailureClass = "internal"
+	RetryTaskStage202JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassPermanent      RetryTaskStage202JSONResponseBodyDataStagesFailureClass = "permanent"
+	RetryTaskStage202JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassProvider       RetryTaskStage202JSONResponseBodyDataStagesFailureClass = "provider"
+	RetryTaskStage202JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassTransient      RetryTaskStage202JSONResponseBodyDataStagesFailureClass = "transient"
+	RetryTaskStage202JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassUnknown        RetryTaskStage202JSONResponseBodyDataStagesFailureClass = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the RetryTaskStage202JSONResponseBodyDataStagesFailureClass enum.
+func (e RetryTaskStage202JSONResponseBodyDataStagesFailureClass) Valid() bool {
+	switch e {
+	case RetryTaskStage202JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassAuthorization:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassConfiguration:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassInfrastructure:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassInternal:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassPermanent:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassProvider:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassTransient:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataStagesFailureClassTaskExecutionFailureClassUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RetryTaskStage202JSONResponseBodyDataStagesFailureStage.
+const (
+	RetryTaskStage202JSONResponseBodyDataStagesFailureStageTaskExecutionStageComposeApply    RetryTaskStage202JSONResponseBodyDataStagesFailureStage = "compose_apply"
+	RetryTaskStage202JSONResponseBodyDataStagesFailureStageTaskExecutionStageComposeLoad     RetryTaskStage202JSONResponseBodyDataStagesFailureStage = "compose_load"
+	RetryTaskStage202JSONResponseBodyDataStagesFailureStageTaskExecutionStageContainerApply  RetryTaskStage202JSONResponseBodyDataStagesFailureStage = "container_apply"
+	RetryTaskStage202JSONResponseBodyDataStagesFailureStageTaskExecutionStageControllerPull  RetryTaskStage202JSONResponseBodyDataStagesFailureStage = "controller_pull"
+	RetryTaskStage202JSONResponseBodyDataStagesFailureStageTaskExecutionStageMaterialResolve RetryTaskStage202JSONResponseBodyDataStagesFailureStage = "material_resolve"
+)
+
+// Valid indicates whether the value is a known member of the RetryTaskStage202JSONResponseBodyDataStagesFailureStage enum.
+func (e RetryTaskStage202JSONResponseBodyDataStagesFailureStage) Valid() bool {
+	switch e {
+	case RetryTaskStage202JSONResponseBodyDataStagesFailureStageTaskExecutionStageComposeApply:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataStagesFailureStageTaskExecutionStageComposeLoad:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataStagesFailureStageTaskExecutionStageContainerApply:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataStagesFailureStageTaskExecutionStageControllerPull:
+		return true
+	case RetryTaskStage202JSONResponseBodyDataStagesFailureStageTaskExecutionStageMaterialResolve:
 		return true
 	default:
 		return false
@@ -1058,6 +1562,12 @@ type ListTasksParams struct {
 // ListTasksParamsStatus defines parameters for ListTasks.
 type ListTasksParamsStatus string
 
+// ListTasks200JSONResponseBodyDataItemsFailureClass defines parameters for ListTasks.
+type ListTasks200JSONResponseBodyDataItemsFailureClass string
+
+// ListTasks200JSONResponseBodyDataItemsFailureStage defines parameters for ListTasks.
+type ListTasks200JSONResponseBodyDataItemsFailureStage string
+
 // ListTasks200JSONResponseBodyDataItemsStatus defines parameters for ListTasks.
 type ListTasks200JSONResponseBodyDataItemsStatus string
 
@@ -1083,8 +1593,20 @@ type GetTaskParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// GetTask200JSONResponseBodyDataFailureClass defines parameters for GetTask.
+type GetTask200JSONResponseBodyDataFailureClass string
+
+// GetTask200JSONResponseBodyDataFailureStage defines parameters for GetTask.
+type GetTask200JSONResponseBodyDataFailureStage string
+
 // GetTask200JSONResponseBodyDataStagesExecutionMode defines parameters for GetTask.
 type GetTask200JSONResponseBodyDataStagesExecutionMode string
+
+// GetTask200JSONResponseBodyDataStagesFailureClass defines parameters for GetTask.
+type GetTask200JSONResponseBodyDataStagesFailureClass string
+
+// GetTask200JSONResponseBodyDataStagesFailureStage defines parameters for GetTask.
+type GetTask200JSONResponseBodyDataStagesFailureStage string
 
 // GetTask200JSONResponseBodyDataStagesRecoveryPolicy defines parameters for GetTask.
 type GetTask200JSONResponseBodyDataStagesRecoveryPolicy string
@@ -1117,8 +1639,20 @@ type CancelTaskParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// CancelTask200JSONResponseBodyDataFailureClass defines parameters for CancelTask.
+type CancelTask200JSONResponseBodyDataFailureClass string
+
+// CancelTask200JSONResponseBodyDataFailureStage defines parameters for CancelTask.
+type CancelTask200JSONResponseBodyDataFailureStage string
+
 // CancelTask200JSONResponseBodyDataStagesExecutionMode defines parameters for CancelTask.
 type CancelTask200JSONResponseBodyDataStagesExecutionMode string
+
+// CancelTask200JSONResponseBodyDataStagesFailureClass defines parameters for CancelTask.
+type CancelTask200JSONResponseBodyDataStagesFailureClass string
+
+// CancelTask200JSONResponseBodyDataStagesFailureStage defines parameters for CancelTask.
+type CancelTask200JSONResponseBodyDataStagesFailureStage string
 
 // CancelTask200JSONResponseBodyDataStagesRecoveryPolicy defines parameters for CancelTask.
 type CancelTask200JSONResponseBodyDataStagesRecoveryPolicy string
@@ -1226,6 +1760,12 @@ type ListTaskStagesParams struct {
 // ListTaskStages200JSONResponseBodyDataItemsExecutionMode defines parameters for ListTaskStages.
 type ListTaskStages200JSONResponseBodyDataItemsExecutionMode string
 
+// ListTaskStages200JSONResponseBodyDataItemsFailureClass defines parameters for ListTaskStages.
+type ListTaskStages200JSONResponseBodyDataItemsFailureClass string
+
+// ListTaskStages200JSONResponseBodyDataItemsFailureStage defines parameters for ListTaskStages.
+type ListTaskStages200JSONResponseBodyDataItemsFailureStage string
+
 // ListTaskStages200JSONResponseBodyDataItemsRecoveryPolicy defines parameters for ListTaskStages.
 type ListTaskStages200JSONResponseBodyDataItemsRecoveryPolicy string
 
@@ -1254,8 +1794,20 @@ type RetryTaskStageParams struct {
 	XRequestId *string `json:"X-Request-Id,omitempty"`
 }
 
+// RetryTaskStage202JSONResponseBodyDataFailureClass defines parameters for RetryTaskStage.
+type RetryTaskStage202JSONResponseBodyDataFailureClass string
+
+// RetryTaskStage202JSONResponseBodyDataFailureStage defines parameters for RetryTaskStage.
+type RetryTaskStage202JSONResponseBodyDataFailureStage string
+
 // RetryTaskStage202JSONResponseBodyDataStagesExecutionMode defines parameters for RetryTaskStage.
 type RetryTaskStage202JSONResponseBodyDataStagesExecutionMode string
+
+// RetryTaskStage202JSONResponseBodyDataStagesFailureClass defines parameters for RetryTaskStage.
+type RetryTaskStage202JSONResponseBodyDataStagesFailureClass string
+
+// RetryTaskStage202JSONResponseBodyDataStagesFailureStage defines parameters for RetryTaskStage.
+type RetryTaskStage202JSONResponseBodyDataStagesFailureStage string
 
 // RetryTaskStage202JSONResponseBodyDataStagesRecoveryPolicy defines parameters for RetryTaskStage.
 type RetryTaskStage202JSONResponseBodyDataStagesRecoveryPolicy string
@@ -1941,17 +2493,23 @@ type ListTasks200JSONResponse struct {
 		Code string `json:"code"`
 		Data struct {
 			Items []struct {
-				CreatedAt       time.Time  `json:"created_at"`
-				CreatedBy       *int64     `json:"created_by,omitempty"`
-				CurrentStageKey *string    `json:"current_stage_key,omitempty"`
-				DurationMs      *int64     `json:"duration_ms,omitempty"`
-				FailureCode     *string    `json:"failure_code,omitempty"`
-				FailureMessage  *string    `json:"failure_message,omitempty"`
-				FinishedAt      *time.Time `json:"finished_at,omitempty"`
-				Id              int64      `json:"id"`
-				OwnerId         string     `json:"owner_id"`
-				OwnerType       string     `json:"owner_type"`
-				StartedAt       *time.Time `json:"started_at,omitempty"`
+				CreatedAt       time.Time `json:"created_at"`
+				CreatedBy       *int64    `json:"created_by,omitempty"`
+				CurrentStageKey *string   `json:"current_stage_key,omitempty"`
+				DurationMs      *int64    `json:"duration_ms,omitempty"`
+
+				// FailureClass Stable failure classification for the failure; null when not classified.
+				FailureClass   *ListTasks200JSONResponseBodyDataItemsFailureClass `json:"failure_class,omitempty"`
+				FailureCode    *string                                            `json:"failure_code,omitempty"`
+				FailureMessage *string                                            `json:"failure_message,omitempty"`
+
+				// FailureStage Bounded execution stage attribution for the failure; null when not stage-attributable.
+				FailureStage *ListTasks200JSONResponseBodyDataItemsFailureStage `json:"failure_stage,omitempty"`
+				FinishedAt   *time.Time                                         `json:"finished_at,omitempty"`
+				Id           int64                                              `json:"id"`
+				OwnerId      string                                             `json:"owner_id"`
+				OwnerType    string                                             `json:"owner_type"`
+				StartedAt    *time.Time                                         `json:"started_at,omitempty"`
 
 				// Status Canonical persisted Task state-machine state.
 				Status ListTasks200JSONResponseBodyDataItemsStatus `json:"status"`
@@ -2183,17 +2741,23 @@ type GetTask200JSONResponse struct {
 				DownloadLog bool `json:"download_log"`
 				Retry       bool `json:"retry"`
 			} `json:"capabilities"`
-			CreatedAt       time.Time  `json:"created_at"`
-			CreatedBy       *int64     `json:"created_by,omitempty"`
-			CurrentStageKey *string    `json:"current_stage_key,omitempty"`
-			DurationMs      *int64     `json:"duration_ms,omitempty"`
-			FailureCode     *string    `json:"failure_code,omitempty"`
-			FailureMessage  *string    `json:"failure_message,omitempty"`
-			FinishedAt      *time.Time `json:"finished_at,omitempty"`
-			Id              int64      `json:"id"`
-			OwnerId         string     `json:"owner_id"`
-			OwnerType       string     `json:"owner_type"`
-			Stages          []struct {
+			CreatedAt       time.Time `json:"created_at"`
+			CreatedBy       *int64    `json:"created_by,omitempty"`
+			CurrentStageKey *string   `json:"current_stage_key,omitempty"`
+			DurationMs      *int64    `json:"duration_ms,omitempty"`
+
+			// FailureClass Stable failure classification for the failure; null when not classified.
+			FailureClass   *GetTask200JSONResponseBodyDataFailureClass `json:"failure_class,omitempty"`
+			FailureCode    *string                                     `json:"failure_code,omitempty"`
+			FailureMessage *string                                     `json:"failure_message,omitempty"`
+
+			// FailureStage Bounded execution stage attribution for the failure; null when not stage-attributable.
+			FailureStage *GetTask200JSONResponseBodyDataFailureStage `json:"failure_stage,omitempty"`
+			FinishedAt   *time.Time                                  `json:"finished_at,omitempty"`
+			Id           int64                                       `json:"id"`
+			OwnerId      string                                      `json:"owner_id"`
+			OwnerType    string                                      `json:"owner_type"`
+			Stages       []struct {
 				Attempt    int    `json:"attempt"`
 				DurationMs *int64 `json:"duration_ms,omitempty"`
 
@@ -2204,11 +2768,17 @@ type GetTask200JSONResponse struct {
 				ExecutionVersion *string `json:"execution_version,omitempty"`
 
 				// ExecutorType Consumer-owned StageExecutor type, such as project.compose.pull.
-				ExecutorType   string     `json:"executor_type"`
-				FailureCode    *string    `json:"failure_code,omitempty"`
-				FailureMessage *string    `json:"failure_message,omitempty"`
-				FinishedAt     *time.Time `json:"finished_at,omitempty"`
-				Id             int64      `json:"id"`
+				ExecutorType string `json:"executor_type"`
+
+				// FailureClass Stable failure classification for the stage failure; null when not classified.
+				FailureClass   *GetTask200JSONResponseBodyDataStagesFailureClass `json:"failure_class,omitempty"`
+				FailureCode    *string                                           `json:"failure_code,omitempty"`
+				FailureMessage *string                                           `json:"failure_message,omitempty"`
+
+				// FailureStage Bounded execution stage attribution for the stage failure; null when not stage-attributable.
+				FailureStage *GetTask200JSONResponseBodyDataStagesFailureStage `json:"failure_stage,omitempty"`
+				FinishedAt   *time.Time                                        `json:"finished_at,omitempty"`
+				Id           int64                                             `json:"id"`
 
 				// Key Stable plan-local Stage key used in the timeline.
 				Key            string                                             `json:"key"`
@@ -2448,17 +3018,23 @@ type CancelTask200JSONResponse struct {
 				DownloadLog bool `json:"download_log"`
 				Retry       bool `json:"retry"`
 			} `json:"capabilities"`
-			CreatedAt       time.Time  `json:"created_at"`
-			CreatedBy       *int64     `json:"created_by,omitempty"`
-			CurrentStageKey *string    `json:"current_stage_key,omitempty"`
-			DurationMs      *int64     `json:"duration_ms,omitempty"`
-			FailureCode     *string    `json:"failure_code,omitempty"`
-			FailureMessage  *string    `json:"failure_message,omitempty"`
-			FinishedAt      *time.Time `json:"finished_at,omitempty"`
-			Id              int64      `json:"id"`
-			OwnerId         string     `json:"owner_id"`
-			OwnerType       string     `json:"owner_type"`
-			Stages          []struct {
+			CreatedAt       time.Time `json:"created_at"`
+			CreatedBy       *int64    `json:"created_by,omitempty"`
+			CurrentStageKey *string   `json:"current_stage_key,omitempty"`
+			DurationMs      *int64    `json:"duration_ms,omitempty"`
+
+			// FailureClass Stable failure classification for the failure; null when not classified.
+			FailureClass   *CancelTask200JSONResponseBodyDataFailureClass `json:"failure_class,omitempty"`
+			FailureCode    *string                                        `json:"failure_code,omitempty"`
+			FailureMessage *string                                        `json:"failure_message,omitempty"`
+
+			// FailureStage Bounded execution stage attribution for the failure; null when not stage-attributable.
+			FailureStage *CancelTask200JSONResponseBodyDataFailureStage `json:"failure_stage,omitempty"`
+			FinishedAt   *time.Time                                     `json:"finished_at,omitempty"`
+			Id           int64                                          `json:"id"`
+			OwnerId      string                                         `json:"owner_id"`
+			OwnerType    string                                         `json:"owner_type"`
+			Stages       []struct {
 				Attempt    int    `json:"attempt"`
 				DurationMs *int64 `json:"duration_ms,omitempty"`
 
@@ -2469,11 +3045,17 @@ type CancelTask200JSONResponse struct {
 				ExecutionVersion *string `json:"execution_version,omitempty"`
 
 				// ExecutorType Consumer-owned StageExecutor type, such as project.compose.pull.
-				ExecutorType   string     `json:"executor_type"`
-				FailureCode    *string    `json:"failure_code,omitempty"`
-				FailureMessage *string    `json:"failure_message,omitempty"`
-				FinishedAt     *time.Time `json:"finished_at,omitempty"`
-				Id             int64      `json:"id"`
+				ExecutorType string `json:"executor_type"`
+
+				// FailureClass Stable failure classification for the stage failure; null when not classified.
+				FailureClass   *CancelTask200JSONResponseBodyDataStagesFailureClass `json:"failure_class,omitempty"`
+				FailureCode    *string                                              `json:"failure_code,omitempty"`
+				FailureMessage *string                                              `json:"failure_message,omitempty"`
+
+				// FailureStage Bounded execution stage attribution for the stage failure; null when not stage-attributable.
+				FailureStage *CancelTask200JSONResponseBodyDataStagesFailureStage `json:"failure_stage,omitempty"`
+				FinishedAt   *time.Time                                           `json:"finished_at,omitempty"`
+				Id           int64                                                `json:"id"`
 
 				// Key Stable plan-local Stage key used in the timeline.
 				Key            string                                                `json:"key"`
@@ -3250,11 +3832,17 @@ type ListTaskStages200JSONResponse struct {
 				ExecutionVersion *string `json:"execution_version,omitempty"`
 
 				// ExecutorType Consumer-owned StageExecutor type, such as project.compose.pull.
-				ExecutorType   string     `json:"executor_type"`
-				FailureCode    *string    `json:"failure_code,omitempty"`
-				FailureMessage *string    `json:"failure_message,omitempty"`
-				FinishedAt     *time.Time `json:"finished_at,omitempty"`
-				Id             int64      `json:"id"`
+				ExecutorType string `json:"executor_type"`
+
+				// FailureClass Stable failure classification for the stage failure; null when not classified.
+				FailureClass   *ListTaskStages200JSONResponseBodyDataItemsFailureClass `json:"failure_class,omitempty"`
+				FailureCode    *string                                                 `json:"failure_code,omitempty"`
+				FailureMessage *string                                                 `json:"failure_message,omitempty"`
+
+				// FailureStage Bounded execution stage attribution for the stage failure; null when not stage-attributable.
+				FailureStage *ListTaskStages200JSONResponseBodyDataItemsFailureStage `json:"failure_stage,omitempty"`
+				FinishedAt   *time.Time                                              `json:"finished_at,omitempty"`
+				Id           int64                                                   `json:"id"`
 
 				// Key Stable plan-local Stage key used in the timeline.
 				Key            string                                                   `json:"key"`
@@ -3488,17 +4076,23 @@ type RetryTaskStage202JSONResponse struct {
 				DownloadLog bool `json:"download_log"`
 				Retry       bool `json:"retry"`
 			} `json:"capabilities"`
-			CreatedAt       time.Time  `json:"created_at"`
-			CreatedBy       *int64     `json:"created_by,omitempty"`
-			CurrentStageKey *string    `json:"current_stage_key,omitempty"`
-			DurationMs      *int64     `json:"duration_ms,omitempty"`
-			FailureCode     *string    `json:"failure_code,omitempty"`
-			FailureMessage  *string    `json:"failure_message,omitempty"`
-			FinishedAt      *time.Time `json:"finished_at,omitempty"`
-			Id              int64      `json:"id"`
-			OwnerId         string     `json:"owner_id"`
-			OwnerType       string     `json:"owner_type"`
-			Stages          []struct {
+			CreatedAt       time.Time `json:"created_at"`
+			CreatedBy       *int64    `json:"created_by,omitempty"`
+			CurrentStageKey *string   `json:"current_stage_key,omitempty"`
+			DurationMs      *int64    `json:"duration_ms,omitempty"`
+
+			// FailureClass Stable failure classification for the failure; null when not classified.
+			FailureClass   *RetryTaskStage202JSONResponseBodyDataFailureClass `json:"failure_class,omitempty"`
+			FailureCode    *string                                            `json:"failure_code,omitempty"`
+			FailureMessage *string                                            `json:"failure_message,omitempty"`
+
+			// FailureStage Bounded execution stage attribution for the failure; null when not stage-attributable.
+			FailureStage *RetryTaskStage202JSONResponseBodyDataFailureStage `json:"failure_stage,omitempty"`
+			FinishedAt   *time.Time                                         `json:"finished_at,omitempty"`
+			Id           int64                                              `json:"id"`
+			OwnerId      string                                             `json:"owner_id"`
+			OwnerType    string                                             `json:"owner_type"`
+			Stages       []struct {
 				Attempt    int    `json:"attempt"`
 				DurationMs *int64 `json:"duration_ms,omitempty"`
 
@@ -3509,11 +4103,17 @@ type RetryTaskStage202JSONResponse struct {
 				ExecutionVersion *string `json:"execution_version,omitempty"`
 
 				// ExecutorType Consumer-owned StageExecutor type, such as project.compose.pull.
-				ExecutorType   string     `json:"executor_type"`
-				FailureCode    *string    `json:"failure_code,omitempty"`
-				FailureMessage *string    `json:"failure_message,omitempty"`
-				FinishedAt     *time.Time `json:"finished_at,omitempty"`
-				Id             int64      `json:"id"`
+				ExecutorType string `json:"executor_type"`
+
+				// FailureClass Stable failure classification for the stage failure; null when not classified.
+				FailureClass   *RetryTaskStage202JSONResponseBodyDataStagesFailureClass `json:"failure_class,omitempty"`
+				FailureCode    *string                                                  `json:"failure_code,omitempty"`
+				FailureMessage *string                                                  `json:"failure_message,omitempty"`
+
+				// FailureStage Bounded execution stage attribution for the stage failure; null when not stage-attributable.
+				FailureStage *RetryTaskStage202JSONResponseBodyDataStagesFailureStage `json:"failure_stage,omitempty"`
+				FinishedAt   *time.Time                                               `json:"finished_at,omitempty"`
+				Id           int64                                                    `json:"id"`
 
 				// Key Stable plan-local Stage key used in the timeline.
 				Key            string                                                    `json:"key"`

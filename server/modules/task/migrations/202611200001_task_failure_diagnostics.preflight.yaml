@@ -1,0 +1,36 @@
+migration:
+  path: server/modules/task/migrations/202611200001_task_failure_diagnostics.sql
+  version: '202611200001'
+owner: task
+risk_level: L1
+affected_tables:
+- tasks
+- task_stages
+referenced_tables:
+- tasks
+- task_stages
+operation_categories:
+- additive-columns
+historical_data_assumptions:
+- Existing terminal Task and Stage rows keep their stable failure_code and remain readable without
+  stage or class attribution.
+- No existing writer populates the new columns until the settlement boundary ships.
+planned_upgrade_order:
+- Apply the additive diagnostic columns before starting the new server.
+- Let the settlement boundary populate the columns only for newly settled receipts.
+safety_strategy:
+  additive_only: Two nullable columns per table without constraints or defaults; no existing row is
+    rewritten and no read path changes shape.
+validation_scenarios:
+- A legacy database upgrades in place and historical Tasks read unchanged.
+- A newly settled failed receipt persists stage and class attribution while the summary stays sanitized.
+- A successful receipt leaves the new columns NULL.
+retrieval_receipt:
+  governance:
+    path: ai-plan/design/governance/backend/数据库表设计与迁移规范.md
+    revision: sha256:90244f5dbd3a16670461517fea017632b77697cd757911fb9ab947f27f0ef018
+  lessons:
+    path: ai-plan/lessons/migrations.md
+    revision: sha256:1430a424b26b2ef406ba8581d5584c5fdd18699657c9dfbcf184dfba563ae8cb
+  lesson_ids:
+  - MIG-002

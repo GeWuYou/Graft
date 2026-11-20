@@ -4671,6 +4671,27 @@ func (e RuntimeTargetAgentCapabilityStatus) Valid() bool {
 	}
 }
 
+// Defines values for RuntimeTargetAgentClaimAdmissionClass.
+const (
+	RuntimeTargetAgentClaimAdmissionClassIdentityRejected RuntimeTargetAgentClaimAdmissionClass = "identity_rejected"
+	RuntimeTargetAgentClaimAdmissionClassNoWork           RuntimeTargetAgentClaimAdmissionClass = "no_work"
+	RuntimeTargetAgentClaimAdmissionClassTransportFailed  RuntimeTargetAgentClaimAdmissionClass = "transport_failed"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeTargetAgentClaimAdmissionClass enum.
+func (e RuntimeTargetAgentClaimAdmissionClass) Valid() bool {
+	switch e {
+	case RuntimeTargetAgentClaimAdmissionClassIdentityRejected:
+		return true
+	case RuntimeTargetAgentClaimAdmissionClassNoWork:
+		return true
+	case RuntimeTargetAgentClaimAdmissionClassTransportFailed:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RuntimeTargetAssignmentBatchRequestAction.
 const (
 	Grant  RuntimeTargetAssignmentBatchRequestAction = "grant"
@@ -5526,6 +5547,69 @@ func (e TaskEventType) Valid() bool {
 	case TaskEventTypeRetryRequested:
 		return true
 	case TaskEventTypeRetryScheduled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskExecutionFailureClass.
+const (
+	TaskExecutionFailureClassAuthorization  TaskExecutionFailureClass = "authorization"
+	TaskExecutionFailureClassConfiguration  TaskExecutionFailureClass = "configuration"
+	TaskExecutionFailureClassInfrastructure TaskExecutionFailureClass = "infrastructure"
+	TaskExecutionFailureClassInternal       TaskExecutionFailureClass = "internal"
+	TaskExecutionFailureClassPermanent      TaskExecutionFailureClass = "permanent"
+	TaskExecutionFailureClassProvider       TaskExecutionFailureClass = "provider"
+	TaskExecutionFailureClassTransient      TaskExecutionFailureClass = "transient"
+	TaskExecutionFailureClassUnknown        TaskExecutionFailureClass = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the TaskExecutionFailureClass enum.
+func (e TaskExecutionFailureClass) Valid() bool {
+	switch e {
+	case TaskExecutionFailureClassAuthorization:
+		return true
+	case TaskExecutionFailureClassConfiguration:
+		return true
+	case TaskExecutionFailureClassInfrastructure:
+		return true
+	case TaskExecutionFailureClassInternal:
+		return true
+	case TaskExecutionFailureClassPermanent:
+		return true
+	case TaskExecutionFailureClassProvider:
+		return true
+	case TaskExecutionFailureClassTransient:
+		return true
+	case TaskExecutionFailureClassUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskExecutionStage.
+const (
+	TaskExecutionStageComposeApply    TaskExecutionStage = "compose_apply"
+	TaskExecutionStageComposeLoad     TaskExecutionStage = "compose_load"
+	TaskExecutionStageContainerApply  TaskExecutionStage = "container_apply"
+	TaskExecutionStageControllerPull  TaskExecutionStage = "controller_pull"
+	TaskExecutionStageMaterialResolve TaskExecutionStage = "material_resolve"
+)
+
+// Valid indicates whether the value is a known member of the TaskExecutionStage enum.
+func (e TaskExecutionStage) Valid() bool {
+	switch e {
+	case TaskExecutionStageComposeApply:
+		return true
+	case TaskExecutionStageComposeLoad:
+		return true
+	case TaskExecutionStageContainerApply:
+		return true
+	case TaskExecutionStageControllerPull:
+		return true
+	case TaskExecutionStageMaterialResolve:
 		return true
 	default:
 		return false
@@ -14508,11 +14592,14 @@ type RuntimeTargetRuntimeType string
 // RuntimeTargetAgent defines model for runtime-target-agent.
 type RuntimeTargetAgent struct {
 	// AgentId Non-secret Runtime Agent identity label.
-	AgentId        string                           `json:"agent_id"`
-	Capabilities   []RuntimeTargetAgentCapability   `json:"capabilities"`
-	DiagnosticCode RuntimeTargetAgentDiagnosticCode `json:"diagnostic_code"`
-	Generation     int64                            `json:"generation"`
-	Status         RuntimeTargetAgentStatus         `json:"status"`
+	AgentId      string                         `json:"agent_id"`
+	Capabilities []RuntimeTargetAgentCapability `json:"capabilities"`
+
+	// ClaimAdmission Latest fresh claim admission evidence from agent telemetry; null when no fresh receipt exists yet.
+	ClaimAdmission *RuntimeTargetAgentClaimAdmission `json:"claim_admission,omitempty"`
+	DiagnosticCode RuntimeTargetAgentDiagnosticCode  `json:"diagnostic_code"`
+	Generation     int64                             `json:"generation"`
+	Status         RuntimeTargetAgentStatus          `json:"status"`
 
 	// Version Non-secret implementation version registered for the active Agent generation.
 	Version string `json:"version"`
@@ -14541,6 +14628,18 @@ type RuntimeTargetAgentCapabilityDiagnosticCode string
 
 // RuntimeTargetAgentCapabilityStatus defines model for RuntimeTargetAgentCapability.Status.
 type RuntimeTargetAgentCapabilityStatus string
+
+// RuntimeTargetAgentClaimAdmission Bounded claim admission tri-state observed by the Runtime Agent and reported through telemetry receipts.
+type RuntimeTargetAgentClaimAdmission struct {
+	// Class Stable claim admission class; no_work keeps the agent ready while the rejection classes degrade readiness.
+	Class RuntimeTargetAgentClaimAdmissionClass `json:"class"`
+
+	// ObservedAt Backend-recorded observation time of the last claim conclusion.
+	ObservedAt time.Time `json:"observed_at"`
+}
+
+// RuntimeTargetAgentClaimAdmissionClass Stable claim admission class; no_work keeps the agent ready while the rejection classes degrade readiness.
+type RuntimeTargetAgentClaimAdmissionClass string
 
 // RuntimeTargetAssignmentBatchRequest defines model for runtime-target-assignment-batch-request.
 type RuntimeTargetAssignmentBatchRequest struct {
@@ -15653,14 +15752,20 @@ type TaskDetail struct {
 	CreatedBy       *int64           `json:"created_by,omitempty"`
 	CurrentStageKey *string          `json:"current_stage_key,omitempty"`
 	DurationMs      *int64           `json:"duration_ms,omitempty"`
-	FailureCode     *string          `json:"failure_code,omitempty"`
-	FailureMessage  *string          `json:"failure_message,omitempty"`
-	FinishedAt      *time.Time       `json:"finished_at,omitempty"`
-	Id              int64            `json:"id"`
-	OwnerId         string           `json:"owner_id"`
-	OwnerType       string           `json:"owner_type"`
-	Stages          []TaskStage      `json:"stages"`
-	StartedAt       *time.Time       `json:"started_at,omitempty"`
+
+	// FailureClass Stable failure classification for the failure; null when not classified.
+	FailureClass   *TaskExecutionFailureClass `json:"failure_class,omitempty"`
+	FailureCode    *string                    `json:"failure_code,omitempty"`
+	FailureMessage *string                    `json:"failure_message,omitempty"`
+
+	// FailureStage Bounded execution stage attribution for the failure; null when not stage-attributable.
+	FailureStage *TaskExecutionStage `json:"failure_stage,omitempty"`
+	FinishedAt   *time.Time          `json:"finished_at,omitempty"`
+	Id           int64               `json:"id"`
+	OwnerId      string              `json:"owner_id"`
+	OwnerType    string              `json:"owner_type"`
+	Stages       []TaskStage         `json:"stages"`
+	StartedAt    *time.Time          `json:"started_at,omitempty"`
 
 	// Status Canonical persisted Task state-machine state.
 	Status TaskStatus `json:"status"`
@@ -15688,6 +15793,12 @@ type TaskEventListResponse struct {
 
 // TaskEventType Non-derivable Task lifecycle, retry, cancellation, and recovery fact. Stage lifecycle is authoritative in TaskStage and is not duplicated as an event.
 type TaskEventType string
+
+// TaskExecutionFailureClass Stable cross-module failure classification reported with an execution failure; absent when the failure was not classified.
+type TaskExecutionFailureClass string
+
+// TaskExecutionStage Bounded provider execution stage attributed to a failed external execution; a stage is absent when the failure was not stage-attributable.
+type TaskExecutionStage string
 
 // TaskListResponse defines model for task-list-response.
 type TaskListResponse struct {
@@ -15739,11 +15850,17 @@ type TaskStage struct {
 	ExecutionVersion *string `json:"execution_version,omitempty"`
 
 	// ExecutorType Consumer-owned StageExecutor type, such as project.compose.pull.
-	ExecutorType   string     `json:"executor_type"`
-	FailureCode    *string    `json:"failure_code,omitempty"`
-	FailureMessage *string    `json:"failure_message,omitempty"`
-	FinishedAt     *time.Time `json:"finished_at,omitempty"`
-	Id             int64      `json:"id"`
+	ExecutorType string `json:"executor_type"`
+
+	// FailureClass Stable failure classification for the stage failure; null when not classified.
+	FailureClass   *TaskExecutionFailureClass `json:"failure_class,omitempty"`
+	FailureCode    *string                    `json:"failure_code,omitempty"`
+	FailureMessage *string                    `json:"failure_message,omitempty"`
+
+	// FailureStage Bounded execution stage attribution for the stage failure; null when not stage-attributable.
+	FailureStage *TaskExecutionStage `json:"failure_stage,omitempty"`
+	FinishedAt   *time.Time          `json:"finished_at,omitempty"`
+	Id           int64               `json:"id"`
 
 	// Key Stable plan-local Stage key used in the timeline.
 	Key            string                  `json:"key"`
@@ -15775,17 +15892,23 @@ type TaskStatus string
 
 // TaskSummary defines model for task-summary.
 type TaskSummary struct {
-	CreatedAt       time.Time  `json:"created_at"`
-	CreatedBy       *int64     `json:"created_by,omitempty"`
-	CurrentStageKey *string    `json:"current_stage_key,omitempty"`
-	DurationMs      *int64     `json:"duration_ms,omitempty"`
-	FailureCode     *string    `json:"failure_code,omitempty"`
-	FailureMessage  *string    `json:"failure_message,omitempty"`
-	FinishedAt      *time.Time `json:"finished_at,omitempty"`
-	Id              int64      `json:"id"`
-	OwnerId         string     `json:"owner_id"`
-	OwnerType       string     `json:"owner_type"`
-	StartedAt       *time.Time `json:"started_at,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+	CreatedBy       *int64    `json:"created_by,omitempty"`
+	CurrentStageKey *string   `json:"current_stage_key,omitempty"`
+	DurationMs      *int64    `json:"duration_ms,omitempty"`
+
+	// FailureClass Stable failure classification for the failure; null when not classified.
+	FailureClass   *TaskExecutionFailureClass `json:"failure_class,omitempty"`
+	FailureCode    *string                    `json:"failure_code,omitempty"`
+	FailureMessage *string                    `json:"failure_message,omitempty"`
+
+	// FailureStage Bounded execution stage attribution for the failure; null when not stage-attributable.
+	FailureStage *TaskExecutionStage `json:"failure_stage,omitempty"`
+	FinishedAt   *time.Time          `json:"finished_at,omitempty"`
+	Id           int64               `json:"id"`
+	OwnerId      string              `json:"owner_id"`
+	OwnerType    string              `json:"owner_type"`
+	StartedAt    *time.Time          `json:"started_at,omitempty"`
 
 	// Status Canonical persisted Task state-machine state.
 	Status TaskStatus `json:"status"`

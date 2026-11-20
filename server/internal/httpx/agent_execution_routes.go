@@ -259,10 +259,36 @@ func agentExecutionResultHandler(gateway moduleapi.RuntimeAgentExecutionGateway,
 }
 
 type agentExecutionReceiptRequest struct {
-	FenceToken      string `json:"fence_token"`
-	Outcome         string `json:"outcome"`
-	FailureCode     string `json:"failure_code"`
-	IntegritySHA256 string `json:"integrity_sha256"`
+	FenceToken        string `json:"fence_token"`
+	Outcome           string `json:"outcome"`
+	FailureCode       string `json:"failure_code"`
+	FailureStage      string `json:"failure_stage"`
+	FailureClass      string `json:"failure_class"`
+	DiagnosticSummary string `json:"diagnostic_summary"`
+	IntegritySHA256   string `json:"integrity_sha256"`
+}
+
+// parseAgentExecutionReceipt 校验受限回执的可观察诊断事实；成功回执不得携带失败归因。
+func parseAgentExecutionReceipt(request agentExecutionReceiptRequest) (moduleapi.ExternalExecutionReceipt, bool) {
+	outcome := moduleapi.ExternalReceiptOutcome(strings.TrimSpace(request.Outcome))
+	failureStage := moduleapi.ExecutionStage(strings.TrimSpace(request.FailureStage))
+	failureClass := moduleapi.ExecutionFailureClass(strings.TrimSpace(request.FailureClass))
+	summary := moduleapi.SanitizeExecutionDiagnosticSummary(request.DiagnosticSummary)
+	if failureStage != "" && !moduleapi.ValidExecutionStage(string(failureStage)) {
+		return moduleapi.ExternalExecutionReceipt{}, false
+	}
+	if failureClass != "" && !moduleapi.ValidExecutionFailureClass(string(failureClass)) {
+		return moduleapi.ExternalExecutionReceipt{}, false
+	}
+	if outcome == moduleapi.ExternalReceiptOutcomeSuccess && (failureStage != "" || failureClass != "" || summary != "") {
+		return moduleapi.ExternalExecutionReceipt{}, false
+	}
+	return moduleapi.ExternalExecutionReceipt{
+		Outcome:           outcome,
+		FailureStage:      failureStage,
+		FailureClass:      failureClass,
+		DiagnosticSummary: summary,
+	}, true
 }
 
 func agentExecutionReceiptHandler(gateway moduleapi.RuntimeAgentExecutionGateway, bindings moduleapi.RuntimeTargetAgentBindingReader, logger *zap.Logger) gin.HandlerFunc {
@@ -277,12 +303,19 @@ func agentExecutionReceiptHandler(gateway moduleapi.RuntimeAgentExecutionGateway
 			abortInvalidAgentLedgerRequest(ctx, logger)
 			return
 		}
-		handle := moduleapi.ExternalExecutionLeaseHandle{LeaseID: ctx.Param("leaseID"), FenceToken: request.FenceToken}
-		if !agentExecutionHandleAllowed(ctx, gateway, bindings, identity, handle) {
+		receipt, ok := parseAgentExecutionReceipt(request)
+		if !ok {
+			abortInvalidAgentLedgerRequest(ctx, logger)
+			return
+		}
+		receipt.Handle = moduleapi.ExternalExecutionLeaseHandle{LeaseID: ctx.Param("leaseID"), FenceToken: request.FenceToken}
+		receipt.FailureCode = strings.TrimSpace(request.FailureCode)
+		receipt.IntegritySHA256 = strings.TrimSpace(request.IntegritySHA256)
+		if !agentExecutionHandleAllowed(ctx, gateway, bindings, identity, receipt.Handle) {
 			abortAgentLedgerIdentity(ctx, logger)
 			return
 		}
-		settlement, err := gateway.SettleExternalExecution(ctx.Request.Context(), moduleapi.ExternalExecutionReceipt{Handle: handle, Outcome: moduleapi.ExternalReceiptOutcome(strings.TrimSpace(request.Outcome)), FailureCode: strings.TrimSpace(request.FailureCode), IntegritySHA256: strings.TrimSpace(request.IntegritySHA256)})
+		settlement, err := gateway.SettleExternalExecution(ctx.Request.Context(), receipt)
 		if err != nil {
 			abortAgentExecutionFailure(ctx, logger)
 			return

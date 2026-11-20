@@ -44,6 +44,23 @@
         "localControllerPullFailed": "更新执行镜像拉取失败，请检查镜像仓库和网络连接。",
         "unknown": "任务执行失败，请查看任务日志中的脱敏诊断信息。"
       },
+      "failureStages": {
+        "material_resolve": "执行材料解析阶段",
+        "compose_load": "Compose 配置加载阶段",
+        "compose_apply": "Compose 副作用应用阶段",
+        "container_apply": "容器副作用应用阶段",
+        "controller_pull": "更新控制器镜像拉取阶段"
+      },
+      "failureClasses": {
+        "transient": "短暂失败，可按既有幂等策略重试",
+        "permanent": "确定性失败，重试不会改变结果",
+        "configuration": "需要纠正受控配置的失败",
+        "authorization": "授权或凭据作用域不满足执行要求",
+        "provider": "运行时提供方未能满足冻结执行契约",
+        "infrastructure": "基础设施失败，需要重验执行环境",
+        "internal": "系统内部失败，需要人工恢复",
+        "unknown": "外部结果无法被安全确认"
+      },
       "identifier": "任务 #{id}",
       "loadFailed": "无法加载任务详情。",
       "logs": "执行日志",
