@@ -3,17 +3,17 @@ module graft/server
 go 1.27.4
 
 require (
-	ariga.io/atlas v1.3.0
+	ariga.io/atlas v1.4.0
 	// Ent 是 server 当前的 ORM 与 schema-as-code 基线。
 	entgo.io/ent v0.14.6
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/alicebob/miniredis/v2 v2.40.0
-	github.com/compose-spec/compose-go/v2 v2.16.2
+	github.com/compose-spec/compose-go/v2 v2.17.0
 	github.com/containerd/errdefs v1.0.0
 	github.com/containerd/platforms v1.0.0-rc.5
 	github.com/distribution/reference v0.6.0
-	github.com/docker/cli v29.9.3+incompatible
-	github.com/docker/compose/v5 v5.7.1
+	github.com/docker/cli v29.10.0+incompatible
+	github.com/docker/compose/v5 v5.8.0
 	github.com/getkin/kin-openapi v0.153.0
 	// Gin 是 server 的 HTTP 路由、中间件和请求处理框架。
 	github.com/gin-gonic/gin v1.12.0
@@ -50,7 +50,7 @@ require (
 	// Zap 是 server 当前锁定的结构化日志框架。
 	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.59.0
-	golang.org/x/net v0.62.0
+	golang.org/x/net v0.63.0
 	golang.org/x/sync v0.25.0
 	golang.org/x/text v0.44.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -63,7 +63,7 @@ require (
 	connectrpc.com/connect v1.21.1 // indirect
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20261013165250-51075c6ea6bc // indirect
-	github.com/DefangLabs/secret-detector v0.0.0-20260916192156-3e28d7ed64df // indirect
+	github.com/DefangLabs/secret-detector v1.1.0 // indirect
 	github.com/Microsoft/go-winio v0.6.4 // indirect
 	github.com/TwiN/go-color v1.4.1 // indirect
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
@@ -134,7 +134,6 @@ require (
 	github.com/in-toto/attestation v1.2.0 // indirect
 	github.com/in-toto/in-toto-golang v0.11.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/inhies/go-bytesize v0.0.0-20220417184213-4913239db9cf // indirect
 	github.com/invopop/jsonschema v0.14.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
@@ -151,6 +150,7 @@ require (
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/moby/buildkit v0.35.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
+	github.com/moby/extensions v0.0.0-20261020100352-d2819d88bcbe // indirect
 	github.com/moby/locker v1.0.1 // indirect
 	github.com/moby/sys/atomicwriter v0.1.0 // indirect
 	github.com/moby/sys/capability v0.5.0 // indirect
