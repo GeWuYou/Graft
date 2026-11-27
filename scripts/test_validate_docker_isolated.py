@@ -947,11 +947,17 @@ class RecoveryScenarioTests(unittest.TestCase):
                     (200, {"data": {"items": [{"attempt": attempt, "max_attempts": 2, "status": "success"}]}})])
                 fixture.engine = Mock(side_effect=["graft-recovery-resume-probe-test-app", "id started", "id started"])
                 fixture.sql = Mock(return_value="")
+                fixture.cleanup_recovery_task = Mock()
                 fixture.wait_task = Mock(return_value={"id": 9, "status": "needs_attention"})
                 fixture.wait_task_status = Mock(return_value=resumed)
                 with patch("validate_docker_isolated.secrets.token_hex", return_value="test"):
                     fixture.recovery_resume_probe()
                 self.assertEqual(fixture.record.call_args.args, ("agent-recovery-resume", expected))
+                # 失败路径（含已领取但重放超时）必须清理卡住的任务；成功路径不得清理。
+                if expected == "passed":
+                    fixture.cleanup_recovery_task.assert_not_called()
+                else:
+                    fixture.cleanup_recovery_task.assert_called_once_with(9)
 
     def test_recovery_resume_probe_records_refused_submission_evidence(self):
         with tempfile.TemporaryDirectory() as directory:

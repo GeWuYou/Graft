@@ -805,6 +805,9 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                     same_container_and_started_at=before == after, resumed_stage_attempt=attempt,
                     note=RECOVERY_POLICY_STAND_IN_NOTE,
                     scope="Bounded reconcile re-arms the declared idempotent stage and the claim-path replay succeeds once")
+        if not passed:
+            # 已领取但重放未达成功的失败路径同样清理：卡住的任务会一直占用其 application。
+            self.cleanup_recovery_task(task_id)
 
     def recovery_budget_probe(self) -> None:
         # (d) Over-budget exhaustion: with a stand-in max_attempts of 2, the first auto-resumed attempt is
