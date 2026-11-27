@@ -19,7 +19,7 @@
   (failure_code=external_execution_lease_expired); manual_reconcile and explicit needs_attention
   verdicts are never auto-replayed. Consumer retry_if_idempotent adoption is deferred to the owners.
 - Harness: compose-material-stage-code joins LOCAL_REQUIRED_SCENARIOS; three agent recovery scenarios
-  join a new AGENT_REQUIRED_SCENARIOS. Recovery scenarios use a documented store stand-in
+  join a new AGENT_REQUIRED_SCENARIOS with a documented store stand-in
   (RECOVERY_POLICY_STAND_IN_NOTE) to exercise the runtime policy path only.
 - Primary-checkout follow-up: run validate_docker_isolated.py init/up/probe with --execution-mode agent
   per tests/conformance/docker-runtime-agent/README.md.
@@ -33,33 +33,19 @@
   resume refuses with ErrRecoveryBlocked while any unknown stage is over budget.
 - Correction 3 (threads 4645868796 + 4645868804): bounded progress past blocked tasks; the resume
   transaction re-checks cancel_requested_at; cyclop refactor.
-- Correction 4 (live run 2e16e610c): both recovery probes hit 503 — the execution-admission latch had
-  fired earlier; probes pre-check readiness, run before the kill-heavy scenarios, and start the agent
-  only after the reconcile re-arms the stage.
-- Correction 5 (thread 4647483896): the budget probe's trailing agent restart overwrote the budget
-  diagnostics via a journal replay; converge, record, leave the agent down.
-- Correction 6 (live run agent-smoke2): 401 token-ageing cascade; api() re-authenticates once on
-  expiry; port-squat preflight added; claim wait split.
-- Correction 7 (PR #383): the preflight flagged own containers in CI because the official instance
-  carries the -official suffix; it now takes the legitimate project list per fixture and excludes by
-  compose label. The claim wait accepted the task reaching a terminal status.
-- Correction 8 (thread 4721373969): name-prefix exclusion let sibling projects bypass contamination;
-  exclusion is exact compose label only — sibling-prefixed, label-less and foreign holders of recorded
-  ports all fail loudly.
-- Correction 9 (thread 4721691577): the preflight ran after login, hiding port squatters behind login
-  failures; it now precedes login (ordering regression added).
-- Corrections 4-9 evidence: harness and validate backend green after each round; live reruns drove
-  each fix.
-
-## 2026-11-21 Correction 10 (PR #383, live rerun run-3 failure chain)
-
-- Written chain from the retained run-3 evidence: the resume probe's restarted agent never claimed the
-  re-armed stage (stage pending/attempt 1, task running, sampled across both claim windows) and that
-  single stuck agent explains every later failure — compose-up task 6 and interruption task 8 were
-  accepted but never executed (no container), claim-admission observed nothing because a stuck agent
-  never claims, and budget stayed unverified. No 401 cascade this run (token refresh worked); the
-  admission latch did not fire (budget up 202, agent-offline 202).
-- Probes now clean up their own failures: claim retry with one agent bounce, then on every failure path
-  a best-effort API cancel plus fixture-level SQL terminalization of the stuck task and its pending or
-  unknown stages, so no later scenario inherits a blocked application or a stuck agent-claim target.
+- Correction 4/5 (live run 2e16e610c): both probes hit 503 from the earlier execution-admission latch;
+  probes now pre-check readiness and start the agent only after the reconcile re-arms the stage; the
+  budget probe never restarts after convergence (a journal replay would overwrite the diagnostics).
+- Correction 6/7 (live run agent-smoke2, PR #383): 401 token-ageing cascade — api() re-authenticates
+  once on expiry; the preflight takes the legitimate project list per fixture (the -official instance
+  was rejecting its own parent containers) and the claim wait accepts a settled task.
+- Correction 8/9 (threads 4721373969 + 4721691577): exclusion is exact compose label only (siblings
+  bypassed name-prefix matching) and the preflight now precedes login (squatters hid behind login
+  failures); both with ordering/exclusion regressions.
+- Correction 10 (run-3 chain): the restarted agent never claimed the re-armed stage and every later
+  agent-dependent scenario failed behind it; probes bounce the agent once for the claim and clean up
+  their own failures (API cancel + fixture-level SQL terminalization).
+- Correction 11 (PR #387, thread 4722371822): a claimed replay that never reached success skipped
+  cleanup, occupying the application; the timeout path now calls cleanup_recovery_task too.
+  Regressions assert cleanup on failed outcomes, none on success.
 - Evidence: harness 56 ok; validate backend 0; diff --check clean. Live rerun pending.
