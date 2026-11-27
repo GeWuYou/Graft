@@ -351,8 +351,11 @@ class FixtureLifecycleTests(unittest.TestCase):
 
     def test_port_preflight_fails_loudly_on_foreign_squatters(self):
         # 孤儿栈的后端会占用夹具端口（D1 live evidence）：本栈的 API 调用会命中错误实例并污染全部证据。
+        # 共享名称前缀的兄弟项目（smoke 与 smoke-old）不是自有容器：预检必须命中并大声失败。
         for lines, expected in (
                 (["graft-isolated-agent-smoke\tbackend\t0.0.0.0:28080->28080/tcp", "other\torphan\t0.0.0.0:28081->28081/tcp"], "orphan"),
+                (["graft-isolated-agent-smoke-old\tbackend\t0.0.0.0:28081->28081/tcp"], "sibling"),
+                (["\tlabelless\t0.0.0.0:28080->28080/tcp"], "labelless"),
                 (["graft-isolated-agent-smoke\tbackend\t0.0.0.0:28080->28080/tcp"], None),
                 (["other\tside\t0.0.0.0:9999->9999/tcp"], None)):
             with self.subTest(expected=expected), tempfile.TemporaryDirectory() as directory:

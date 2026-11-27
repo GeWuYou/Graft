@@ -461,13 +461,13 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
 
     def assert_fixture_ports_exclusive(self, projects: list[str]) -> None:
         # 孤儿栈的后端会占用夹具端口：本栈的 API 调用会命中错误实例并静默污染证据。
-        # 有界预检必须在任何场景之前失败，携带占用容器身份。自有排除同时匹配 compose 项目标签与
-        # 容器名前缀（如 -official 实例），父夹具容器永远不是本夹具的占用者。
+        # 有界预检必须在任何场景之前失败，携带占用容器身份。自有排除只按 compose 项目标签精确匹配：
+        # 名称前缀会让共享前缀的兄弟项目（如 smoke 与 smoke-old）绕过检测，标签缺失或同名前缀的
+        # 兄弟容器持有夹具端口时一律视为占用者并大声失败。
         recorded_ports = sorted({str(self.environment[key]) for key in
                                  ("GRAFT_CONFORMANCE_BACKEND_PORT", "GRAFT_CONFORMANCE_OFFICIAL_PORT",
                                   "GRAFT_CONFORMANCE_BOOTSTRAP_PORT", "GRAFT_CONFORMANCE_AGENT_PORT")
                                  if key in self.environment})
-        name_prefixes = tuple(project + "-" for project in projects)
         listing = subprocess.run(["docker", "ps", "--format",
                                   "{{.Label \"com.docker.compose.project\"}}\t{{.Names}}\t{{.Ports}}"],
                                  capture_output=True, text=True, timeout=30, check=False)
@@ -476,8 +476,8 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
         squatters = []
         for line in listing.stdout.splitlines():
             project, _, name_and_ports = line.partition("\t")
-            name, _, ports = name_and_ports.partition("\t")
-            if project in projects or project == "" or name.startswith(name_prefixes):
+            _, _, ports = name_and_ports.partition("\t")
+            if project in projects:
                 continue
             if any(f":{port}->" in ports for port in recorded_ports):
                 squatters.append(line.strip())
