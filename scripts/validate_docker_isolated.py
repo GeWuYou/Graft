@@ -455,6 +455,22 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             time.sleep(2)
         return False, stages, task
 
+    def cleanup_recovery_task(self, task_id: int) -> None:
+        if not task_id:
+            return
+        # 失败的恢复探针不得给后续场景留下阻塞状态。pending 外部阶段会让 API 取消搁浅
+        # （运行中任务没有可取消的 running 阶段，Cancel 返回冲突），故取消请求尽力执行后，
+        # 按夹具级 SQL 终结任务与阶段，释放 application 供后续场景使用。
+        try:
+            self.api("POST", f"/api/tasks/{task_id}/cancel", {})
+        except (OSError, ValueError):
+            pass
+        now = time.strftime("%Y-%m-%d %H:%M:%S+00", time.gmtime())
+        self.sql(f"UPDATE tasks SET status = 'cancelled', finished_at = '{now}', updated_at = '{now}' "
+                 f"WHERE id = {task_id} AND status IN ('running', 'needs_attention')")
+        self.sql(f"UPDATE task_stages SET status = 'cancelled', finished_at = '{now}', updated_at = '{now}' "
+                 f"WHERE task_id = {task_id} AND status IN ('pending', 'unknown')")
+
     def fixture_projects(self) -> list[str]:
         # 端口预检据此识别自有容器；官方实例子项目由 OfficialFixture 覆盖补充父项目。
         return [self.state["project"]]
@@ -747,6 +763,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                         up_status=admission["up_status"], up_error_code=admission["up_error_code"],
                         note=RECOVERY_POLICY_STAND_IN_NOTE,
                         scope="Recovery probe did not reach an observable side effect")
+            self.cleanup_recovery_task(task_id)
             return
         before = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", container).strip()
         self.compose("kill", "--signal", "SIGKILL", "docker-runtime-agent")
@@ -755,6 +772,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             self.record(scenario, "failed", task_id=task_id, task=interrupted, note=RECOVERY_POLICY_STAND_IN_NOTE,
                         scope="Interrupted lease did not converge to needs_attention")
             self.compose("up", "-d", "--wait", "docker-runtime-agent")
+            self.cleanup_recovery_task(task_id)
             return
         self.sql(f"UPDATE task_stages SET recovery_policy = 'retry_if_idempotent', "
                  f"max_attempts = GREATEST(max_attempts, attempt + 1) WHERE task_id = {task_id}")
@@ -763,13 +781,20 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             self.record(scenario, "failed", task_id=task_id, stages=rearmed, note=RECOVERY_POLICY_STAND_IN_NOTE,
                         scope="Reconcile did not re-arm the declared idempotent stage")
             self.compose("up", "-d", "--wait", "docker-runtime-agent")
+            self.cleanup_recovery_task(task_id)
             return
         self.compose("up", "-d", "--wait", "docker-runtime-agent")
-        claimed, claimed_stages, claimed_task = self.wait_recovery_claim(task_id, 2, timeout=120)
+        claimed, claimed_stages, claimed_task = self.wait_recovery_claim(task_id, 2, timeout=90)
+        if not claimed:
+            # 一次代理重启未领取：再弹跳一次代理进程并复等；两次窗口都未领取才判失败。
+            self.compose("kill", "--signal", "SIGKILL", "docker-runtime-agent")
+            self.compose("up", "-d", "--wait", "docker-runtime-agent")
+            claimed, claimed_stages, claimed_task = self.wait_recovery_claim(task_id, 2, timeout=90)
         if not claimed:
             self.record(scenario, "failed", task_id=task_id, stages=claimed_stages, task=claimed_task,
                         note=RECOVERY_POLICY_STAND_IN_NOTE,
                         scope="Restarted agent did not claim the re-armed stage")
+            self.cleanup_recovery_task(task_id)
             return
         resumed = self.wait_task_status(task_id, "success", timeout=300)
         after = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", container).strip()
@@ -780,6 +805,9 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                     same_container_and_started_at=before == after, resumed_stage_attempt=attempt,
                     note=RECOVERY_POLICY_STAND_IN_NOTE,
                     scope="Bounded reconcile re-arms the declared idempotent stage and the claim-path replay succeeds once")
+        if not passed:
+            # 已领取但重放未达成功的失败路径同样清理：卡住的任务会一直占用其 application。
+            self.cleanup_recovery_task(task_id)
 
     def recovery_budget_probe(self) -> None:
         # (d) Over-budget exhaustion: with a stand-in max_attempts of 2, the first auto-resumed attempt is
@@ -804,6 +832,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                         up_status=admission["up_status"], up_error_code=admission["up_error_code"],
                         note=RECOVERY_POLICY_STAND_IN_NOTE,
                         scope="Budget probe did not reach an observable side effect")
+            self.cleanup_recovery_task(task_id)
             return
         before = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", container).strip()
         self.compose("kill", "--signal", "SIGKILL", "docker-runtime-agent")
@@ -812,6 +841,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             self.record(scenario, "failed", task_id=task_id, task=interrupted, note=RECOVERY_POLICY_STAND_IN_NOTE,
                         scope="Budget probe interruption did not converge to needs_attention")
             self.compose("up", "-d", "--wait", "docker-runtime-agent")
+            self.cleanup_recovery_task(task_id)
             return
         self.sql(f"UPDATE task_stages SET recovery_policy = 'retry_if_idempotent', "
                  f"max_attempts = GREATEST(max_attempts, 2) WHERE task_id = {task_id}")
@@ -820,6 +850,7 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             self.record(scenario, "failed", task_id=task_id, stages=rearmed, note=RECOVERY_POLICY_STAND_IN_NOTE,
                         scope="Reconcile did not re-arm the declared idempotent stage")
             self.compose("up", "-d", "--wait", "docker-runtime-agent")
+            self.cleanup_recovery_task(task_id)
             return
         self.compose("up", "-d", "--wait", "docker-runtime-agent")
         deadline = time.monotonic() + 240
@@ -846,6 +877,8 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                     stage_attempt=stage.get("attempt"), stage_max_attempts=stage.get("max_attempts"),
                     same_container_and_started_at=before == after, note=RECOVERY_POLICY_STAND_IN_NOTE,
                     scope="Budget exhaustion converges to needs_attention with stable diagnostics instead of a hang")
+        if not passed:
+            self.cleanup_recovery_task(task_id)
 
     def persisted_application(self, identifier: str) -> dict:
         if not re.fullmatch(r"app_[0-9A-HJKMNP-TV-Z]{26}", identifier):
