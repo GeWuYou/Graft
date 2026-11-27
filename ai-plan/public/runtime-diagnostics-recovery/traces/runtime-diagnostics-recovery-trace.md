@@ -26,26 +26,27 @@
 
 ## 2026-11-21 Correction History (PR #380 / #382 / #383)
 
-- Correction 1 (CI run 44777511166): local settlements deliver the material stage attribution as
-  failure_code=local_material_resolve_failed with failure_stage=NULL; the probe asserts each owner shape.
-- Correction 2: admission probe diverges the capability binding version so fresh claims are rejected
-  with telemetry intact; agent expired journals settle the interruption receipt and clear; whole-task
-  resume refuses with ErrRecoveryBlocked while any unknown stage is over budget.
-- Correction 3 (threads 4645868796 + 4645868804): bounded progress past blocked tasks; the resume
-  transaction re-checks cancel_requested_at; cyclop refactor.
-- Correction 4/5 (live run 2e16e610c): both probes hit 503 from the earlier execution-admission latch;
-  probes now pre-check readiness and start the agent only after the reconcile re-arms the stage; the
-  budget probe never restarts after convergence (a journal replay would overwrite the diagnostics).
-- Correction 6/7 (live run agent-smoke2, PR #383): 401 token-ageing cascade — api() re-authenticates
-  once on expiry; the preflight takes the legitimate project list per fixture (the -official instance
-  was rejecting its own parent containers) and the claim wait accepts a settled task.
-- Correction 8/9 (threads 4721373969 + 4721691577): exclusion is exact compose label only (siblings
-  bypassed name-prefix matching) and the preflight now precedes login (squatters hid behind login
-  failures); both with ordering/exclusion regressions.
-- Correction 10 (run-3 chain): the restarted agent never claimed the re-armed stage and every later
-  agent-dependent scenario failed behind it; probes bounce the agent once for the claim and clean up
-  their own failures (API cancel + fixture-level SQL terminalization).
-- Correction 11 (PR #387, thread 4722371822): a claimed replay that never reached success skipped
-  cleanup, occupying the application; the timeout path now calls cleanup_recovery_task too.
-  Regressions assert cleanup on failed outcomes, none on success.
-- Evidence: harness 56 ok; validate backend 0; diff --check clean. Live rerun pending.
+- Corrections 1-11: material stage attribution owner shapes; capability-binding claim rejection
+  injection; agent expired-journal settlement; ErrRecoveryBlocked whole-task gating; bounded progress
+  past blocked tasks; cancel re-check; exact compose label exclusion; preflight before login; agent
+  bounce and cleanup on failure. Full detail in archive/corrections-history.md.
+- Correction 12 (platform defect, live-converged) is recorded below; corrections 4-11 drove it.
+
+## 2026-11-21 Correction 12 (PR #387, platform defect, live-converged)
+
+- Root cause of every 503 cascade: the execution-admission monitor latched permanently on ONE failed
+  ownership-connection ping (1s monitor), refusing claims/submissions with execution_ownership_lost
+  until backend restart. The monitor now keeps a bounded state machine: single ping failures stay
+  ready; 5 consecutive failures degrade with the additive internal code execution_admission_degraded
+  (refuses new claims/submissions, in-flight work continues); degraded attempts bounded re-acquisition
+  (unlock old session, fresh advisory lock); recovery or successful re-acquisition restores ready
+  without restart; only a failed re-acquisition (another runtime owns execution) latches lost with the
+  existing semantics. Claim requests are explicitly gated by the admission state.
+- Contract note: execution_admission_degraded is emitted by GET /api/runtime-targets/{id} readiness
+  outside the frozen RuntimeTargetExecutionDiagnosticCode enum — an additive enum extension for the
+  lead to approve (openapi/components/schemas/runtime-target-execution.yaml + regenerated artifacts).
+- Regressions: ownership state machine (N-1 ready, N degraded, self-heal, conflict latch, bounded
+  backoff) and a runtime test that mid-run transient failures neither refuse admission nor strand the
+  accepted task.
+- Evidence: harness 56 ok; go test modules/task + store ok; both golangci configs 0 issues; validate
+  backend 0; diff --check clean. Live rerun pending (recovery scenarios should pass with self-healing).
