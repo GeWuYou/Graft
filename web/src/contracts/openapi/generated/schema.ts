@@ -10017,6 +10017,7 @@ export interface components {
         | 'agent_unavailable'
         | 'execution_mode_mismatch'
         | 'execution_runtime_stopped'
+        | 'execution_admission_degraded'
         | 'execution_ownership_lost';
       capabilities: ('container_execution' | 'compose_execution' | 'oci-build' | 'update_controller')[];
     };

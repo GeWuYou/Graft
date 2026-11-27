@@ -8,7 +8,7 @@ properties:
     type: boolean
   diagnostic_code:
     type: string
-    enum: [execution_ready, docker_unavailable, agent_unavailable, execution_mode_mismatch, execution_runtime_stopped, execution_ownership_lost]
+    enum: [execution_ready, docker_unavailable, agent_unavailable, execution_mode_mismatch, execution_runtime_stopped, execution_admission_degraded, execution_ownership_lost]
   capabilities:
     type: array
     items:
