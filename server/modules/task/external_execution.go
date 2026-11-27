@@ -32,9 +32,14 @@ var externalExecutionLogLines = map[string]struct{}{
 var _ moduleapi.RuntimeAgentExecutionGateway = (*Runtime)(nil)
 
 // ClaimExternalExecution 为已认证的 Runtime Target capability 领取一个冻结 Stage attempt。
+// 执行准入退化或失去所有权时拒绝新的领取（已有租约的续租与结算不受影响），
+// 准入在所有权连接恢复后自动回到就绪，代理按既有重试语义重新领取。
 func (r *Runtime) ClaimExternalExecution(ctx context.Context, request moduleapi.ExternalExecutionClaimRequest) (moduleapi.ExternalExecutionLease, error) {
 	if r == nil || r.repository == nil || !validExternalExecutionClaimRequest(request) {
 		return moduleapi.ExternalExecutionLease{}, taskstore.ErrInvalidInput
+	}
+	if err := r.requireExecutionAdmission(); err != nil {
+		return moduleapi.ExternalExecutionLease{}, err
 	}
 	for offset := 0; ; offset += externalExecutionCandidateLimit {
 		candidates, err := r.repository.ListExternalExecutionCandidates(ctx, externalExecutionCandidateLimit, offset)

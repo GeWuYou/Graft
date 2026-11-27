@@ -232,7 +232,7 @@ func (r *Runtime) acquireExecutionOwnership(ctx context.Context) error {
 		return err
 	}
 	r.ownershipRelease = ownership.Close
-	r.ownershipLost = ownership.Lost
+	r.ownership = ownership
 	return nil
 }
 
@@ -246,6 +246,7 @@ func (r *Runtime) releaseExecutionOwnership() error {
 }
 
 // ExecutionAdmission 返回 Task worker 的真实所有权状态，供 Runtime Target 投影执行就绪。
+// 所有权连接退化（瞬时探测失败）与永久失去都拒绝新的执行请求；退化在探测恢复后自动回到就绪。
 func (r *Runtime) ExecutionAdmission() moduleapi.TaskExecutionAdmission {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -254,12 +255,10 @@ func (r *Runtime) ExecutionAdmission() moduleapi.TaskExecutionAdmission {
 		return result
 	}
 	result.Mode = r.localExecution.mode
-	if r.ownershipLost != nil {
-		select {
-		case <-r.ownershipLost:
-			result.DiagnosticCode = "execution_ownership_lost"
+	if r.ownership != nil {
+		if ready, diagnostic := r.ownership.Admission(); !ready {
+			result.DiagnosticCode = diagnostic
 			return result
-		default:
 		}
 	}
 	result.Ready = r.executionAdmissionReady
