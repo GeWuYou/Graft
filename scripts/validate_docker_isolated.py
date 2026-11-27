@@ -956,8 +956,9 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                         readback_http_status=read_status, effective_value_enabled=enabled)
 
     def probe(self) -> None:
-        self.authenticate()
+        # 端口预检先于登录：残留夹具容器占用后端端口并携带不同管理员密码时，登录失败会掩盖占用者身份。
         self.assert_fixture_ports_exclusive(self.fixture_projects())
+        self.authenticate()
         if self.execution_mode == "agent":
             self.once_probe()
         self.enable_operations()

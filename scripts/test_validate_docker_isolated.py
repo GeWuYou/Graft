@@ -334,6 +334,39 @@ class FixtureLifecycleTests(unittest.TestCase):
             self.assertFalse((directory / "local-readiness-evidence.json").exists())
             self.assertIn("synthetic migration failure", (directory / "command-error.log").read_text())
 
+    def test_probe_runs_port_preflight_before_login(self):
+        # 残留夹具容器占用后端端口并携带不同密码时，登录失败会掩盖占用者身份：预检必须先于登录。
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Fixture.__new__(Fixture)
+            fixture.state = {"project": "graft-isolated-agent-smoke", "execution_mode": "agent",
+                "source_revision": "a" * 40}
+            fixture.environment = {"GRAFT_CONFORMANCE_BACKEND_PORT": "28080",
+                "GRAFT_CONFORMANCE_OFFICIAL_PORT": "28081", "GRAFT_CONFORMANCE_BOOTSTRAP_PORT": "28081",
+                "GRAFT_CONFORMANCE_AGENT_PORT": "28082"}
+            fixture.directory = Path(directory)
+            (fixture.directory / "trust-evidence.json").write_text(json.dumps({"bootstrap": {"target_id": 1}}))
+            fixture.results = []
+            order = []
+            fixture.authenticate = Mock(side_effect=lambda: order.append("login"))
+            fixture.assert_fixture_ports_exclusive = Mock(
+                side_effect=lambda projects: order.append(("preflight", tuple(projects))))
+            for name in ("once_probe", "enable_operations", "recovery_resume_probe",
+                         "recovery_budget_probe", "application_probe", "claim_admission_probe"):
+                setattr(fixture, name, Mock(side_effect=lambda name=name: order.append(name)))
+            fixture.api = Mock(return_value=(200, {"data": {"websocket_url": "ws://fixture"}}))
+            fixture.engine = Mock(return_value="")
+            fixture.compose = Mock(return_value="")
+            fixture.last_command_returncode = 0
+            fixture.shell_output = Mock(return_value=True)
+            fixture.probe()
+            # 排序契约：预检先于登录；恢复成功探针前置缩短提交暴露窗口；预算耗尽探针最后
+            # （收敛即终态证据，其后仅剩无需活代理的场景）。
+            self.assertEqual(order[0], ("preflight", ("graft-isolated-agent-smoke",)))
+            self.assertEqual(order[1], "login")
+            self.assertLess(order.index("recovery_resume_probe"), order.index("application_probe"))
+            self.assertLess(order.index("application_probe"), order.index("claim_admission_probe"))
+            self.assertLess(order.index("claim_admission_probe"), order.index("recovery_budget_probe"))
+
     def test_stop_preserves_vault_and_stops_all_other_declared_services(self):
         fixture = Fixture.__new__(Fixture)
         services = {name: {} for name in ("vault", "backend", "docker-runtime-agent", "postgres", "redis", "docker-daemon", "vault-init")}
