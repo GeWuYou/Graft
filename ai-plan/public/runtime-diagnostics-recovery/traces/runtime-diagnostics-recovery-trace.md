@@ -40,17 +40,26 @@
   diagnostics via a journal replay; converge, record, leave the agent down.
 - Correction 6 (live run agent-smoke2): 401 token-ageing cascade; api() re-authenticates once on
   expiry; port-squat preflight added; claim wait split.
+- Correction 7 (PR #383): the preflight flagged own containers in CI because the official instance
+  carries the -official suffix; it now takes the legitimate project list per fixture and excludes by
+  compose label. The claim wait accepted the task reaching a terminal status.
+- Correction 8 (thread 4721373969): name-prefix exclusion let sibling projects bypass contamination;
+  exclusion is exact compose label only — sibling-prefixed, label-less and foreign holders of recorded
+  ports all fail loudly.
+- Correction 9 (thread 4721691577): the preflight ran after login, hiding port squatters behind login
+  failures; it now precedes login (ordering regression added).
+- Corrections 4-9 evidence: harness and validate backend green after each round; live reruns drove
+  each fix.
 
-## 2026-11-21 Correction 7 (PR #383)
+## 2026-11-21 Correction 10 (PR #383, live rerun run-3 failure chain)
 
-- Port-squat preflight flagged the fixture's own containers in CI (job 136605550761): the official
-  instance carries the -official suffix, so PARENT containers looked foreign; it now takes the
-  legitimate project list per fixture and excludes by compose label. The claim wait also accepted the
-  task reaching a terminal status.
-- Correction 8 (thread 4721373969): the name-prefix exclusion let sibling projects (smoke vs smoke-old)
-  bypass contamination; exclusion is exact compose label only — sibling-prefixed, label-less and
-  foreign containers holding recorded ports all fail loudly. Regressions cover all three.
-- Correction 9 (thread 4721691577): the preflight ran after login, so a leftover container holding the
-  backend port with a different password hid the squatter behind a login failure; it now precedes login
-  (ordering regression added).
-- Evidence: harness 57 ok; validate backend 0; diff --check clean. Live rerun pending.
+- Written chain from the retained run-3 evidence: the resume probe's restarted agent never claimed the
+  re-armed stage (stage pending/attempt 1, task running, sampled across both claim windows) and that
+  single stuck agent explains every later failure — compose-up task 6 and interruption task 8 were
+  accepted but never executed (no container), claim-admission observed nothing because a stuck agent
+  never claims, and budget stayed unverified. No 401 cascade this run (token refresh worked); the
+  admission latch did not fire (budget up 202, agent-offline 202).
+- Probes now clean up their own failures: claim retry with one agent bounce, then on every failure path
+  a best-effort API cancel plus fixture-level SQL terminalization of the stuck task and its pending or
+  unknown stages, so no later scenario inherits a blocked application or a stuck agent-claim target.
+- Evidence: harness 56 ok; validate backend 0; diff --check clean. Live rerun pending.
