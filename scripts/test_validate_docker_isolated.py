@@ -957,12 +957,14 @@ class RecoveryScenarioTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             fixture = self.fixture(directory)
             (fixture.directory / "trust-evidence.json").write_text(json.dumps({"bootstrap": {"target_id": 1}}))
+            fixture.cleanup_recovery_task = Mock()
             fixture.api = Mock(side_effect=[
                 self.readiness_api(),
                 (201, {"data": {"application_id": "app-x", "workspace_path": "/workspace"}}),
                 (503, {"code": "common.task_execution_unavailable"})])
             with patch("validate_docker_isolated.secrets.token_hex", return_value="test"):
                 fixture.recovery_resume_probe()
+            fixture.cleanup_recovery_task.assert_called_once_with(0)
             record = fixture.record.call_args
             self.assertEqual(record.args, ("agent-recovery-resume", "unverified"))
             self.assertEqual((record.kwargs["create_status"], record.kwargs["up_status"],
@@ -971,6 +973,7 @@ class RecoveryScenarioTests(unittest.TestCase):
     def test_recovery_resume_probe_records_unclaimed_stage_evidence(self):
         # Live run (agent-smoke2): the restarted agent never claimed the re-armed stage and the probe only
         # reported a bare success timeout; the claim wait must separate that failure mode with evidence.
+        # 两次窗口（含一次代理弹跳）都未领取后，探针必须终结卡住的任务，不给后续场景留下阻塞状态。
         with tempfile.TemporaryDirectory() as directory:
             fixture = self.fixture(directory)
             (fixture.directory / "trust-evidence.json").write_text(json.dumps({"bootstrap": {"target_id": 1}}))
@@ -978,20 +981,29 @@ class RecoveryScenarioTests(unittest.TestCase):
                 self.readiness_api(),
                 (201, {"data": {"application_id": "app-x", "workspace_path": "/workspace"}}),
                 (202, {"data": {"task_id": 9}}),
-                (200, {"data": {"items": [{"attempt": 1, "max_attempts": 2, "status": "pending"}]}}),
-                (200, {"data": {"items": [{"attempt": 1, "max_attempts": 2, "status": "pending"}]}}),
-                (200, {"data": {"id": 9, "status": "running"}})])
+                (200, {})])
             fixture.engine = Mock(side_effect=["graft-recovery-resume-probe-test-app", "id started"])
             fixture.sql = Mock(return_value="")
             fixture.wait_task = Mock(return_value={"id": 9, "status": "needs_attention"})
-            with patch("validate_docker_isolated.secrets.token_hex", return_value="test"), \
-                    self.clock([0, 1, 2, 3, 4, 5, 6, 7, 10 ** 9]):
+            fixture.wait_stage_status = Mock(return_value=[{"attempt": 1, "max_attempts": 2, "status": "pending"}])
+            fixture.wait_recovery_claim = Mock(side_effect=[
+                (False, [{"attempt": 1, "max_attempts": 2, "status": "pending"}], {"id": 9, "status": "running"}),
+                (False, [{"attempt": 1, "max_attempts": 2, "status": "pending"}], {"id": 9, "status": "running"})])
+            with patch("validate_docker_isolated.secrets.token_hex", return_value="test"):
                 fixture.recovery_resume_probe()
             record = fixture.record.call_args
             self.assertEqual(record.args, ("agent-recovery-resume", "failed"))
             self.assertEqual(record.kwargs["task_id"], 9)
             self.assertEqual(record.kwargs["stages"], [{"attempt": 1, "max_attempts": 2, "status": "pending"}])
             self.assertEqual(record.kwargs["task"], {"id": 9, "status": "running"})
+            statements = [call.args[0] for call in fixture.sql.call_args_list]
+            terminalized = [s for s in statements if "SET status = 'cancelled'" in s]
+            self.assertEqual(len(terminalized), 2)
+            self.assertTrue(any("UPDATE tasks" in s and "WHERE id = 9" in s for s in terminalized))
+            self.assertTrue(any("UPDATE task_stages" in s and "task_id = 9" in s for s in terminalized))
+            compose_calls = [call.args for call in fixture.compose.call_args_list]
+            self.assertEqual(compose_calls.count(("kill", "--signal", "SIGKILL", "docker-runtime-agent")), 2)
+            self.assertEqual(compose_calls.count(("up", "-d", "--wait", "docker-runtime-agent")), 2)
 
     def test_recovery_resume_probe_passes_when_replay_settles_between_samples(self):
         # 代理领取与幂等重放可能在两次采样之间完成：任务先到终态同样证明领取发生，不得误报未领取。
@@ -1031,6 +1043,7 @@ class RecoveryScenarioTests(unittest.TestCase):
                 [{"status": "unknown", "attempt": 2, "max_attempts": 2}]])
             fixture.engine = Mock(side_effect=["graft-recovery-budget-probe-test-app", "id started", "id started"])
             fixture.sql = Mock(return_value="")
+            fixture.cleanup_recovery_task = Mock()
             fixture.wait_task = Mock(return_value={"id": 11, "status": "needs_attention"})
             fixture.wait_task_failure_code = Mock(return_value={"id": 11, "status": "needs_attention",
                 "failure_code": "auto_recovery_budget_exhausted", "failure_stage": None, "failure_class": "internal"})
@@ -1059,10 +1072,12 @@ class RecoveryScenarioTests(unittest.TestCase):
             fixture.task_stages = Mock(return_value=[{"status": "unknown", "attempt": 2, "max_attempts": 2}])
             fixture.engine = Mock(side_effect=["graft-recovery-budget-probe-test-app", "id started", "id started"])
             fixture.sql = Mock(return_value="")
+            fixture.cleanup_recovery_task = Mock()
             fixture.wait_task = Mock(return_value={"id": 11, "status": "needs_attention"})
             fixture.wait_task_failure_code = Mock(return_value={"id": 11, "status": "timeout", "observed_failure_code": None})
             with patch("validate_docker_isolated.secrets.token_hex", return_value="test"), self.clock([0, 1, 2, 3, 4, 5, 10 ** 9]):
                 fixture.recovery_budget_probe()
+            fixture.cleanup_recovery_task.assert_called_once_with(11)
             self.assertEqual(fixture.record.call_args.args, ("agent-recovery-budget-exhausted", "failed"))
 
 
