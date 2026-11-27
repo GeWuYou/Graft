@@ -42,11 +42,13 @@
   (unlock old session, fresh advisory lock); recovery or successful re-acquisition restores ready
   without restart; only a failed re-acquisition (another runtime owns execution) latches lost with the
   existing semantics. Claim requests are explicitly gated by the admission state.
-- Contract note: execution_admission_degraded is emitted by GET /api/runtime-targets/{id} readiness
-  outside the frozen RuntimeTargetExecutionDiagnosticCode enum — an additive enum extension for the
-  lead to approve (openapi/components/schemas/runtime-target-execution.yaml + regenerated artifacts).
+- Contract closure (lead-approved additive): execution_admission_degraded joined the frozen
+  RuntimeTargetExecutionDiagnosticCode enum (runtime-target-execution.yaml + regenerated server/web
+  artifacts); the four affected runtime-target operations carry response-property-enum-value-added
+  approvals in openapi/approved-breaking.json (breaking gate 0 findings).
 - Regressions: ownership state machine (N-1 ready, N degraded, self-heal, conflict latch, bounded
   backoff) and a runtime test that mid-run transient failures neither refuse admission nor strand the
   accepted task.
 - Evidence: harness 56 ok; go test modules/task + store ok; both golangci configs 0 issues; validate
-  backend 0; diff --check clean. Live rerun pending (recovery scenarios should pass with self-healing).
+  backend 0; openapi-check 0; openapi-breaking 0 (4 approved additive entries); diff --check clean.
+  Live rerun pending (recovery scenarios should pass with self-healing).
