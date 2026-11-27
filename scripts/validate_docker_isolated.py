@@ -200,6 +200,16 @@ class Fixture:
 
     def api(self, method: str, path: str, payload: dict | None = None,
             *, idempotency_key: str | None = None) -> tuple[int, dict]:
+        status, body = self.request(method, path, payload, idempotency_key=idempotency_key)
+        if status == 401 and isinstance(body, dict) and body.get("code") == "AUTH_TOKEN_EXPIRED" \
+                and not path.startswith("/api/auth/"):
+            # 长场景会活过登录令牌有效期：过期即重新登录并重试一次，避免令牌老化污染后续场景证据。
+            self.authenticate()
+            status, body = self.request(method, path, payload, idempotency_key=idempotency_key)
+        return status, body
+
+    def request(self, method: str, path: str, payload: dict | None = None,
+                *, idempotency_key: str | None = None) -> tuple[int, dict]:
         headers = {"Content-Type": "application/json"}
         if method == "POST" and (path.startswith("/api/ops/") or idempotency_key is not None):
             headers["Idempotency-Key"] = idempotency_key or secrets.token_hex(16)
@@ -415,6 +425,64 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                 return stages
             time.sleep(2)
         return stages
+
+    def wait_stage_running_attempt(self, identifier: int, attempt: int, timeout: int = 120) -> list:
+        deadline = time.monotonic() + timeout
+        stages: list = []
+        while time.monotonic() < deadline:
+            stages = self.task_stages(identifier)
+            if any(stage.get("status") == "running" and (stage.get("attempt") or 0) >= attempt for stage in stages):
+                return stages
+            time.sleep(2)
+        return stages
+
+    def wait_recovery_claim(self, identifier: int, attempt: int, timeout: int = 120) -> tuple[bool, list, dict]:
+        # 代理领取与幂等重放可能在两次采样之间完成（容器已健康时重放秒级结束）：
+        # 阶段进入 running 且尝试达标，或任务先到达终态，都证明领取已经发生；
+        # 只有两者在窗口内都未出现才记录未领取失败。
+        deadline = time.monotonic() + timeout
+        stages: list = []
+        task: dict = {}
+        while time.monotonic() < deadline:
+            stages = self.task_stages(identifier)
+            if any(stage.get("status") == "running" and (stage.get("attempt") or 0) >= attempt for stage in stages):
+                return True, stages, task
+            status, response = self.api("GET", f"/api/tasks/{identifier}")
+            if status == 200:
+                task = response.get("data", {})
+                if task.get("status") in TERMINAL:
+                    return True, stages, task
+            time.sleep(2)
+        return False, stages, task
+
+    def fixture_projects(self) -> list[str]:
+        # 端口预检据此识别自有容器；官方实例子项目由 OfficialFixture 覆盖补充父项目。
+        return [self.state["project"]]
+
+    def assert_fixture_ports_exclusive(self, projects: list[str]) -> None:
+        # 孤儿栈的后端会占用夹具端口：本栈的 API 调用会命中错误实例并静默污染证据。
+        # 有界预检必须在任何场景之前失败，携带占用容器身份。自有排除只按 compose 项目标签精确匹配：
+        # 名称前缀会让共享前缀的兄弟项目（如 smoke 与 smoke-old）绕过检测，标签缺失或同名前缀的
+        # 兄弟容器持有夹具端口时一律视为占用者并大声失败。
+        recorded_ports = sorted({str(self.environment[key]) for key in
+                                 ("GRAFT_CONFORMANCE_BACKEND_PORT", "GRAFT_CONFORMANCE_OFFICIAL_PORT",
+                                  "GRAFT_CONFORMANCE_BOOTSTRAP_PORT", "GRAFT_CONFORMANCE_AGENT_PORT")
+                                 if key in self.environment})
+        listing = subprocess.run(["docker", "ps", "--format",
+                                  "{{.Label \"com.docker.compose.project\"}}\t{{.Names}}\t{{.Ports}}"],
+                                 capture_output=True, text=True, timeout=30, check=False)
+        if listing.returncode != 0:
+            raise RuntimeError("Fixture port preflight could not list containers: " + listing.stderr.strip())
+        squatters = []
+        for line in listing.stdout.splitlines():
+            project, _, name_and_ports = line.partition("\t")
+            _, _, ports = name_and_ports.partition("\t")
+            if project in projects:
+                continue
+            if any(f":{port}->" in ports for port in recorded_ports):
+                squatters.append(line.strip())
+        if squatters:
+            raise RuntimeError("Fixture ports are squatted by foreign containers: " + " | ".join(squatters))
 
     def material_stage_code_probe(self, identifier: int) -> None:
         # The material-missing rejection above must project its bounded provider stage attribution through
@@ -697,6 +765,12 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
             self.compose("up", "-d", "--wait", "docker-runtime-agent")
             return
         self.compose("up", "-d", "--wait", "docker-runtime-agent")
+        claimed, claimed_stages, claimed_task = self.wait_recovery_claim(task_id, 2, timeout=120)
+        if not claimed:
+            self.record(scenario, "failed", task_id=task_id, stages=claimed_stages, task=claimed_task,
+                        note=RECOVERY_POLICY_STAND_IN_NOTE,
+                        scope="Restarted agent did not claim the re-armed stage")
+            return
         resumed = self.wait_task_status(task_id, "success", timeout=300)
         after = self.engine("inspect", "--format", "{{.Id}} {{.State.StartedAt}}", container).strip()
         stages = self.task_stages(task_id)
@@ -882,6 +956,8 @@ printf '{"approle_login":true,"pki_ca_matches_delivery":true,"ca_sha256":"%s"}\n
                         readback_http_status=read_status, effective_value_enabled=enabled)
 
     def probe(self) -> None:
+        # 端口预检先于登录：残留夹具容器占用后端端口并携带不同管理员密码时，登录失败会掩盖占用者身份。
+        self.assert_fixture_ports_exclusive(self.fixture_projects())
         self.authenticate()
         if self.execution_mode == "agent":
             self.once_probe()
@@ -1174,6 +1250,10 @@ class OfficialFixture(Fixture):
             "GRAFT_CONFORMANCE_BACKEND_PORT": parent.environment["GRAFT_CONFORMANCE_OFFICIAL_PORT"]}
         self.token = ""
         self.results = []
+
+    def fixture_projects(self) -> list[str]:
+        # 官方实例的探针与父夹具容器共存：父项目的容器（docker-daemon 等）永远不是占用者。
+        return [self.state["project"], self.parent.state["project"]]
 
     def compose(self, *arguments: str, check: bool = True, timeout: int = 600) -> str:
         if arguments[:3] == ("exec", "-T", "docker-daemon"):

@@ -334,6 +334,39 @@ class FixtureLifecycleTests(unittest.TestCase):
             self.assertFalse((directory / "local-readiness-evidence.json").exists())
             self.assertIn("synthetic migration failure", (directory / "command-error.log").read_text())
 
+    def test_probe_runs_port_preflight_before_login(self):
+        # 残留夹具容器占用后端端口并携带不同密码时，登录失败会掩盖占用者身份：预检必须先于登录。
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Fixture.__new__(Fixture)
+            fixture.state = {"project": "graft-isolated-agent-smoke", "execution_mode": "agent",
+                "source_revision": "a" * 40}
+            fixture.environment = {"GRAFT_CONFORMANCE_BACKEND_PORT": "28080",
+                "GRAFT_CONFORMANCE_OFFICIAL_PORT": "28081", "GRAFT_CONFORMANCE_BOOTSTRAP_PORT": "28081",
+                "GRAFT_CONFORMANCE_AGENT_PORT": "28082"}
+            fixture.directory = Path(directory)
+            (fixture.directory / "trust-evidence.json").write_text(json.dumps({"bootstrap": {"target_id": 1}}))
+            fixture.results = []
+            order = []
+            fixture.authenticate = Mock(side_effect=lambda: order.append("login"))
+            fixture.assert_fixture_ports_exclusive = Mock(
+                side_effect=lambda projects: order.append(("preflight", tuple(projects))))
+            for name in ("once_probe", "enable_operations", "recovery_resume_probe",
+                         "recovery_budget_probe", "application_probe", "claim_admission_probe"):
+                setattr(fixture, name, Mock(side_effect=lambda name=name: order.append(name)))
+            fixture.api = Mock(return_value=(200, {"data": {"websocket_url": "ws://fixture"}}))
+            fixture.engine = Mock(return_value="")
+            fixture.compose = Mock(return_value="")
+            fixture.last_command_returncode = 0
+            fixture.shell_output = Mock(return_value=True)
+            fixture.probe()
+            # 排序契约：预检先于登录；恢复成功探针前置缩短提交暴露窗口；预算耗尽探针最后
+            # （收敛即终态证据，其后仅剩无需活代理的场景）。
+            self.assertEqual(order[0], ("preflight", ("graft-isolated-agent-smoke",)))
+            self.assertEqual(order[1], "login")
+            self.assertLess(order.index("recovery_resume_probe"), order.index("application_probe"))
+            self.assertLess(order.index("application_probe"), order.index("claim_admission_probe"))
+            self.assertLess(order.index("claim_admission_probe"), order.index("recovery_budget_probe"))
+
     def test_stop_preserves_vault_and_stops_all_other_declared_services(self):
         fixture = Fixture.__new__(Fixture)
         services = {name: {} for name in ("vault", "backend", "docker-runtime-agent", "postgres", "redis", "docker-daemon", "vault-init")}
@@ -348,6 +381,71 @@ class FixtureLifecycleTests(unittest.TestCase):
         fixture.compose = Mock(return_value='{"services":{"vault":{}}}')
         fixture.stop()
         self.assertEqual(fixture.compose.call_count, 1)
+
+    def test_port_preflight_fails_loudly_on_foreign_squatters(self):
+        # 孤儿栈的后端会占用夹具端口（D1 live evidence）：本栈的 API 调用会命中错误实例并污染全部证据。
+        # 共享名称前缀的兄弟项目（smoke 与 smoke-old）不是自有容器：预检必须命中并大声失败。
+        for lines, expected in (
+                (["graft-isolated-agent-smoke\tbackend\t0.0.0.0:28080->28080/tcp", "other\torphan\t0.0.0.0:28081->28081/tcp"], "orphan"),
+                (["graft-isolated-agent-smoke-old\tbackend\t0.0.0.0:28081->28081/tcp"], "sibling"),
+                (["\tlabelless\t0.0.0.0:28080->28080/tcp"], "labelless"),
+                (["graft-isolated-agent-smoke\tbackend\t0.0.0.0:28080->28080/tcp"], None),
+                (["other\tside\t0.0.0.0:9999->9999/tcp"], None)):
+            with self.subTest(expected=expected), tempfile.TemporaryDirectory() as directory:
+                fixture = Fixture.__new__(Fixture)
+                fixture.state = {"project": "graft-isolated-agent-smoke"}
+                fixture.environment = {"GRAFT_CONFORMANCE_BACKEND_PORT": "28080",
+                    "GRAFT_CONFORMANCE_OFFICIAL_PORT": "28081", "GRAFT_CONFORMANCE_BOOTSTRAP_PORT": "28081",
+                    "GRAFT_CONFORMANCE_AGENT_PORT": "28082"}
+                listing = subprocess.CompletedProcess([], 0, stdout="\n".join(lines) + "\n", stderr="")
+                with patch("validate_docker_isolated.subprocess.run", return_value=listing):
+                    if expected is None:
+                        fixture.assert_fixture_ports_exclusive(fixture.fixture_projects())
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, "squatted by foreign containers"):
+                            fixture.assert_fixture_ports_exclusive(fixture.fixture_projects())
+
+    def test_port_preflight_passes_for_ci_project_and_own_daemon_on_recorded_ports(self):
+        # CI job 136605550761: the fixture's own project containers (label AND name prefix) are never
+        # squatters, including the local web container publishing a recorded official port.
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Fixture.__new__(Fixture)
+            fixture.state = {"project": "graft-isolated-ci-44827172257-1"}
+            fixture.environment = {"GRAFT_CONFORMANCE_BACKEND_PORT": "28080",
+                "GRAFT_CONFORMANCE_OFFICIAL_PORT": "28081", "GRAFT_CONFORMANCE_BOOTSTRAP_PORT": "28081",
+                "GRAFT_CONFORMANCE_AGENT_PORT": "28082"}
+            listing = subprocess.CompletedProcess([], 0, stdout="\n".join([
+                "graft-isolated-ci-44827172257-1\tgraft-isolated-ci-44827172257-1-docker-daemon-1\t127.0.0.1:28081->3000/tcp",
+                "graft-isolated-ci-44827172257-1\tgraft-isolated-ci-44827172257-1-backend-1\t0.0.0.0:28080->8080/tcp",
+                "other\torphan\t0.0.0.0:18080->18080/tcp"]) + "\n", stderr="")
+            with patch("validate_docker_isolated.subprocess.run", return_value=listing):
+                fixture.assert_fixture_ports_exclusive(fixture.fixture_projects())
+
+    def test_port_preflight_passes_for_official_and_parent_projects(self):
+        # official-install rejects itself without the parent-project exclusion: the official probe shares
+        # the parent's published ports while its own project name carries the -official suffix.
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Fixture.__new__(Fixture)
+            parent.state = {"project": "graft-isolated-ci-44827172257-1"}
+            parent.environment = {"GRAFT_CONFORMANCE_BACKEND_PORT": "28080",
+                "GRAFT_CONFORMANCE_OFFICIAL_PORT": "28081", "GRAFT_CONFORMANCE_BOOTSTRAP_PORT": "28081",
+                "GRAFT_CONFORMANCE_AGENT_PORT": "28082"}
+            official = OfficialFixture(parent, Path(directory), "/opt/graft-official")
+            listing = subprocess.CompletedProcess([], 0, stdout="\n".join([
+                "graft-isolated-ci-44827172257-1\tgraft-isolated-ci-44827172257-1-docker-daemon-1\t127.0.0.1:28081->3000/tcp",
+                "graft-isolated-ci-44827172257-1\tgraft-isolated-ci-44827172257-1-backend-1\t0.0.0.0:28080->8080/tcp"]) + "\n", stderr="")
+            with patch("validate_docker_isolated.subprocess.run", return_value=listing):
+                official.assert_fixture_ports_exclusive(official.fixture_projects())
+
+    def test_port_preflight_fails_when_container_listing_is_unavailable(self):
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = Fixture.__new__(Fixture)
+            fixture.state = {"project": "graft-isolated-agent-smoke"}
+            fixture.environment = {"GRAFT_CONFORMANCE_BACKEND_PORT": "28080"}
+            listing = subprocess.CompletedProcess([], 1, stdout="", stderr="docker daemon unreachable")
+            with patch("validate_docker_isolated.subprocess.run", return_value=listing):
+                with self.assertRaisesRegex(RuntimeError, "could not list containers"):
+                    fixture.assert_fixture_ports_exclusive(fixture.fixture_projects())
 
     def test_lost_vault_authority_aborts_before_migrations_or_backend(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -428,6 +526,58 @@ class FixtureAPIContractTests(unittest.TestCase):
             self.assertIn("safe-trace", evidence)
             self.assertIn("INVALID", evidence)
             self.assertNotIn("sensitive", evidence)
+
+    def test_api_refreshes_expired_token_once_and_retries(self):
+        # 长场景会活过登录令牌有效期（correction 4 live run）：过期即重新登录并重试一次，
+        # 401 级联不得污染后续场景证据。
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            fixture.environment["GRAFT_FIXTURE_ADMIN_PASSWORD"] = "graft-admin"
+            expired = HTTPError("http://fixture", 401, "Unauthorized", {},
+                io.BytesIO(json.dumps({"code": "AUTH_TOKEN_EXPIRED"}).encode()))
+            login = Mock()
+            login.status = 200
+            login.read.return_value = json.dumps({"data": {"access_token": "refreshed", "must_change_password": False}}).encode()
+            login.__enter__ = Mock(return_value=login)
+            login.__exit__ = Mock(return_value=False)
+            retry = Mock()
+            retry.status = 200
+            retry.read.return_value = json.dumps({"data": {"id": 9}}).encode()
+            retry.__enter__ = Mock(return_value=retry)
+            retry.__exit__ = Mock(return_value=False)
+            responses = [expired, login, retry]
+            calls = []
+            def transport(request, **kwargs):
+                item = responses.pop(0)
+                calls.append(dict(request.header_items()))
+                if isinstance(item, HTTPError):
+                    raise item
+                return item
+            with patch("validate_docker_isolated.request.urlopen", side_effect=transport):
+                status, body = fixture.api("GET", "/api/tasks/9")
+            self.assertEqual((status, body), (200, {"data": {"id": 9}}))
+            self.assertEqual(fixture.token, "refreshed")
+            self.assertEqual(len(calls), 3)
+            self.assertEqual(calls[0]["Authorization"], "Bearer synthetic-fixture-token")
+            self.assertEqual(calls[2]["Authorization"], "Bearer refreshed")
+            self.assertIn("AUTH_TOKEN_EXPIRED", (Path(directory) / "api-errors.json").read_text())
+
+    def test_api_never_refreshes_on_login_paths(self):
+        # 登录路径上的 401 不触发刷新循环：单次调用即返回，不递归重新登录。
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            fixture.token = ""
+            expired = HTTPError("http://fixture", 401, "Unauthorized", {},
+                io.BytesIO(json.dumps({"code": "AUTH_TOKEN_EXPIRED"}).encode()))
+            calls = []
+            def transport(request, **kwargs):
+                calls.append(request.full_url)
+                raise expired
+            with patch("validate_docker_isolated.request.urlopen", side_effect=transport):
+                status, body = fixture.api("POST", "/api/auth/login", {"username": "graft", "password": "graft-admin"})
+            self.assertEqual(status, 401)
+            self.assertEqual(body.get("code"), "AUTH_TOKEN_EXPIRED")
+            self.assertEqual(calls, ["http://127.0.0.1:28080/api/auth/login"])
 
 
 class RuntimeRepairEvidenceTests(unittest.TestCase):
@@ -760,6 +910,7 @@ class RecoveryScenarioTests(unittest.TestCase):
                 (201, {"data": {"application_id": "app-x", "workspace_path": "/workspace"}}),
                 (202, {"data": {"task_id": 9}}),
                 (200, {"data": {"items": [{"attempt": 1, "max_attempts": 2, "status": "pending"}]}}),
+                (200, {"data": {"items": [{"attempt": 2, "max_attempts": 2, "status": "running"}]}}),
                 (200, {"data": {"items": [{"attempt": 2, "max_attempts": 2, "status": "success"}]}})])
             fixture.engine = Mock(side_effect=["graft-recovery-resume-probe-test-app", "id started", "id started"])
             fixture.sql = Mock(return_value="")
@@ -792,6 +943,7 @@ class RecoveryScenarioTests(unittest.TestCase):
                     (201, {"data": {"application_id": "app-x", "workspace_path": "/workspace"}}),
                     (202, {"data": {"task_id": 9}}),
                     (200, {"data": {"items": [{"attempt": 1, "max_attempts": 2, "status": "pending"}]}}),
+                    (200, {"data": {"items": [{"attempt": 2, "max_attempts": 2, "status": "running"}]}}),
                     (200, {"data": {"items": [{"attempt": attempt, "max_attempts": 2, "status": "success"}]}})])
                 fixture.engine = Mock(side_effect=["graft-recovery-resume-probe-test-app", "id started", "id started"])
                 fixture.sql = Mock(return_value="")
@@ -815,6 +967,55 @@ class RecoveryScenarioTests(unittest.TestCase):
             self.assertEqual(record.args, ("agent-recovery-resume", "unverified"))
             self.assertEqual((record.kwargs["create_status"], record.kwargs["up_status"],
                               record.kwargs["up_error_code"]), (201, 503, "common.task_execution_unavailable"))
+
+    def test_recovery_resume_probe_records_unclaimed_stage_evidence(self):
+        # Live run (agent-smoke2): the restarted agent never claimed the re-armed stage and the probe only
+        # reported a bare success timeout; the claim wait must separate that failure mode with evidence.
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            (fixture.directory / "trust-evidence.json").write_text(json.dumps({"bootstrap": {"target_id": 1}}))
+            fixture.api = Mock(side_effect=[
+                self.readiness_api(),
+                (201, {"data": {"application_id": "app-x", "workspace_path": "/workspace"}}),
+                (202, {"data": {"task_id": 9}}),
+                (200, {"data": {"items": [{"attempt": 1, "max_attempts": 2, "status": "pending"}]}}),
+                (200, {"data": {"items": [{"attempt": 1, "max_attempts": 2, "status": "pending"}]}}),
+                (200, {"data": {"id": 9, "status": "running"}})])
+            fixture.engine = Mock(side_effect=["graft-recovery-resume-probe-test-app", "id started"])
+            fixture.sql = Mock(return_value="")
+            fixture.wait_task = Mock(return_value={"id": 9, "status": "needs_attention"})
+            with patch("validate_docker_isolated.secrets.token_hex", return_value="test"), \
+                    self.clock([0, 1, 2, 3, 4, 5, 6, 7, 10 ** 9]):
+                fixture.recovery_resume_probe()
+            record = fixture.record.call_args
+            self.assertEqual(record.args, ("agent-recovery-resume", "failed"))
+            self.assertEqual(record.kwargs["task_id"], 9)
+            self.assertEqual(record.kwargs["stages"], [{"attempt": 1, "max_attempts": 2, "status": "pending"}])
+            self.assertEqual(record.kwargs["task"], {"id": 9, "status": "running"})
+
+    def test_recovery_resume_probe_passes_when_replay_settles_between_samples(self):
+        # 代理领取与幂等重放可能在两次采样之间完成：任务先到终态同样证明领取发生，不得误报未领取。
+        with tempfile.TemporaryDirectory() as directory:
+            fixture = self.fixture(directory)
+            (fixture.directory / "trust-evidence.json").write_text(json.dumps({"bootstrap": {"target_id": 1}}))
+            fixture.api = Mock(side_effect=[
+                self.readiness_api(),
+                (201, {"data": {"application_id": "app-x", "workspace_path": "/workspace"}}),
+                (202, {"data": {"task_id": 9}}),
+                (200, {"data": {"items": [{"attempt": 1, "max_attempts": 2, "status": "pending"}]}}),
+                (200, {"data": {"items": [{"attempt": 2, "max_attempts": 2, "status": "success"}]}}),
+                (200, {"data": {"id": 9, "status": "success"}}),
+                (200, {"data": {"id": 9, "status": "success"}}),
+                (200, {"data": {"items": [{"attempt": 2, "max_attempts": 2, "status": "success"}]}})])
+            fixture.engine = Mock(side_effect=["graft-recovery-resume-probe-test-app", "id started", "id started"])
+            fixture.sql = Mock(return_value="")
+            fixture.wait_task = Mock(return_value={"id": 9, "status": "needs_attention"})
+            with patch("validate_docker_isolated.secrets.token_hex", return_value="test"):
+                fixture.recovery_resume_probe()
+            record = fixture.record.call_args
+            self.assertEqual(record.args, ("agent-recovery-resume", "passed"))
+            self.assertEqual(record.kwargs["resumed_stage_attempt"], 2)
+            self.assertTrue(record.kwargs["same_container_and_started_at"])
 
     def test_recovery_budget_probe_requires_converged_exhaustion_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
