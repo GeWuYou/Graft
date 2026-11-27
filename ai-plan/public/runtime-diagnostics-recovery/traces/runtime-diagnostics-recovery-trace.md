@@ -40,15 +40,16 @@
 - Correction 5 (thread 4647483896): the budget probe's trailing agent restart overwrote the budget
   diagnostics via a journal replay; converge, record, leave the agent down.
 - Correction 6 (live run agent-smoke2): 401 AUTH_TOKEN_EXPIRED cascade from token ageing; api()
-  re-authenticates once on expiry; port-squat preflight added; unclaimed-stage claim wait separated.
+  re-authenticates once on expiry; port-squat preflight added; claim wait separated.
 
-## 2026-11-21 Correction 7 (PR #383, CI + review, lead-verified x3)
+## 2026-11-21 Correction 7 (PR #383)
 
 - Port-squat preflight flagged the fixture's own containers in CI (job 136605550761): the official
   instance's state project carries the -official suffix, so the PARENT project's containers looked
-  foreign. The preflight now takes the legitimate project list per fixture (base + -official), excludes
-  by compose label AND by container-name prefix, and callers pass it explicitly.
-- The resume probe's claim wait required sampling running every 2s, but the replay can settle between
-  samples (healthy container replays instantly): the wait now also accepts the task reaching a terminal
-  status as claim proof; only neither-within-window records the unclaimed failure.
+  foreign. The preflight now takes the legitimate project list per fixture and excludes by compose
+  label. The claim wait also accepted the task reaching a terminal status (the replay can settle
+  between samples).
+- Correction 8 (thread 4721373969): the name-prefix exclusion let sibling projects (smoke vs smoke-old)
+  bypass contamination; exclusion is exact compose label only — sibling-prefixed, label-less and
+  foreign containers holding recorded ports all fail loudly. Regressions cover all three.
 - Evidence: harness 55 ok; validate backend 0; diff --check clean. Live CI + agent rerun pending.
