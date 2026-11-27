@@ -177,9 +177,8 @@ func TestLocalStageRejectsChangedAttemptBeforeMaterialOrEffects(t *testing.T) {
 
 func TestLocalOwnershipLossRejectsNewSubmissionsAndReportsUnavailable(t *testing.T) {
 	runtime, _ := localRuntimeForTest(t)
-	lost := make(chan struct{})
-	runtime.ownershipLost = lost
-	close(lost)
+	runtime.ownership = taskstore.NewExecutionOwnership()
+	runtime.ownership.OwnershipConflict()
 	admission := runtime.ExecutionAdmission()
 	if admission.Ready || admission.DiagnosticCode != "execution_ownership_lost" {
 		t.Fatalf("admission=%#v", admission)

@@ -62,7 +62,7 @@ type Runtime struct {
 	topicIssuers            realtime.TopicIssuerRegistry
 	logger                  logger.AppLogger
 	localExecution          *localExecutionRuntime
-	ownershipLost           <-chan struct{}
+	ownership               *taskstore.ExecutionOwnership
 	executionAdmissionReady bool
 	ownershipRelease        func() error
 }
@@ -1722,20 +1722,23 @@ func (r *Runtime) recoverExecutionState(ctx context.Context) error {
 }
 
 func (r *Runtime) watchExecutionOwnership(workerContext context.Context, cancel context.CancelFunc) {
-	if r.ownershipLost != nil {
-		r.waitGroup.Add(1)
-		go func() {
-			defer r.waitGroup.Done()
-			select {
-			case <-r.ownershipLost:
-				r.mu.Lock()
-				r.executionAdmissionReady = false
-				r.mu.Unlock()
-				cancel()
-			case <-workerContext.Done():
-			}
-		}()
+	if r.ownership == nil {
+		return
 	}
+	r.waitGroup.Add(1)
+	go func() {
+		defer r.waitGroup.Done()
+		select {
+		case <-r.ownership.Lost:
+			// 真实的所有权冲突（他方运行时持有执行权）按既有语义永久锁定准入并停止 worker；
+			// 连接的瞬时退化不经过该通道，准入在探测恢复后自动回到就绪。
+			r.mu.Lock()
+			r.executionAdmissionReady = false
+			r.mu.Unlock()
+			cancel()
+		case <-workerContext.Done():
+		}
+	}()
 }
 
 func validLocalExecutionBinding(stage moduleapi.StagePlan) bool {

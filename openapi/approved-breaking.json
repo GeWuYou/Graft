@@ -1,5 +1,38 @@
 {
   "schemaVersion": 1,
   "schemaDocs": "Each approval binds method + path + changeKind plus the SHA-256 contract projections of the reviewed operation on both compared bundles. A projection covers the operation object, applicable shared path fields, effective security requirements and server list after inheritance, and all transitively referenced local components, including the security schemes named by those requirements. Changes to sibling operations and unused security schemes leave the projection unchanged. Set newContractSha256 to the sentinel \"deleted\" only when the operation no longer exists in the revision contract; a sentinel entry approves nothing while the operation still exists, so it cannot cover a modification. Entries whose hashes no longer match the compared contracts are reported as stale and approve nothing.",
-  "approvals": []
+  "approvals": [
+    {
+      "reason": "PR #387 correction 12 (lead-approved additive): the runtime-target execution readiness projects the new execution_admission_degraded diagnostic — the execution-ownership monitor degrades admission on repeated ownership-connection ping failures and self-heals without restart; additive enum value only, no removed values.",
+      "method": "GET",
+      "path": "/api/runtime-targets",
+      "changeKind": "response-property-enum-value-added",
+      "baseContractSha256": "11705601295a143ae3c923092475870ed09e54616c7575848ab1461708890b4f",
+      "newContractSha256": "bfb0fe6ff8d1bd6eea095e700fda2652f88820e5cd80eccf92700fea95fda7f8"
+    },
+    {
+      "reason": "PR #387 correction 12 (lead-approved additive): local discovery readiness projects the same execution_admission_degraded diagnostic for the degraded self-healing admission state.",
+      "method": "POST",
+      "path": "/api/runtime-targets/discover-local-docker",
+      "changeKind": "response-property-enum-value-added",
+      "baseContractSha256": "c0f9e37fbea7a5821c237215adf44aecb7bed797fedb8feeae5cd777aafe66eb",
+      "newContractSha256": "206fb6b47884039527f5a29ba7c0035b33f4ed24b77308d886de56d8a733ddc8"
+    },
+    {
+      "reason": "PR #387 correction 12 (lead-approved additive): target detail readiness projects the same execution_admission_degraded diagnostic for the degraded self-healing admission state.",
+      "method": "GET",
+      "path": "/api/runtime-targets/{id}",
+      "changeKind": "response-property-enum-value-added",
+      "baseContractSha256": "eaa97b7e17290ff0c60c132c7fd8440f8e28293cd5da926ed6b68174e02f2861",
+      "newContractSha256": "5b04026af6e688639a0a080baa6c943d0e187f036e539ce3ba4d8bae78bf8015"
+    },
+    {
+      "reason": "PR #387 correction 12 (lead-approved additive): refresh readiness projects the same execution_admission_degraded diagnostic for the degraded self-healing admission state.",
+      "method": "POST",
+      "path": "/api/runtime-targets/{id}/refresh",
+      "changeKind": "response-property-enum-value-added",
+      "baseContractSha256": "d0d4d20707c461ada834a89f15ded1d557292c956ba0343cff474853e32c7203",
+      "newContractSha256": "5a8dcb24da295db0d8c4c7dc8162faf555ba2d29f9e0b5a333b3392c8dde23ee"
+    }
+  ]
 }

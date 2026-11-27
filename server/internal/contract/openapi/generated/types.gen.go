@@ -4736,12 +4736,13 @@ func (e RuntimeTargetExecutionCapabilities) Valid() bool {
 
 // Defines values for RuntimeTargetExecutionDiagnosticCode.
 const (
-	AgentUnavailable        RuntimeTargetExecutionDiagnosticCode = "agent_unavailable"
-	DockerUnavailable       RuntimeTargetExecutionDiagnosticCode = "docker_unavailable"
-	ExecutionModeMismatch   RuntimeTargetExecutionDiagnosticCode = "execution_mode_mismatch"
-	ExecutionOwnershipLost  RuntimeTargetExecutionDiagnosticCode = "execution_ownership_lost"
-	ExecutionReady          RuntimeTargetExecutionDiagnosticCode = "execution_ready"
-	ExecutionRuntimeStopped RuntimeTargetExecutionDiagnosticCode = "execution_runtime_stopped"
+	AgentUnavailable           RuntimeTargetExecutionDiagnosticCode = "agent_unavailable"
+	DockerUnavailable          RuntimeTargetExecutionDiagnosticCode = "docker_unavailable"
+	ExecutionAdmissionDegraded RuntimeTargetExecutionDiagnosticCode = "execution_admission_degraded"
+	ExecutionModeMismatch      RuntimeTargetExecutionDiagnosticCode = "execution_mode_mismatch"
+	ExecutionOwnershipLost     RuntimeTargetExecutionDiagnosticCode = "execution_ownership_lost"
+	ExecutionReady             RuntimeTargetExecutionDiagnosticCode = "execution_ready"
+	ExecutionRuntimeStopped    RuntimeTargetExecutionDiagnosticCode = "execution_runtime_stopped"
 )
 
 // Valid indicates whether the value is a known member of the RuntimeTargetExecutionDiagnosticCode enum.
@@ -4750,6 +4751,8 @@ func (e RuntimeTargetExecutionDiagnosticCode) Valid() bool {
 	case AgentUnavailable:
 		return true
 	case DockerUnavailable:
+		return true
+	case ExecutionAdmissionDegraded:
 		return true
 	case ExecutionModeMismatch:
 		return true
